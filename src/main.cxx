@@ -314,6 +314,7 @@ static int remove(Config &config, http::Client &client, const VersionTable &tabl
     std::filesystem::path parent(config.InstallDirectory);
     std::filesystem::remove_all(parent / entry.Version);
 
+    config.Installed.erase(entry.Version);
     return 0;
 }
 
