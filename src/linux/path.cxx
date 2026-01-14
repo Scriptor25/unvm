@@ -1,8 +1,8 @@
 #ifndef _WIN32
 
-#include <path.hxx>
+#include <util.hxx>
 
-std::filesystem::path get_data_directory()
+std::filesystem::path GetDataDirectory()
 {
     static std::pair<bool, std::filesystem::path> directory{false, {}};
 

@@ -1,10 +1,12 @@
 #ifdef _WIN32
 
-#include <link.hxx>
+#include <util.hxx>
+
+#include <iostream>
+#include <vector>
+
 #include <windows.h>
 #include <winioctl.h>
-#include <vector>
-#include <iostream>
 
 struct REPARSE_JUNCTION_DATA_BUFFER
 {

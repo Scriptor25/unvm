@@ -1,12 +1,13 @@
 #ifdef _WIN32
 
-#include <windows.h>
-#include <winhttp.h>
-#include <assert.hxx>
 #include <http.hxx>
+
 #include <istream>
 #include <ostream>
 #include <iostream>
+
+#include <windows.h>
+#include <winhttp.h>
 
 struct http::Client::ClientState
 {

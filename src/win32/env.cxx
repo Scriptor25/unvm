@@ -1,6 +1,7 @@
 #ifdef _WIN32
 
-#include <env.hxx>
+#include <util.hxx>
+
 #include <windows.h>
 
 bool AppendUserPath(std::filesystem::path directory)

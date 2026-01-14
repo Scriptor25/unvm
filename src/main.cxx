@@ -1,15 +1,15 @@
-#include <format>
-#include <iostream>
-#include <set>
+#include <assert.hxx>
 #include <http.hxx>
 #include <json.hxx>
 #include <table.hxx>
-#include <bit7z/bitarchivereader.hpp>
+#include <util.hxx>
+
+#include <format>
 #include <fstream>
-#include <assert.hxx>
-#include <path.hxx>
-#include <link.hxx>
-#include <env.hxx>
+#include <iostream>
+#include <set>
+
+#include <bit7z/bitarchivereader.hpp>
 
 struct Config
 {
@@ -404,7 +404,7 @@ static int execute(const std::vector<std::string_view> &args)
     auto operation = operation_map.at(args[0]);
 
     Config config;
-    if (std::ifstream stream(get_data_directory() / "config.json"); stream)
+    if (std::ifstream stream(GetDataDirectory() / "config.json"); stream)
     {
         json::Node json;
         stream >> json;
@@ -413,8 +413,8 @@ static int execute(const std::vector<std::string_view> &args)
     }
     else
     {
-        config.InstallDirectory = get_data_directory() / "version";
-        config.ActiveDirectory = get_data_directory() / "active";
+        config.InstallDirectory = GetDataDirectory() / "version";
+        config.ActiveDirectory = GetDataDirectory() / "active";
     }
 
     http::Client client;
@@ -501,7 +501,7 @@ static int execute(const std::vector<std::string_view> &args)
     }
 
     {
-        auto parent = get_data_directory();
+        auto parent = GetDataDirectory();
         std::filesystem::create_directories(parent);
 
         std::ofstream stream(parent / "config.json");

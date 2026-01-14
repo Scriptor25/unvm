@@ -1,6 +1,7 @@
 #include <table.hxx>
-#include <iostream>
+
 #include <iomanip>
+#include <iostream>
 
 Table &Table::operator<<(std::string &&entry)
 {
