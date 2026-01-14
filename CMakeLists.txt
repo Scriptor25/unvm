@@ -11,3 +11,12 @@ file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 target_include_directories(unvm PRIVATE "include")
 target_link_libraries(unvm PRIVATE winhttp bit7z)
+
+if (MINGW)
+    target_link_options(unvm PRIVATE 
+        -static-libgcc
+        -static-libstdc++
+    )
+endif()
+
+install(TARGETS unvm)

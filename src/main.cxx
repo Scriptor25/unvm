@@ -176,6 +176,51 @@ static const std::map<std::string_view, unsigned> operation_map = {
     {"la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS},
 };
 
+static void load_version_table(http::Client &client, VersionTable &table, bool online)
+{
+    /**
+     * {
+     *   version:  string
+     *   date:     string
+     *   files:    string[]
+     *   npm?:     string
+     *   v8:       string
+     *   uv?:      string
+     *   zlib?:    string
+     *   openssl?: string
+     *   modules?: string
+     *   lts:      string | false
+     *   security: boolean
+     * }[]
+     */
+
+    auto index = GetDataDirectory() / "index.json";
+
+    if (online || !std::filesystem::exists(index))
+    {
+        std::stringstream stream;
+        auto status = client.Request(http::Method::Get, "http://nodejs.org/dist/index.json", {}, nullptr, &stream);
+        Assert(200 <= status && status <= 299, "failed to get index.");
+
+        json::Node json;
+        stream >> json;
+
+        table = json.To<VersionTable>();
+
+        std::ofstream file(index);
+        file << json;
+
+        return;
+    }
+
+    std::ifstream stream(index);
+
+    json::Node json;
+    stream >> json;
+
+    table = json.To<VersionTable>();
+}
+
 static std::string to_lower(const std::string_view &str)
 {
     std::string result;
@@ -201,20 +246,20 @@ static unsigned count_version_segments(const std::string_view &str)
     return segments;
 }
 
-static const VersionEntry &find_effective_version(const VersionTable &table, const std::string_view &version)
+static const VersionEntry *find_effective_version(const VersionTable &table, const std::string_view &version)
 {
     // latest
     if (version == "latest")
     {
         if (!table.empty())
-            return table.front();
+            return &table.front();
     }
     // latest lts
     else if (version == "lts")
     {
         for (auto &entry : table)
             if (entry.Lts.HasValue)
-                return entry;
+                return &entry;
     }
     // version by pattern
     else if (version.starts_with('v'))
@@ -236,14 +281,14 @@ static const VersionEntry &find_effective_version(const VersionTable &table, con
             auto pattern = std::string(version) + '.';
             for (auto &entry : table)
                 if (entry.Version.starts_with(pattern))
-                    return entry;
+                    return &entry;
             break;
         }
 
         case 3:
             for (auto &entry : table)
                 if (entry.Version == version)
-                    return entry;
+                    return &entry;
             break;
 
         default:
@@ -256,15 +301,25 @@ static const VersionEntry &find_effective_version(const VersionTable &table, con
         auto name = to_lower(version);
         for (auto &entry : table)
             if (entry.Lts.HasValue && to_lower(entry.Lts.Value) == name)
-                return entry;
+                return &entry;
     }
 
-    Error("no effective version for '{}'.", version);
+    return nullptr;
 }
 
-static int install(Config &config, http::Client &client, const VersionTable &table, const std::string_view &version)
+static const VersionEntry &find_effective_version_required(const VersionTable &table, const std::string_view &version)
 {
-    auto &entry = find_effective_version(table, version);
+    auto entry = find_effective_version(table, version);
+    Assert(entry, "no effective version for '{}'.", version);
+    return *entry;
+}
+
+static int install(Config &config, http::Client &client, const std::string_view &version)
+{
+    VersionTable table;
+    load_version_table(client, table, true);
+
+    auto &entry = find_effective_version_required(table, version);
 
     if (config.Installed.contains(entry.Version))
     {
@@ -295,16 +350,20 @@ static int install(Config &config, http::Client &client, const VersionTable &tab
     return 0;
 }
 
-static int remove(Config &config, http::Client &client, const VersionTable &table, const std::string_view &version)
+static int remove(Config &config, http::Client &client, const std::string_view &version)
 {
-    auto &entry = find_effective_version(table, version);
+    VersionTable table;
+    load_version_table(client, table, false);
 
-    if (!config.Installed.contains(entry.Version))
+    auto entry_ptr = find_effective_version(table, version);
+
+    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
     {
         std::cout << "version '" << version << "' is not installed." << std::endl;
         return 0;
     }
 
+    auto &entry = *entry_ptr;
     if (config.Active.has_value() && config.Active.value() == entry.Version)
     {
         std::cout << "version '" << version << "' is still in use." << std::endl;
@@ -318,7 +377,7 @@ static int remove(Config &config, http::Client &client, const VersionTable &tabl
     return 0;
 }
 
-static int use(Config &config, http::Client &client, const VersionTable &table, const std::string_view &version)
+static int use(Config &config, http::Client &client, const std::string_view &version)
 {
     if (version == "none")
     {
@@ -335,14 +394,18 @@ static int use(Config &config, http::Client &client, const VersionTable &table, 
         return 0;
     }
 
-    auto &entry = find_effective_version(table, version);
+    VersionTable table;
+    load_version_table(client, table, false);
 
-    if (!config.Installed.contains(entry.Version))
+    auto entry_ptr = find_effective_version(table, version);
+
+    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
     {
         std::cout << "version '" << version << "' is not installed." << std::endl;
         return 1;
     }
 
+    auto &entry = *entry_ptr;
     if (config.Active.has_value())
     {
         if (config.Active.value() == entry.Version)
@@ -365,9 +428,12 @@ static int use(Config &config, http::Client &client, const VersionTable &table, 
     return 0;
 }
 
-static int list(Config &config, http::Client &client, const VersionTable &table, bool available)
+static int list(Config &config, http::Client &client, bool available)
 {
     Table out({{"Lts", true}, {"Version", true}, {"Npm", true}, {"Date", true}, {"Modules", false}});
+
+    VersionTable table;
+    load_version_table(client, table, available);
 
     for (auto &entry : table)
     {
@@ -419,50 +485,22 @@ static int execute(const std::vector<std::string_view> &args)
 
     http::Client client;
 
-    VersionTable table;
-    {
-        /**
-         * {
-         *   version:  string
-         *   date:     string
-         *   files:    string[]
-         *   npm?:     string
-         *   v8:       string
-         *   uv?:      string
-         *   zlib?:    string
-         *   openssl?: string
-         *   modules?: string
-         *   lts:      string | false
-         *   security: boolean
-         * }[]
-         */
-
-        std::stringstream stream;
-        auto status = client.Request(http::Method::Get, "http://nodejs.org/dist/index.json", {}, nullptr, &stream);
-        Assert(200 <= status && status <= 299, "failed to get index.");
-
-        json::Node json;
-        stream >> json;
-
-        table = json.To<VersionTable>();
-    }
-
     int code;
     switch (operation & OPERATION_BITS)
     {
     case INSTALL_BITS:
         Assert(args.size() == 2, "invalid argument count");
-        code = install(config, client, table, args[1]);
+        code = install(config, client, args[1]);
         break;
 
     case REMOVE_BITS:
         Assert(args.size() == 2, "invalid argument count");
-        code = remove(config, client, table, args[1]);
+        code = remove(config, client, args[1]);
         break;
 
     case USE_BITS:
         Assert(args.size() == 2, "invalid argument count");
-        code = use(config, client, table, args[1]);
+        code = use(config, client, args[1]);
         break;
 
     case LIST_BITS:
@@ -491,7 +529,7 @@ static int execute(const std::vector<std::string_view> &args)
             }
         }
 
-        code = list(config, client, table, available);
+        code = list(config, client, available);
         break;
     }
 
