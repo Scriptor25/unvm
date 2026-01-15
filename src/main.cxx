@@ -176,7 +176,7 @@ static const std::map<std::string_view, unsigned> operation_map = {
     {"la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS},
 };
 
-static void load_version_table(http::Client &client, VersionTable &table, bool online)
+static void load_version_table(http::HttpClient &client, VersionTable &table, bool online)
 {
     /**
      * {
@@ -199,8 +199,18 @@ static void load_version_table(http::Client &client, VersionTable &table, bool o
     if (online || !std::filesystem::exists(index))
     {
         std::stringstream stream;
-        auto status = client.Request(http::Method::Get, "http://nodejs.org/dist/index.json", {}, nullptr, &stream);
-        Assert(200 <= status && status <= 299, "failed to get index.");
+
+        http::HttpRequest request = {
+            .Method = http::HttpMethod::Get,
+            .Location = http::ParseUrl("http://nodejs.org/dist/index.json"),
+        };
+        http::HttpResponse response = {
+            .Body = &stream,
+        };
+
+        auto ok = client.Request(request, response);
+        Assert(ok, "failed to get file");
+        Assert(response.ok(), "failed to get file: {}, {}\r\n{}", response.StatusCode, response.StatusMessage, stream.str());
 
         json::Node json;
         stream >> json;
@@ -314,7 +324,7 @@ static const VersionEntry &find_effective_version_required(const VersionTable &t
     return *entry;
 }
 
-static int install(Config &config, http::Client &client, const std::string_view &version)
+static int install(Config &config, http::HttpClient &client, const std::string_view &version)
 {
     VersionTable table;
     load_version_table(client, table, true);
@@ -327,13 +337,27 @@ static int install(Config &config, http::Client &client, const std::string_view 
         return 0;
     }
 
-    auto full_name = std::format("node-{}-win-x64", entry.Version);
-    auto url = std::format("http://nodejs.org/dist/{}/{}.7z", entry.Version, full_name);
+    auto name = std::format("node-{}-win-x64", entry.Version);
+    auto pathname = std::format("/dist/{}/{}.7z", entry.Version, name);
 
     std::stringstream stream(std::stringstream::binary | std::stringstream::in | std::stringstream::out);
 
-    auto status = client.Request(http::Method::Get, url, {}, nullptr, &stream);
-    Assert(200 <= status && status <= 299, "failed to get file.");
+    http::HttpRequest request = {
+        .Method = http::HttpMethod::Get,
+        .Location = {
+            .Scheme = "http",
+            .Host = "nodejs.org",
+            .Port = 80,
+            .Pathname = pathname,
+        },
+    };
+    http::HttpResponse response = {
+        .Body = &stream,
+    };
+
+    auto ok = client.Request(request, response);
+    Assert(ok, "failed to get file");
+    Assert(response.ok(), "failed to get file: {}, {}\r\n{}", response.StatusCode, response.StatusMessage, stream.str());
 
     bit7z::Bit7zLibrary library("C:\\Program Files\\7-Zip\\7z.dll");
     bit7z::BitArchiveReader archive(library, stream, bit7z::BitFormat::SevenZip);
@@ -343,14 +367,14 @@ static int install(Config &config, http::Client &client, const std::string_view 
 
     archive.extractTo(parent.string());
 
-    std::filesystem::rename(parent / full_name, parent / entry.Version);
+    std::filesystem::rename(parent / name, parent / entry.Version);
 
     config.Installed.emplace(entry.Version);
 
     return 0;
 }
 
-static int remove(Config &config, http::Client &client, const std::string_view &version)
+static int remove(Config &config, http::HttpClient &client, const std::string_view &version)
 {
     VersionTable table;
     load_version_table(client, table, false);
@@ -377,7 +401,7 @@ static int remove(Config &config, http::Client &client, const std::string_view &
     return 0;
 }
 
-static int use(Config &config, http::Client &client, const std::string_view &version)
+static int use(Config &config, http::HttpClient &client, const std::string_view &version)
 {
     if (version == "none")
     {
@@ -428,7 +452,7 @@ static int use(Config &config, http::Client &client, const std::string_view &ver
     return 0;
 }
 
-static int list(Config &config, http::Client &client, bool available)
+static int list(Config &config, http::HttpClient &client, bool available)
 {
     Table out({{"Lts", true}, {"Version", true}, {"Npm", true}, {"Date", true}, {"Modules", false}});
 
@@ -483,7 +507,7 @@ static int execute(const std::vector<std::string_view> &args)
         config.ActiveDirectory = GetDataDirectory() / "active";
     }
 
-    http::Client client;
+    http::HttpClient client;
 
     int code;
     switch (operation & OPERATION_BITS)

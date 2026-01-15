@@ -10,7 +10,11 @@ add_subdirectory("third_party/bit7z")
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 target_include_directories(unvm PRIVATE "include")
-target_link_libraries(unvm PRIVATE winhttp bit7z)
+target_link_libraries(unvm PRIVATE bit7z)
+
+if (WIN32)
+    target_link_libraries(unvm PRIVATE ws2_32)
+endif()
 
 if (MINGW)
     target_link_options(unvm PRIVATE 

@@ -1,30 +1,28 @@
 #include <http.hxx>
 
-void http::ParseUrl(http::ResourceLocation &dst, const std::string &src)
+#include <istream>
+#include <ostream>
+
+std::ostream &operator<<(std::ostream &stream, http::HttpMethod method)
 {
-    auto scheme_end = src.find("://");
-    dst.Scheme = src.substr(0, scheme_end);
+    static const std::map<http::HttpMethod, const char *> map = {
+        {http::HttpMethod::Get, "GET"},
+        {http::HttpMethod::Head, "HEAD"},
+        {http::HttpMethod::Post, "POST"},
+        {http::HttpMethod::Put, "PUT"},
+        {http::HttpMethod::Delete, "DELETE"},
+        {http::HttpMethod::Connect, "CONNECT"},
+        {http::HttpMethod::Options, "OPTIONS"},
+        {http::HttpMethod::Trace, "TRACE"},
+    };
 
-    auto host_begin = scheme_end + 3;
-    auto path_begin = src.find('/', host_begin);
+    return stream << map.at(method);
+}
 
-    auto host_port = path_begin == std::string::npos
-                         ? src.substr(host_begin)
-                         : src.substr(host_begin, path_begin - host_begin);
-
-    dst.Path = path_begin == std::string::npos
-                   ? "/"
-                   : src.substr(path_begin);
-
-    auto colon = host_port.find(':');
-    if (colon != std::string::npos)
-    {
-        dst.Host = host_port.substr(0, colon);
-        dst.Port = static_cast<std::uint16_t>(std::stoi(host_port.substr(colon + 1)));
-    }
-    else
-    {
-        dst.Host = host_port;
-        dst.Port = dst.Scheme == "https" ? 443 : 80;
-    }
+std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code)
+{
+    int status_code_int;
+    stream >> status_code_int;
+    status_code = static_cast<http::HttpStatusCode>(status_code_int);
+    return stream;
 }
