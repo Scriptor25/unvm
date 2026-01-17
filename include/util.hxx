@@ -2,9 +2,14 @@
 
 #include <filesystem>
 
-bool AppendUserPath(std::filesystem::path directory);
+int AppendUserPath(std::filesystem::path directory);
 
-bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &target);
-bool RemoveLink(const std::filesystem::path &link);
+int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target);
+int RemoveLink(const std::filesystem::path &link);
 
 std::filesystem::path GetDataDirectory();
+
+std::istream &GetLine(std::istream &stream, std::string &string, const std::string_view &delim);
+
+std::string Trim(std::string string);
+std::string Lower(std::string string);

@@ -1,15 +1,13 @@
-#include <assert.hxx>
 #include <http.hxx>
 #include <json.hxx>
 #include <table.hxx>
+#include <url.hxx>
 #include <util.hxx>
 
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <set>
-
-#include <bit7z/bitarchivereader.hpp>
 
 struct Config
 {
@@ -22,7 +20,7 @@ struct Config
 
 struct OptString
 {
-    bool HasValue;
+    bool HasValue{};
     std::string Value;
 };
 
@@ -38,12 +36,12 @@ struct VersionEntry
     std::optional<std::string> OpenSSL;
     std::optional<std::string> Modules;
     OptString Lts;
-    bool Security;
+    bool Security{};
 };
 
 using VersionTable = std::vector<VersionEntry>;
 
-template <>
+template<>
 struct json::Converter<Config>
 {
     static bool From(Node &node, const Config &value)
@@ -73,15 +71,14 @@ struct json::Converter<Config>
     }
 };
 
-template <>
+template<>
 struct json::Converter<OptString>
 {
     static bool To(const Node &node, OptString &value)
     {
         if (node.IsBoolean())
         {
-            auto &b = node.AsBoolean();
-            if (b)
+            if (node.AsBoolean())
                 return false;
 
             value.HasValue = false;
@@ -99,7 +96,7 @@ struct json::Converter<OptString>
     }
 };
 
-template <>
+template<>
 struct json::Converter<VersionEntry>
 {
     static bool To(const Node &node, VersionEntry &value)
@@ -125,37 +122,38 @@ struct json::Converter<VersionEntry>
 
 static void print()
 {
-    std::cout << "unvm"
-              << std::endl
-              << std::endl
-              << "<version>: latest, lts, v<uint>[.<uint>[.<uint>]], <lts-name>"
-              << std::endl
-              << std::endl
-              << "\t- install, i <version>  - download and install node package"
-              << std::endl
-              << "\t- remove, r <version>   - remove node package"
-              << std::endl
-              << "\t- use, u <version>|none - set node package as active, or inactive by using 'none'"
-              << std::endl
-              << "\t- list, l [available]   - list installed or available packages"
-              << std::endl
-              << "\t- ls                    - short for `list` or `l`"
-              << std::endl
-              << "\t- la                    - short for `list available` or `l available`"
-              << std::endl;
+    std::cerr
+            << "unvm"
+            << std::endl
+            << std::endl
+            << "<version>: latest, lts, v<uint>[.<uint>[.<uint>]], <lts-name>"
+            << std::endl
+            << std::endl
+            << "\t- install, i <version>  - download and install node package"
+            << std::endl
+            << "\t- remove, r <version>   - remove node package"
+            << std::endl
+            << "\t- use, u <version>|none - set node package as active, or inactive by using 'none'"
+            << std::endl
+            << "\t- list, l [available]   - list installed or available packages"
+            << std::endl
+            << "\t- ls                    - short for `list` or `l`"
+            << std::endl
+            << "\t- la                    - short for `list available` or `l available`"
+            << std::endl;
 }
 
-constexpr unsigned MOD_PRESENT_BITS = 0b10000000u;
-constexpr unsigned MOD_VALUE_BITS = 0b01110000u;
-constexpr unsigned OPERATION_BITS = 0b00001111u;
+constexpr auto MOD_PRESENT_BITS = 0b10000000u;
+constexpr auto MOD_VALUE_BITS = 0b01110000u;
+constexpr auto OPERATION_BITS = 0b00001111u;
 
-constexpr unsigned INSTALL_BITS = 0b0001u;
-constexpr unsigned REMOVE_BITS = 0b0010u;
-constexpr unsigned USE_BITS = 0b0100u;
-constexpr unsigned LIST_BITS = 0b1000u;
+constexpr auto INSTALL_BITS = 0b0001u;
+constexpr auto REMOVE_BITS = 0b0010u;
+constexpr auto USE_BITS = 0b0100u;
+constexpr auto LIST_BITS = 0b1000u;
 
-constexpr unsigned LIST_MOD_INSTALLED_BITS = 0b00000000u;
-constexpr unsigned LIST_MOD_AVAILABLE_BITS = 0b00010000u;
+constexpr auto LIST_MOD_INSTALLED_BITS = 0b00000000u;
+constexpr auto LIST_MOD_AVAILABLE_BITS = 0b00010000u;
 
 /**
  * bits [3:0] -> operation
@@ -164,19 +162,19 @@ constexpr unsigned LIST_MOD_AVAILABLE_BITS = 0b00010000u;
  *  - bits [6:4] -> modifier value
  */
 static const std::map<std::string_view, unsigned> operation_map = {
-    {"install", INSTALL_BITS},
-    {"i", INSTALL_BITS},
-    {"remove", REMOVE_BITS},
-    {"r", REMOVE_BITS},
-    {"use", USE_BITS},
-    {"u", USE_BITS},
-    {"list", LIST_BITS},
-    {"l", LIST_BITS},
-    {"ls", MOD_PRESENT_BITS | LIST_MOD_INSTALLED_BITS | LIST_BITS},
-    {"la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS},
+    { "install", INSTALL_BITS },
+    { "i", INSTALL_BITS },
+    { "remove", REMOVE_BITS },
+    { "r", REMOVE_BITS },
+    { "use", USE_BITS },
+    { "u", USE_BITS },
+    { "list", LIST_BITS },
+    { "l", LIST_BITS },
+    { "ls", MOD_PRESENT_BITS | LIST_MOD_INSTALLED_BITS | LIST_BITS },
+    { "la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS },
 };
 
-static void load_version_table(http::HttpClient &client, VersionTable &table, bool online)
+static int load_version_table(http::HttpClient &client, VersionTable &table, bool online)
 {
     /**
      * {
@@ -208,9 +206,24 @@ static void load_version_table(http::HttpClient &client, VersionTable &table, bo
             .Body = &stream,
         };
 
-        auto ok = client.Request(request, response);
-        Assert(ok, "failed to get file");
-        Assert(response.ok(), "failed to get file: {}, {}\r\n{}", response.StatusCode, response.StatusMessage, stream.str());
+        if (auto error = client.Request(request, response))
+        {
+            std::cerr << "failed to get file" << std::endl;
+            return error;
+        }
+
+        if (!http::is_success(response.StatusCode))
+        {
+            std::cerr
+                    << "failed to get file: "
+                    << response.StatusCode
+                    << ", "
+                    << response.StatusMessage
+                    << std::endl
+                    << stream.str()
+                    << std::endl;
+            return 1;
+        }
 
         json::Node json;
         stream >> json;
@@ -220,7 +233,7 @@ static void load_version_table(http::HttpClient &client, VersionTable &table, bo
         std::ofstream file(index);
         file << json;
 
-        return;
+        return 0;
     }
 
     std::ifstream stream(index);
@@ -229,13 +242,14 @@ static void load_version_table(http::HttpClient &client, VersionTable &table, bo
     stream >> json;
 
     table = json.To<VersionTable>();
+    return 0;
 }
 
 static std::string to_lower(const std::string_view &str)
 {
     std::string result;
     for (auto &c : str)
-        result += std::tolower(c);
+        result += static_cast<char>(std::tolower(c));
     return result;
 }
 
@@ -281,14 +295,12 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
         // (X = some version)
         // (L = latest version)
 
-        auto segments = count_version_segments(version);
-
-        switch (segments)
+        switch (count_version_segments(version))
         {
         case 1:
         case 2:
         {
-            auto pattern = std::string(version) + '.';
+            const auto pattern = std::string(version) + '.';
             for (auto &entry : table)
                 if (entry.Version.starts_with(pattern))
                     return &entry;
@@ -308,7 +320,7 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
     // lts by name
     else
     {
-        auto name = to_lower(version);
+        const auto name = to_lower(version);
         for (auto &entry : table)
             if (entry.Lts.HasValue && to_lower(entry.Lts.Value) == name)
                 return &entry;
@@ -317,28 +329,39 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
     return nullptr;
 }
 
-static const VersionEntry &find_effective_version_required(const VersionTable &table, const std::string_view &version)
-{
-    auto entry = find_effective_version(table, version);
-    Assert(entry, "no effective version for '{}'.", version);
-    return *entry;
-}
-
 static int install(Config &config, http::HttpClient &client, const std::string_view &version)
 {
     VersionTable table;
-    load_version_table(client, table, true);
+    if (auto error = load_version_table(client, table, true))
+    {
+        std::cerr << "failed to load version table." << std::endl;
+        return error;
+    }
 
-    auto &entry = find_effective_version_required(table, version);
+    auto entry_ptr = find_effective_version(table, version);
+    if (!entry_ptr)
+    {
+        std::cerr << "no effective version for '" << version << "'." << std::endl;
+        return 1;
+    }
 
+    auto &entry = *entry_ptr;
     if (config.Installed.contains(entry.Version))
     {
-        std::cout << "version '" << version << "' is already installed." << std::endl;
+        std::cerr << "version '" << version << "' is already installed." << std::endl;
         return 0;
     }
 
-    auto name = std::format("node-{}-win-x64", entry.Version);
-    auto pathname = std::format("/dist/{}/{}.7z", entry.Version, name);
+#ifdef _WIN32
+    constexpr auto format = "node-{}-win-x64";
+    constexpr auto ending = "zip";
+#else
+    constexpr auto format = "node-{}-linux-x64";
+    constexpr auto ending = "tar.xz";
+#endif
+
+    auto filename = std::format(format, entry.Version);
+    auto pathname = std::format("/dist/{}/{}.{}", entry.Version, filename, ending);
 
     std::stringstream stream(std::stringstream::binary | std::stringstream::in | std::stringstream::out);
 
@@ -355,19 +378,29 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
         .Body = &stream,
     };
 
-    auto ok = client.Request(request, response);
-    Assert(ok, "failed to get file");
-    Assert(response.ok(), "failed to get file: {}, {}\r\n{}", response.StatusCode, response.StatusMessage, stream.str());
+    if (auto error = client.Request(request, response))
+    {
+        std::cerr << "failed to get file" << std::endl;
+        return error;
+    }
 
-    bit7z::Bit7zLibrary library("C:\\Program Files\\7-Zip\\7z.dll");
-    bit7z::BitArchiveReader archive(library, stream, bit7z::BitFormat::SevenZip);
+    if (!http::is_success(response.StatusCode))
+    {
+        std::cerr
+                << "failed to get file: "
+                << response.StatusCode
+                << ", "
+                << response.StatusMessage
+                << std::endl
+                << stream.str()
+                << std::endl;
+    }
 
-    std::filesystem::path parent(config.InstallDirectory);
-    std::filesystem::create_directories(parent);
+    std::filesystem::create_directories(config.InstallDirectory);
 
-    archive.extractTo(parent.string());
+    // TODO: extract archive from `stream` to `config.InstallDirectory` -> `filename`
 
-    std::filesystem::rename(parent / name, parent / entry.Version);
+    std::filesystem::rename(config.InstallDirectory / filename, config.InstallDirectory / entry.Version);
 
     config.Installed.emplace(entry.Version);
 
@@ -377,24 +410,25 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
 static int remove(Config &config, http::HttpClient &client, const std::string_view &version)
 {
     VersionTable table;
-    load_version_table(client, table, false);
+    if (const auto error = load_version_table(client, table, false))
+        return error;
 
-    auto entry_ptr = find_effective_version(table, version);
+    const auto entry_ptr = find_effective_version(table, version);
 
     if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
     {
-        std::cout << "version '" << version << "' is not installed." << std::endl;
+        std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 0;
     }
 
     auto &entry = *entry_ptr;
     if (config.Active.has_value() && config.Active.value() == entry.Version)
     {
-        std::cout << "version '" << version << "' is still in use." << std::endl;
+        std::cerr << "version '" << version << "' is still in use." << std::endl;
         return 1;
     }
 
-    std::filesystem::path parent(config.InstallDirectory);
+    auto parent(config.InstallDirectory);
     std::filesystem::remove_all(parent / entry.Version);
 
     config.Installed.erase(entry.Version);
@@ -407,25 +441,29 @@ static int use(Config &config, http::HttpClient &client, const std::string_view 
     {
         if (!config.Active.has_value())
         {
-            std::cout << "node is already inactive." << std::endl;
+            std::cerr << "node is already inactive." << std::endl;
             return 0;
         }
 
-        auto remove_link_ok = RemoveLink(config.ActiveDirectory);
-        Assert(remove_link_ok, "failed to un-link current active version '{}'.", config.Active.value());
+        if (const auto error = RemoveLink(config.ActiveDirectory))
+        {
+            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
+            return error;
+        }
 
         config.Active = std::nullopt;
         return 0;
     }
 
     VersionTable table;
-    load_version_table(client, table, false);
+    if (const auto error = load_version_table(client, table, false))
+        return error;
 
-    auto entry_ptr = find_effective_version(table, version);
+    const auto entry_ptr = find_effective_version(table, version);
 
     if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
     {
-        std::cout << "version '" << version << "' is not installed." << std::endl;
+        std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 1;
     }
 
@@ -434,50 +472,60 @@ static int use(Config &config, http::HttpClient &client, const std::string_view 
     {
         if (config.Active.value() == entry.Version)
         {
-            std::cout << "version '" << version << "' is already installed and active." << std::endl;
+            std::cerr << "version '" << version << "' is already installed and active." << std::endl;
             return 0;
         }
 
-        auto remove_link_ok = RemoveLink(config.ActiveDirectory);
-        Assert(remove_link_ok, "failed to un-link current active version '{}'.", config.Active.value());
+        if (const auto error = RemoveLink(config.ActiveDirectory))
+        {
+            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
+            return error;
+        }
     }
 
-    auto create_link_ok = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version);
-    Assert(create_link_ok, "failed to link new active version '{}'.", version);
+    if (const auto error = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version))
+    {
+        std::cerr << "failed to link new active version '" << version << "'." << std::endl;
+        return error;
+    }
 
-    auto append_path_ok = AppendUserPath(config.ActiveDirectory);
-    Assert(append_path_ok, "failed to append active directory to user path variable");
+    if (const auto error = AppendUserPath(config.ActiveDirectory))
+    {
+        std::cerr << "failed to append active directory to user path variable." << std::endl;
+        return error;
+    }
 
     config.Active = entry.Version;
     return 0;
 }
 
-static int list(Config &config, http::HttpClient &client, bool available)
+static int list(Config &config, http::HttpClient &client, const bool available)
 {
-    Table out({{"Lts", true}, {"Version", true}, {"Npm", true}, {"Date", true}, {"Modules", false}});
+    Table out({ { "Lts", true }, { "Version", true }, { "Npm", true }, { "Date", true }, { "Modules", false } });
 
     VersionTable table;
-    load_version_table(client, table, available);
+    if (const auto error = load_version_table(client, table, available))
+        return error;
 
     for (auto &entry : table)
     {
         if (available || config.Installed.contains(entry.Version))
         {
             out << (entry.Lts.HasValue ? entry.Lts.Value : "")
-                << entry.Version
-                << (entry.Npm.has_value() ? entry.Npm.value() : "")
-                << entry.Date
-                << (entry.Modules.has_value() ? entry.Modules.value() : "");
+                    << entry.Version
+                    << (entry.Npm.has_value() ? entry.Npm.value() : "")
+                    << entry.Date
+                    << (entry.Modules.has_value() ? entry.Modules.value() : "");
         }
     }
 
     if (out.Empty())
     {
-        std::cout << "no elements to list." << std::endl;
+        std::cerr << "no elements to list." << std::endl;
         return 0;
     }
 
-    std::cout << out;
+    std::cerr << out;
     return 0;
 }
 
@@ -489,7 +537,11 @@ static int execute(const std::vector<std::string_view> &args)
         return 0;
     }
 
-    Assert(operation_map.contains(args[0]), "undefined operation '{}'.", args[0]);
+    if (!operation_map.contains(args[0]))
+    {
+        std::cerr << "undefined operation '" << args[0] << "'." << std::endl;
+        return 1;
+    }
 
     auto operation = operation_map.at(args[0]);
 
@@ -513,17 +565,29 @@ static int execute(const std::vector<std::string_view> &args)
     switch (operation & OPERATION_BITS)
     {
     case INSTALL_BITS:
-        Assert(args.size() == 2, "invalid argument count");
+        if (args.size() != 2)
+        {
+            std::cerr << "invalid argument count." << std::endl;
+            return 1;
+        }
         code = install(config, client, args[1]);
         break;
 
     case REMOVE_BITS:
-        Assert(args.size() == 2, "invalid argument count");
+        if (args.size() != 2)
+        {
+            std::cerr << "invalid argument count." << std::endl;
+            return 1;
+        }
         code = remove(config, client, args[1]);
         break;
 
     case USE_BITS:
-        Assert(args.size() == 2, "invalid argument count");
+        if (args.size() != 2)
+        {
+            std::cerr << "invalid argument count." << std::endl;
+            return 1;
+        }
         code = use(config, client, args[1]);
         break;
 
@@ -532,7 +596,11 @@ static int execute(const std::vector<std::string_view> &args)
         bool available;
         if (operation & MOD_PRESENT_BITS)
         {
-            Assert(args.size() == 1, "invalid argument count");
+            if (args.size() != 1)
+            {
+                std::cerr << "invalid argument count." << std::endl;
+                return 1;
+            }
             available = (operation & MOD_VALUE_BITS) == LIST_MOD_AVAILABLE_BITS;
         }
         else
@@ -544,12 +612,17 @@ static int execute(const std::vector<std::string_view> &args)
                 break;
 
             case 2:
-                Assert(std::string_view(args[1]) == "available", "invalid list modifier '{}'", args[1]);
+                if (args[1] != "available")
+                {
+                    std::cerr << "invalid list modifier '" << args[1] << "'." << std::endl;
+                    return 1;
+                }
                 available = true;
                 break;
 
             default:
-                Error("invalid argument count.");
+                std::cerr << "invalid argument count." << std::endl;
+                return 1;
             }
         }
 
@@ -567,7 +640,11 @@ static int execute(const std::vector<std::string_view> &args)
         std::filesystem::create_directories(parent);
 
         std::ofstream stream(parent / "config.json");
-        Assert(!!stream, "failed to open config.");
+        if (!stream)
+        {
+            std::cerr << "failed to open config." << std::endl;
+            return 1;
+        }
 
         auto json = json::Node::From(config);
         stream << json;
@@ -578,5 +655,5 @@ static int execute(const std::vector<std::string_view> &args)
 
 int main(const int argc, const char *const *argv)
 {
-    return execute({argv + 1, argv + argc});
+    return execute({ argv + 1, argv + argc });
 }

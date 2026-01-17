@@ -1,3 +1,0 @@
-[submodule "bit7z"]
-	path = third_party/bit7z
-	url = https://github.com/rikyoz/bit7z.git

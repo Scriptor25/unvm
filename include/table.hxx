@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <string>
 #include <vector>
 
@@ -8,8 +7,10 @@ class Table
 {
     struct Column
     {
-        Column(std::string label, bool left)
-            : Label(std::move(label)), Width(Label.length()), Left(left)
+        Column(std::string label, const bool left)
+            : Label(std::move(label)),
+              Width(Label.length()),
+              Left(left)
         {
         }
 
@@ -27,7 +28,7 @@ public:
     Table &operator<<(std::string &&entry);
     Table &operator<<(const std::string &entry);
 
-    bool Empty() const;
+    [[nodiscard]] bool Empty() const;
 
     std::ostream &Print(std::ostream &stream) const;
 

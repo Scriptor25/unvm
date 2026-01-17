@@ -4,18 +4,26 @@
 
 std::filesystem::path GetDataDirectory()
 {
-    static std::pair<bool, std::filesystem::path> directory{false, {}};
+    static std::pair<bool, std::filesystem::path> directory{ false, {} };
 
     if (directory.first)
         return directory.second;
 
-    auto path = std::getenv("XDG_CONFIG_HOME");
-    if (!path)
+    std::filesystem::path path;
+    if (const auto xdg_config_home = std::getenv("XDG_CONFIG_HOME"))
     {
-        path = std::getenv("HOME"); // fallback
+        path = std::filesystem::path(xdg_config_home) / "unvm";
+    }
+    else if (const auto home = std::getenv("HOME"))
+    {
+        path = std::filesystem::path(home) / ".config" / "unvm";
+    }
+    else
+    {
+        path = std::filesystem::current_path() / ".unvm";
     }
 
-    directory = {true, std::filesystem::path(path) / "unvm"};
+    directory = { true, path };
 
     return directory.second;
 }

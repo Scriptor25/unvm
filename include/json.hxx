@@ -1,13 +1,12 @@
 #pragma once
 
-#include <cstdint>
 #include <format>
-#include <istream>
-#include <ostream>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace json
@@ -22,7 +21,7 @@ namespace json
         Object,
     };
 
-    template <typename N>
+    template<typename N>
     using NodeValue = std::variant<
         std::monostate,
         bool,
@@ -31,56 +30,54 @@ namespace json
         std::vector<N>,
         std::map<std::string, N>>;
 
-    template <typename T>
+    template<typename T>
     struct Converter;
 
     struct Node
     {
-        template <typename T>
+        template<typename T>
         static Node From(const T &value)
         {
-            Node node;
-            if (Converter<T>::From(node, value))
+            if (Node node; Converter<T>::From(node, value))
                 return node;
             throw std::runtime_error("conversion failed");
         }
 
-        template <typename T>
+        template<typename T>
         T To() const
         {
-            T value;
-            if (Converter<T>::To(*this, value))
+            if (T value; Converter<T>::To(*this, value))
                 return value;
             throw std::runtime_error("conversion failed");
         }
 
-        bool IsNull() const;
-        bool IsBoolean() const;
-        bool IsNumber() const;
-        bool IsString() const;
-        bool IsArray() const;
-        bool IsObject() const;
+        [[nodiscard]] bool IsNull() const;
+        [[nodiscard]] bool IsBoolean() const;
+        [[nodiscard]] bool IsNumber() const;
+        [[nodiscard]] bool IsString() const;
+        [[nodiscard]] bool IsArray() const;
+        [[nodiscard]] bool IsObject() const;
 
-        const bool &AsBoolean() const;
-        const long double &AsNumber() const;
-        const std::string &AsString() const;
-        const std::vector<Node> &AsArray() const;
+        [[nodiscard]] const bool &AsBoolean() const;
+        [[nodiscard]] const long double &AsNumber() const;
+        [[nodiscard]] const std::string &AsString() const;
+        [[nodiscard]] const std::vector<Node> &AsArray() const;
 
         std::map<std::string, Node> &AsObject();
-        const std::map<std::string, Node> &AsObject() const;
+        [[nodiscard]] const std::map<std::string, Node> &AsObject() const;
 
         Node &Get(const std::string &key);
-        const Node &Get(const std::string &key) const;
+        [[nodiscard]] const Node &Get(const std::string &key) const;
 
-        Node GetOrNull(const std::string &key) const;
+        [[nodiscard]] Node GetOrNull(const std::string &key) const;
 
         std::ostream &Print(std::ostream &stream) const;
 
-        NodeType Type;
+        NodeType Type{};
         NodeValue<Node> Value;
     };
 
-    template <>
+    template<>
     struct Converter<bool>
     {
         static bool From(Node &node, bool value)
@@ -100,7 +97,7 @@ namespace json
         }
     };
 
-    template <>
+    template<>
     struct Converter<long double>
     {
         static bool From(Node &node, long double value)
@@ -120,7 +117,7 @@ namespace json
         }
     };
 
-    template <>
+    template<>
     struct Converter<std::string>
     {
         static bool From(Node &node, const std::string &value)
@@ -140,7 +137,7 @@ namespace json
         }
     };
 
-    template <typename T>
+    template<typename T>
     struct Converter<std::vector<T>>
     {
         static bool From(Node &node, const std::vector<T> &value)
@@ -169,7 +166,7 @@ namespace json
         }
     };
 
-    template <typename T>
+    template<typename T>
     struct Converter<std::set<T>>
     {
         static bool From(Node &node, const std::set<T> &value)
@@ -191,14 +188,14 @@ namespace json
             auto &array = node.AsArray();
 
             value.clear();
-            for (auto &node : array)
-                value.emplace(node.To<T>());
+            for (auto &entry : array)
+                value.emplace(entry.To<T>());
 
             return true;
         }
     };
 
-    template <typename T>
+    template<typename T>
     struct Converter<std::optional<T>>
     {
         static bool From(Node &node, const std::optional<T> &value)
@@ -206,11 +203,13 @@ namespace json
             if (value.has_value())
             {
                 node = Node::From(value.value());
-                return true;
+            }
+            else
+            {
+                node.Type = NodeType::Null;
+                node.Value = {};
             }
 
-            node.Type = NodeType::Null;
-            node.Value = {};
             return true;
         }
 
@@ -219,10 +218,11 @@ namespace json
             if (node.IsNull())
             {
                 value = std::nullopt;
-                return true;
             }
-
-            value = node.To<T>();
+            else
+            {
+                value = node.To<T>();
+            }
             return true;
         }
     };
@@ -251,10 +251,10 @@ namespace json
         static Node Parse(const std::string &string);
         static Node Parse(std::string &&string);
 
-        template <typename Iterator>
+        template<typename Iterator>
         static Node Parse(Iterator begin, Iterator end)
         {
-            return Parse({begin, end});
+            return Parse({ begin, end });
         }
 
         explicit Parser(std::istream &stream);
@@ -265,8 +265,8 @@ namespace json
         void Get();
         void Next();
 
-        bool At(TokenType type);
-        bool At(TokenType type, const std::string &value);
+        [[nodiscard]] bool At(TokenType type) const;
+        [[nodiscard]] bool At(TokenType type, const std::string &value) const;
 
         Token Skip();
 
@@ -283,12 +283,12 @@ namespace json
 inline std::ostream &operator<<(std::ostream &stream, const json::NodeType type)
 {
     static const std::map<json::NodeType, const char *> map = {
-        {json::NodeType::Null, "Null"},
-        {json::NodeType::Boolean, "Boolean"},
-        {json::NodeType::Number, "Number"},
-        {json::NodeType::String, "String"},
-        {json::NodeType::Array, "Array"},
-        {json::NodeType::Object, "Object"},
+        { json::NodeType::Null, "Null" },
+        { json::NodeType::Boolean, "Boolean" },
+        { json::NodeType::Number, "Number" },
+        { json::NodeType::String, "String" },
+        { json::NodeType::Array, "Array" },
+        { json::NodeType::Object, "Object" },
     };
     return stream << map.at(type);
 }
@@ -296,16 +296,16 @@ inline std::ostream &operator<<(std::ostream &stream, const json::NodeType type)
 inline std::ostream &operator<<(std::ostream &stream, const json::TokenType type)
 {
     static const std::map<json::TokenType, const char *> map = {
-        {json::TokenType::EoF, "EoF"},
-        {json::TokenType::Symbol, "Symbol"},
-        {json::TokenType::Number, "Number"},
-        {json::TokenType::String, "String"},
-        {json::TokenType::Other, "Other"},
+        { json::TokenType::EoF, "EoF" },
+        { json::TokenType::Symbol, "Symbol" },
+        { json::TokenType::Number, "Number" },
+        { json::TokenType::String, "String" },
+        { json::TokenType::Other, "Other" },
     };
     return stream << map.at(type);
 }
 
-template <typename C>
+template<typename C>
 struct std::formatter<json::TokenType, C>
 {
     constexpr auto parse(std::basic_format_parse_context<C> &ctx)
@@ -313,15 +313,15 @@ struct std::formatter<json::TokenType, C>
         return ctx.begin();
     }
 
-    template <typename Context>
+    template<typename Context>
     auto format(json::TokenType type, Context &ctx) const
     {
         static const std::map<json::TokenType, const char *> map = {
-            {json::TokenType::EoF, "EoF"},
-            {json::TokenType::Symbol, "Symbol"},
-            {json::TokenType::Number, "Number"},
-            {json::TokenType::String, "String"},
-            {json::TokenType::Other, "Other"},
+            { json::TokenType::EoF, "EoF" },
+            { json::TokenType::Symbol, "Symbol" },
+            { json::TokenType::Number, "Number" },
+            { json::TokenType::String, "String" },
+            { json::TokenType::Other, "Other" },
         };
 
         return std::format_to(ctx.out(), "{}", map.at(type));

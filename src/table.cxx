@@ -5,7 +5,7 @@
 
 Table &Table::operator<<(std::string &&entry)
 {
-    auto index = m_Entries.size() % m_Columns.size();
+    const auto index = m_Entries.size() % m_Columns.size();
 
     m_Entries.push_back(entry);
 
@@ -17,7 +17,7 @@ Table &Table::operator<<(std::string &&entry)
 
 Table &Table::operator<<(const std::string &entry)
 {
-    auto index = m_Entries.size() % m_Columns.size();
+    const auto index = m_Entries.size() % m_Columns.size();
 
     m_Entries.push_back(entry);
 
@@ -36,7 +36,7 @@ std::ostream &Table::Print(std::ostream &stream) const
 {
     for (auto &column : m_Columns)
     {
-        stream << std::setw(column.Width);
+        stream << std::setw(static_cast<int>(column.Width));
         if (column.Left)
             stream << std::left;
         else
@@ -50,7 +50,7 @@ std::ostream &Table::Print(std::ostream &stream) const
         for (std::size_t i = 0; i < m_Columns.size(); ++i)
         {
             auto &column = m_Columns.at(i);
-            stream << std::setw(column.Width);
+            stream << std::setw(static_cast<int>(column.Width));
             if (column.Left)
                 stream << std::left;
             else

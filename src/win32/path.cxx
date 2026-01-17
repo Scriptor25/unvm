@@ -7,7 +7,7 @@
 
 std::filesystem::path GetDataDirectory()
 {
-    static std::pair<bool, std::filesystem::path> directory{false, {}};
+    static std::pair<bool, std::filesystem::path> directory{ false, {} };
 
     if (directory.first)
         return directory.second;
@@ -15,7 +15,7 @@ std::filesystem::path GetDataDirectory()
     PWSTR path = nullptr;
     SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &path);
 
-    directory = {true, std::filesystem::path(path) / "unvm"};
+    directory = { true, std::filesystem::path(path) / "unvm" };
 
     CoTaskMemFree(path);
 

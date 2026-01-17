@@ -30,11 +30,13 @@ static std::wstring GetErrorMessage(DWORD error)
     LPWSTR buffer = nullptr;
 
     DWORD len = FormatMessageW(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        FORMAT_MESSAGE_ALLOCATE_BUFFER
+        | FORMAT_MESSAGE_FROM_SYSTEM
+        | FORMAT_MESSAGE_IGNORE_INSERTS,
         nullptr,
         error,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPWSTR)&buffer,
+        (LPWSTR) & buffer,
         0,
         nullptr);
 
@@ -48,10 +50,10 @@ static std::wstring GetErrorMessage(DWORD error)
     return result;
 }
 
-bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
+int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
     if (!std::filesystem::is_directory(target))
-        return false;
+        return 1;
 
     auto abs_link = std::filesystem::absolute(link).wstring();
     auto abs_target = std::filesystem::absolute(target).wstring();
@@ -61,13 +63,15 @@ bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &
         {
             auto message = GetErrorMessage(error);
             std::wcerr << message << std::endl;
-            return false;
+            return 1;
         }
 
     HANDLE h = CreateFileW(
         abs_link.c_str(),
         GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        FILE_SHARE_READ
+        | FILE_SHARE_WRITE
+        | FILE_SHARE_DELETE,
         nullptr,
         OPEN_EXISTING,
         FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
@@ -76,7 +80,7 @@ bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &
     if (h == INVALID_HANDLE_VALUE)
     {
         RemoveDirectoryW(abs_link.c_str());
-        return false;
+        return 1;
     }
 
     auto nt_target = L"\\??\\" + abs_target;
@@ -84,8 +88,13 @@ bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &
     auto substitute_name_length = nt_target.size() * sizeof(WCHAR);
     auto print_name_length = abs_target.size() * sizeof(WCHAR);
 
-    auto reparse_data_length = 4 * sizeof(WORD) + substitute_name_length + sizeof(WCHAR) + print_name_length + sizeof(WCHAR);
-    auto buffer_size = reparse_data_length + sizeof(DWORD) + 2 * sizeof(WORD);
+    auto reparse_data_length = 4 * sizeof(WORD)
+                               + substitute_name_length
+                               + sizeof(WCHAR)
+                               + print_name_length + sizeof(WCHAR);
+    auto buffer_size = reparse_data_length
+                       + sizeof(DWORD)
+                       + 2 * sizeof(WORD);
 
     std::vector<BYTE> buffer(buffer_size);
 
@@ -99,7 +108,10 @@ bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &
     reparse->PrintNameLength = print_name_length;
 
     memcpy(reparse->PathBuffer, nt_target.c_str(), substitute_name_length + sizeof(WCHAR));
-    memcpy((BYTE *)reparse->PathBuffer + reparse->PrintNameOffset, abs_target.c_str(), print_name_length + sizeof(WCHAR));
+    memcpy(
+        (BYTE *) reparse->PathBuffer + reparse->PrintNameOffset,
+        abs_target.c_str(),
+        print_name_length + sizeof(WCHAR));
 
     DWORD bytes_returned;
     auto ok = DeviceIoControl(
@@ -119,10 +131,10 @@ bool CreateLink(const std::filesystem::path &link, const std::filesystem::path &
     }
 
     CloseHandle(h);
-    return ok;
+    return ok ? 0 : 1;
 }
 
-bool RemoveLink(const std::filesystem::path &link)
+int RemoveLink(const std::filesystem::path &link)
 {
     auto abs_link = std::filesystem::absolute(link).wstring();
 
@@ -136,7 +148,7 @@ bool RemoveLink(const std::filesystem::path &link)
         nullptr);
 
     if (h == INVALID_HANDLE_VALUE)
-        return false;
+        return 1;
 
     REPARSE_JUNCTION_DATA_BUFFER reparse{};
     reparse.ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
@@ -159,7 +171,7 @@ bool RemoveLink(const std::filesystem::path &link)
     }
 
     CloseHandle(h);
-    return ok;
+    return ok ? 0 : 1;
 }
 
 #endif

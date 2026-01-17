@@ -4,7 +4,7 @@
 
 #include <windows.h>
 
-bool AppendUserPath(std::filesystem::path directory)
+int AppendUserPath(std::filesystem::path directory)
 {
     directory = std::filesystem::absolute(directory);
 
@@ -15,7 +15,7 @@ bool AppendUserPath(std::filesystem::path directory)
             0,
             KEY_READ | KEY_WRITE,
             &key) != ERROR_SUCCESS)
-        return false;
+        return 1;
 
     DWORD type = 0;
     DWORD size = 0;
@@ -30,7 +30,7 @@ bool AppendUserPath(std::filesystem::path directory)
             L"Path",
             nullptr,
             &type,
-            (LPBYTE)path.data(),
+            (LPBYTE) path.data(),
             &size);
         path.resize(wcslen(path.data()));
     }
@@ -49,7 +49,7 @@ bool AppendUserPath(std::filesystem::path directory)
             L"Path",
             0,
             REG_EXPAND_SZ,
-            (LPCBYTE)path.c_str(),
+            (LPCBYTE) path.c_str(),
             (path.size() + 1) * sizeof(WCHAR));
     }
 
@@ -59,12 +59,12 @@ bool AppendUserPath(std::filesystem::path directory)
         HWND_BROADCAST,
         WM_SETTINGCHANGE,
         0,
-        (LPARAM)L"Environment",
+        (LPARAM) L"Environment",
         SMTO_ABORTIFHUNG,
         100,
         nullptr);
 
-    return true;
+    return 0;
 }
 
 #endif
