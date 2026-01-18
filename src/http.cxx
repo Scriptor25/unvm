@@ -5,7 +5,7 @@
 #include <istream>
 #include <ostream>
 
-#ifdef _WIN32
+#if defined(_WIN64)
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -20,7 +20,7 @@ inline int socket_close(platform_socket_t s)
     return closesocket(s);
 }
 
-#else
+#elif defined(__x86_64__) || defined(__amd64__)
 
 #include <netdb.h>
 #include <unistd.h>
@@ -35,6 +35,10 @@ inline int socket_close(platform_socket_t s)
 {
     return close(s);
 }
+
+#else
+
+#error platform not supported
 
 #endif
 
@@ -96,7 +100,7 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
     return 0;
 }
 
-#ifdef _WIN32
+#if defined(_WIN64)
 
 struct http::HttpClient::State
 {
@@ -116,10 +120,14 @@ http::HttpClient::~HttpClient()
     m_State = nullptr;
 }
 
-#else
+#elif defined(__x86_64__) || defined(__amd64__)
 
 http::HttpClient::HttpClient() = default;
 http::HttpClient::~HttpClient() = default;
+
+#else
+
+#error platform not supported
 
 #endif
 

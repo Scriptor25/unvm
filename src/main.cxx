@@ -9,6 +9,9 @@
 #include <iostream>
 #include <set>
 
+#include <archive.h>
+#include <archive_entry.h>
+
 struct Config
 {
     std::filesystem::path InstallDirectory;
@@ -329,6 +332,93 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
     return nullptr;
 }
 
+static la_ssize_t read_callback(archive *arc, void *user_data, const void **buffer)
+{
+    static char buf[16348];
+
+    const auto stream = static_cast<std::istream *>(user_data);
+
+    if (!stream->good())
+    {
+        *buffer = nullptr;
+        return 0;
+    }
+
+    const auto len = stream->readsome(buf, sizeof(buf));
+
+    *buffer = buf;
+    return len;
+}
+
+static int unpack(std::istream &stream, const std::filesystem::path &directory)
+{
+    const auto arc = archive_read_new();
+    const auto ext = archive_write_disk_new();
+
+    archive_read_support_format_all(arc);
+    archive_read_support_filter_all(arc);
+
+    archive_write_disk_set_options(
+        ext,
+        ARCHIVE_EXTRACT_TIME
+        | ARCHIVE_EXTRACT_PERM
+        | ARCHIVE_EXTRACT_ACL
+        | ARCHIVE_EXTRACT_FFLAGS);
+
+    if (archive_read_open(arc, &stream, nullptr, read_callback, nullptr) != ARCHIVE_OK)
+    {
+        std::cerr << "failed to open archive: " << archive_error_string(arc) << std::endl;
+
+        archive_read_free(arc);
+        archive_write_free(ext);
+        return 1;
+    }
+
+    archive_entry *entry;
+    const void *buf;
+    std::size_t len;
+    la_int64_t off;
+
+    while (archive_read_next_header(arc, &entry) == ARCHIVE_OK)
+    {
+        auto pathname = directory / archive_entry_pathname(entry);
+        auto pathname_string = pathname.string();
+        archive_entry_set_pathname(entry, pathname_string.c_str());
+
+        if (archive_write_header(ext, entry) != ARCHIVE_OK)
+        {
+            archive_read_free(arc);
+            archive_write_free(ext);
+            return 1;
+        }
+
+        while (true)
+        {
+            const auto result = archive_read_data_block(arc, &buf, &len, &off);
+            if (result == ARCHIVE_EOF)
+                break;
+
+            if (result != ARCHIVE_OK)
+            {
+                archive_read_free(arc);
+                archive_write_free(ext);
+                return 1;
+            }
+
+            if (archive_write_data_block(ext, buf, len, off) != ARCHIVE_OK)
+            {
+                archive_read_free(arc);
+                archive_write_free(ext);
+                return 1;
+            }
+        }
+    }
+
+    archive_read_free(arc);
+    archive_write_free(ext);
+    return 0;
+}
+
 static int install(Config &config, http::HttpClient &client, const std::string_view &version)
 {
     VersionTable table;
@@ -352,12 +442,20 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
         return 0;
     }
 
-#ifdef _WIN32
+#if defined(_WIN64)
+
     constexpr auto format = "node-{}-win-x64";
     constexpr auto ending = "zip";
-#else
+
+#elif defined(__x86_64__) || defined(__amd64__)
+
     constexpr auto format = "node-{}-linux-x64";
     constexpr auto ending = "tar.xz";
+
+#else
+
+#error platform not supported
+
 #endif
 
     auto filename = std::format(format, entry.Version);
@@ -398,7 +496,7 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
 
     std::filesystem::create_directories(config.InstallDirectory);
 
-    // TODO: extract archive from `stream` to `config.InstallDirectory` -> `filename`
+    unpack(stream, config.InstallDirectory);
 
     std::filesystem::rename(config.InstallDirectory / filename, config.InstallDirectory / entry.Version);
 

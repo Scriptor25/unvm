@@ -1,4 +1,4 @@
-#ifndef _WIN32
+#if defined(__x86_64__) || defined(__amd64__)
 
 #include <util.hxx>
 
