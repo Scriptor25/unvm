@@ -130,6 +130,7 @@ jobs:
             remote="unvm-${OS}-${ARCH}-${COMPILER}.${ext}"
             gh release upload ${{ github.ref_name }} "$file#$remote" --clobber
           done
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OS: ${{ matrix.os }}
