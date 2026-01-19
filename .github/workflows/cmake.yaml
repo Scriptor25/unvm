@@ -119,7 +119,7 @@ jobs:
 
       - name: Setup LLVM
         if: matrix.os == 'windows' && matrix.compiler == 'clang'
-        uses: llvm/actions/setup-llvm@v1
+        uses: llvm/actions/setup-llvm@main
         with:
           version: "17"
 
