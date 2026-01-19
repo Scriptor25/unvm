@@ -33,7 +33,7 @@ target_link_libraries(unvm PRIVATE archive)
 target_compile_definitions(unvm PRIVATE "SYSTEM_${PLATFORM_SYSTEM_NAME}" "ARCH_${PLATFORM_SYSTEM_PROCESSOR}")
 
 if (WIN32)
-    target_link_libraries(unvm PRIVATE ws2_32)
+    target_link_libraries(unvm PRIVATE ws2_32 bcrypt xmllite uuid kernel32 user32 gdi32 winspool shell32 ole32 oleaut32 comdlg32 advapi32)
 endif()
 
 if (MINGW)
@@ -41,6 +41,11 @@ if (MINGW)
         -static-libgcc
         -static-libstdc++
     )
+    target_link_libraries(unvm PRIVATE pthread)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_link_options(unvm PRIVATE -fuse-ld=lld)
 endif()
 
 install(TARGETS unvm)

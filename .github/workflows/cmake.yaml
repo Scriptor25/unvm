@@ -32,12 +32,12 @@ jobs:
           # =====================
           # Linux arm64
           # =====================
-          - os: linux
-            arch: arm64
-            compiler: gcc
-            runner: ubuntu-latest
-            cc: aarch64-linux-gnu-gcc
-            cxx: aarch64-linux-gnu-g++
+          # - os: linux
+          #   arch: arm64
+          #   compiler: gcc
+          #   runner: ubuntu-latest
+          #   cc: aarch64-linux-gnu-gcc
+          #   cxx: aarch64-linux-gnu-g++
 
           - os: linux
             arch: arm64
@@ -71,17 +71,17 @@ jobs:
           # =====================
           # Windows arm64
           # =====================
-          - os: windows
-            arch: arm64
-            compiler: msvc
-            runner: windows-latest
+          # - os: windows
+          #   arch: arm64
+          #   compiler: msvc
+          #   runner: windows-latest
 
-          - os: windows
-            arch: arm64
-            compiler: clang
-            runner: windows-latest
-            cc: clang
-            cxx: clang++
+          # - os: windows
+          #   arch: arm64
+          #   compiler: clang
+          #   runner: windows-latest
+          #   cc: clang
+          #   cxx: clang++
 
     steps:
       - name: Checkout
@@ -93,22 +93,28 @@ jobs:
       # =====================
       # Linux dependencies
       # =====================
-      - name: Install Linux dependencies
-        if: matrix.os == 'linux'
+      - name: Install Linux dependencies (x86)
+        if: matrix.os == 'linux' && matrix.arch == 'x64'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build clang gcc g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          sudo apt-get install -y ninja-build clang gcc g++
+
+      - name: Install Linux dependencies (arm)
+        if: matrix.os == 'linux' && matrix.arch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build clang gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       # =====================
       # Windows dependencies
       # =====================
-      - name: Setup MSVC
+      - name: Install Windows dependencies (MSVC)
         if: matrix.os == 'windows' && matrix.compiler == 'msvc'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch }}
 
-      - name: Setup MinGW & LLVM
+      - name: Install Windows dependencies (MinGW, LLVM)
         if: matrix.os == 'windows' && (matrix.compiler == 'gcc' || matrix.compiler == 'clang')
         uses: bwoodsend/setup-winlibs-action@v1
         with:
