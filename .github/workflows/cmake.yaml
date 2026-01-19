@@ -10,6 +10,8 @@ jobs:
   build:
     name: ${{ matrix.os }} | ${{ matrix.arch }} | ${{ matrix.compiler }}
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
 
     strategy:
       fail-fast: false
