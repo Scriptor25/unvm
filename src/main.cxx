@@ -365,13 +365,13 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
         | ARCHIVE_EXTRACT_ACL
         | ARCHIVE_EXTRACT_FFLAGS);
 
-    if (archive_read_open(arc, &stream, nullptr, read_callback, nullptr) != ARCHIVE_OK)
+    if (const auto error = archive_read_open(arc, &stream, nullptr, read_callback, nullptr))
     {
         std::cerr << "failed to open archive: " << archive_error_string(arc) << std::endl;
 
         archive_read_free(arc);
         archive_write_free(ext);
-        return 1;
+        return error;
     }
 
     archive_entry *entry;
@@ -379,39 +379,54 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
     std::size_t len;
     la_int64_t off;
 
-    while (archive_read_next_header(arc, &entry) == ARCHIVE_OK)
+    int error;
+    while (!(error = archive_read_next_header(arc, &entry)))
     {
         auto pathname = directory / archive_entry_pathname(entry);
         auto pathname_string = pathname.string();
         archive_entry_set_pathname(entry, pathname_string.c_str());
 
-        if (archive_write_header(ext, entry) != ARCHIVE_OK)
+        if (const auto error = archive_write_header(ext, entry))
         {
+            std::cerr << "failed to write archive header: " << archive_error_string(ext) << std::endl;
+
             archive_read_free(arc);
             archive_write_free(ext);
-            return 1;
+            return error;
         }
 
         while (true)
         {
-            const auto result = archive_read_data_block(arc, &buf, &len, &off);
-            if (result == ARCHIVE_EOF)
-                break;
-
-            if (result != ARCHIVE_OK)
+            if (const auto error = archive_read_data_block(arc, &buf, &len, &off))
             {
+                if (error == ARCHIVE_EOF)
+                    break;
+
+                std::cerr << "failed to read archive data block: " << archive_error_string(arc) << std::endl;
+
                 archive_read_free(arc);
                 archive_write_free(ext);
-                return 1;
+                return error;
             }
 
-            if (archive_write_data_block(ext, buf, len, off) != ARCHIVE_OK)
+            if (const auto error = archive_write_data_block(ext, buf, len, off))
             {
+                std::cerr << "failed to write archive data block: " << archive_error_string(ext) << std::endl;
+
                 archive_read_free(arc);
                 archive_write_free(ext);
-                return 1;
+                return error;
             }
         }
+    }
+
+    if (error != ARCHIVE_EOF)
+    {
+        std::cerr << "failed to read archive header: " << archive_error_string(arc) << std::endl;
+        
+        archive_read_free(arc);
+        archive_write_free(ext);
+        return error;
     }
 
     archive_read_free(arc);
@@ -442,19 +457,17 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
         return 0;
     }
 
-#if defined(_WIN64)
+#ifdef SYSTEM_WINDOWS
 
     constexpr auto format = "node-{}-win-x64";
     constexpr auto ending = "zip";
 
-#elif defined(__x86_64__) || defined(__amd64__)
+#endif
+
+#ifdef SYSTEM_LINUX
 
     constexpr auto format = "node-{}-linux-x64";
     constexpr auto ending = "tar.xz";
-
-#else
-
-#error platform not supported
 
 #endif
 
@@ -492,11 +505,16 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
                 << std::endl
                 << stream.str()
                 << std::endl;
+        return 1;
     }
 
     std::filesystem::create_directories(config.InstallDirectory);
 
-    unpack(stream, config.InstallDirectory);
+    if (const auto error = unpack(stream, config.InstallDirectory))
+    {
+        std::cerr << "failed to unpack archive." << std::endl;
+        return error;
+    }
 
     std::filesystem::rename(config.InstallDirectory / filename, config.InstallDirectory / entry.Version);
 

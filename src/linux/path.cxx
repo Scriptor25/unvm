@@ -1,4 +1,4 @@
-#if defined(__x86_64__) || defined(__amd64__)
+#ifdef SYSTEM_LINUX
 
 #include <util.hxx>
 

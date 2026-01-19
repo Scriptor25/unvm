@@ -5,7 +5,7 @@
 #include <istream>
 #include <ostream>
 
-#if defined(_WIN64)
+#ifdef SYSTEM_WINDOWS
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -20,7 +20,9 @@ inline int socket_close(platform_socket_t s)
     return closesocket(s);
 }
 
-#elif defined(__x86_64__) || defined(__amd64__)
+#endif
+
+#ifdef SYSTEM_LINUX
 
 #include <netdb.h>
 #include <unistd.h>
@@ -35,10 +37,6 @@ inline int socket_close(platform_socket_t s)
 {
     return close(s);
 }
-
-#else
-
-#error platform not supported
 
 #endif
 
@@ -100,7 +98,7 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
     return 0;
 }
 
-#if defined(_WIN64)
+#ifdef SYSTEM_WINDOWS
 
 struct http::HttpClient::State
 {
@@ -120,14 +118,12 @@ http::HttpClient::~HttpClient()
     m_State = nullptr;
 }
 
-#elif defined(__x86_64__) || defined(__amd64__)
+#endif
+
+#ifdef SYSTEM_LINUX
 
 http::HttpClient::HttpClient() = default;
 http::HttpClient::~HttpClient() = default;
-
-#else
-
-#error platform not supported
 
 #endif
 
@@ -183,7 +179,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         return 1;
     }
 
-    char buf[1024];
+    char buf[4096];
 
     if (request.Body)
     {
@@ -191,24 +187,16 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 
         while (request.Body->good())
         {
-            fprintf(stderr, "\rupload %lu B", count);
-
             auto len = request.Body->readsome(buf, sizeof(buf));
 
             if (send(sock, buf, len, 0) == PLATFORM_SOCKET_ERROR)
             {
-                fprintf(stderr, "\n");
-                fflush(stderr);
-
                 socket_close(sock);
                 return 1;
             }
 
             count += len;
         }
-
-        fprintf(stderr, "\rupload %lu B\n", count);
-        fflush(stderr);
     }
 
     std::string header_block;
@@ -242,8 +230,6 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     auto count = body_prefetch.size();
     while (content_length == ~0ULL || count < content_length)
     {
-        fprintf(stderr, "\rdownload %lu B", count);
-
         auto len = recv(sock, buf, sizeof(buf), 0);
         if (len <= 0)
             break;
@@ -253,9 +239,6 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 
         count += len;
     }
-
-    fprintf(stderr, "\rdownload %lu B\n", count);
-    fflush(stderr);
 
     socket_close(sock);
     return 0;

@@ -1,4 +1,4 @@
-#if defined(_WIN64)
+#ifdef SYSTEM_WINDOWS
 
 #include <util.hxx>
 
