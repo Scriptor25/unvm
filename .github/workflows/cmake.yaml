@@ -78,6 +78,13 @@ jobs:
 
           - os: windows
             arch: arm64
+            compiler: gcc
+            runner: windows-latest
+            cc: gcc
+            cxx: g++
+
+          - os: windows
+            arch: arm64
             compiler: clang
             runner: windows-latest
             cc: clang
