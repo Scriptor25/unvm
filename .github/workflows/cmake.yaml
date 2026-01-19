@@ -121,6 +121,17 @@ jobs:
       - name: Upload Packages
         if: github.ref_type == 'tag'
         run: |
-          gh release upload ${{ github.ref_name }} dist/*.tar.gz dist/*.zip dist/*.rpm dist/*.deb dist/*.exe dist/*.msi --clobber
+          for file in dist/*; do
+            [ -f "$file" ] || continue
+            
+            base="$(basename "$file")"
+            ext="${base##*.}"
+            
+            remote="unvm-${OS}-${ARCH}-${COMPILER}.${ext}"
+            gh release upload ${{ github.ref_name }} "$file#$remote" --clobber
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OS: ${{ matrix.os }}
+          ARCH: ${{ matrix.arch }}
+          COMPILER: ${{ matrix.compiler }}
