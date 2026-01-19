@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(unvm)
+project(unvm VERSION 0.0.1)
 
 string(TOUPPER "${CMAKE_SYSTEM_NAME}" PLATFORM_SYSTEM_NAME)
 string(TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" PLATFORM_SYSTEM_PROCESSOR)
