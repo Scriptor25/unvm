@@ -379,8 +379,8 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
     std::size_t len;
     la_int64_t off;
 
-    int error;
-    while (!(error = archive_read_next_header(arc, &entry)))
+    int err;
+    while (!((err = archive_read_next_header(arc, &entry))))
     {
         auto pathname = directory / archive_entry_pathname(entry);
         auto pathname_string = pathname.string();
@@ -415,18 +415,18 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
 
                 archive_read_free(arc);
                 archive_write_free(ext);
-                return error;
+                return static_cast<int>(error);
             }
         }
     }
 
-    if (error != ARCHIVE_EOF)
+    if (err != ARCHIVE_EOF)
     {
         std::cerr << "failed to read archive header: " << archive_error_string(arc) << std::endl;
-        
+
         archive_read_free(arc);
         archive_write_free(ext);
-        return error;
+        return err;
     }
 
     archive_read_free(arc);
@@ -617,7 +617,14 @@ static int use(Config &config, http::HttpClient &client, const std::string_view 
 
 static int list(Config &config, http::HttpClient &client, const bool available)
 {
-    Table out({ { "Lts", true }, { "Version", true }, { "Npm", true }, { "Date", true }, { "Modules", false } });
+    Table out(
+        {
+            { "Lts", true },
+            { "Version", true },
+            { "Npm", true },
+            { "Date", true },
+            { "Modules", false }
+        });
 
     VersionTable table;
     if (const auto error = load_version_table(client, table, available))
@@ -627,7 +634,8 @@ static int list(Config &config, http::HttpClient &client, const bool available)
     {
         if (available || config.Installed.contains(entry.Version))
         {
-            out << (entry.Lts.HasValue ? entry.Lts.Value : "")
+            out
+                    << (entry.Lts.HasValue ? entry.Lts.Value : "")
                     << entry.Version
                     << (entry.Npm.has_value() ? entry.Npm.value() : "")
                     << entry.Date

@@ -12,9 +12,6 @@
 
 using platform_socket_t = SOCKET;
 
-constexpr platform_socket_t PLATFORM_INVALID_SOCKET = INVALID_SOCKET;
-constexpr int PLATFORM_SOCKET_ERROR = SOCKET_ERROR;
-
 inline int socket_close(platform_socket_t s)
 {
     return closesocket(s);
@@ -29,9 +26,6 @@ inline int socket_close(platform_socket_t s)
 #include <sys/socket.h>
 
 using platform_socket_t = int;
-
-constexpr platform_socket_t PLATFORM_INVALID_SOCKET = -1;
-constexpr int PLATFORM_SOCKET_ERROR = -1;
 
 inline int socket_close(platform_socket_t s)
 {
@@ -139,18 +133,18 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     if (getaddrinfo(request.Location.Host.c_str(), service.c_str(), &hints, &res))
         return 1;
 
-    platform_socket_t sock = PLATFORM_INVALID_SOCKET;
+    platform_socket_t sock = -1;
 
     for (auto it = res; it; it = it->ai_next)
     {
         sock = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
-        if (sock == PLATFORM_INVALID_SOCKET)
+        if (sock < 0)
             continue;
 
         if (connect(sock, it->ai_addr, it->ai_addrlen))
         {
             socket_close(sock);
-            sock = PLATFORM_INVALID_SOCKET;
+            sock = -1;
             continue;
         }
 
@@ -159,7 +153,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 
     freeaddrinfo(res);
 
-    if (sock == PLATFORM_INVALID_SOCKET)
+    if (sock < 0)
         return 1;
 
     set_header_if_missing(request.Headers, "Host", request.Location.Host);
@@ -173,7 +167,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         packet << key << ": " << val << EOL;
     packet << EOL;
 
-    if (send(sock, packet.str().data(), packet.str().size(), 0) == PLATFORM_SOCKET_ERROR)
+    if (send(sock, packet.str().data(), packet.str().size(), 0) < 0)
     {
         socket_close(sock);
         return 1;
@@ -189,7 +183,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         {
             auto len = request.Body->readsome(buf, sizeof(buf));
 
-            if (send(sock, buf, len, 0) == PLATFORM_SOCKET_ERROR)
+            if (send(sock, buf, len, 0) < 0)
             {
                 socket_close(sock);
                 return 1;

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.23)
 
 project(unvm VERSION 0.0.1)
 
+option(ENABLE_COMPLETIONS "install shell completion scripts" ON)
+
 string(TOUPPER "${CMAKE_SYSTEM_NAME}" PLATFORM_SYSTEM_NAME)
 string(TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" PLATFORM_SYSTEM_PROCESSOR)
 
@@ -34,18 +36,21 @@ target_compile_definitions(unvm PRIVATE "SYSTEM_${PLATFORM_SYSTEM_NAME}" "ARCH_$
 
 if (WIN32)
     target_link_libraries(unvm PRIVATE ws2_32 bcrypt xmllite uuid kernel32 user32 gdi32 winspool shell32 ole32 oleaut32 comdlg32 advapi32)
-endif()
+endif ()
 
 if (MINGW)
-    target_link_options(unvm PRIVATE 
-        -static-libgcc
-        -static-libstdc++
-    )
+    target_link_options(unvm PRIVATE -static-libgcc -static-libstdc++)
     target_link_libraries(unvm PRIVATE pthread)
-endif()
+endif ()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_link_options(unvm PRIVATE -fuse-ld=lld)
-endif()
+endif ()
 
 install(TARGETS unvm)
+
+if (ENABLE_COMPLETIONS)
+    install(FILES completions/unvm-completion.sh
+            DESTINATION share/bash-completion/completions
+            RENAME unvm)
+endif ()

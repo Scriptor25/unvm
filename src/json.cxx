@@ -147,12 +147,13 @@ std::ostream &json::Node::Print(std::ostream &stream) const
                     break;
                 }
 
-                auto hi = ((c >> 4) & 0xF);
-                auto lo = (c & 0xF);
+                const auto hi = ((c >> 4) & 0xF);
+                const auto lo = (c & 0xF);
 
-                stream << '\\' << 'x' << (hi >= 10 ? ((hi - 10) + 'A') : (hi + '0')) << (lo >= 10
-                        ? ((lo - 10) + 'A')
-                        : (lo + '0'));
+                stream
+                        << "\\x"
+                        << (hi >= 10 ? ((hi - 10) + 'A') : (hi + '0'))
+                        << (lo >= 10 ? ((lo - 10) + 'A') : (lo + '0'));
                 break;
             }
         }
@@ -509,12 +510,22 @@ json::Token json::Parser::Expect(TokenType type)
 {
     if (m_Token.Type == type)
         return Skip();
-    throw std::runtime_error(std::format("expect {}, got {}", type, m_Token.Type));
+    throw std::runtime_error(
+        std::format(
+            "expect {}, got {}",
+            type,
+            m_Token.Type));
 }
 
 json::Token json::Parser::Expect(TokenType type, const std::string &value)
 {
     if (m_Token.Type == type && m_Token.String == value)
         return Skip();
-    throw std::runtime_error(std::format("expect {} '{}', got {} '{}'", type, value, m_Token.Type, m_Token.String));
+    throw std::runtime_error(
+        std::format(
+            "expect {} '{}', got {} '{}'",
+            type,
+            value,
+            m_Token.Type,
+            m_Token.String));
 }
