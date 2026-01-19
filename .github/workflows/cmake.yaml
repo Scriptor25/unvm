@@ -36,8 +36,8 @@ jobs:
             arch: arm64
             compiler: gcc
             runner: ubuntu-latest
-            cc: aarch64-linux-gnu-gcc
-            cxx: aarch64-linux-gnu-g++
+            cc: gcc
+            cxx: g++
 
           - os: linux
             arch: arm64
