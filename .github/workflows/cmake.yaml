@@ -112,10 +112,9 @@ jobs:
       - name: Install and Package
         if: github.ref_type == 'tag'
         run: |
-          cmake --install build --prefix dist
+          mkdir dist
           cd dist
-          cpack -G TGZ
-        shell: bash
+          cpack --config ../build/CPackConfig.cmake
 
       - name: Create Release
         if: github.ref_type == 'tag'
@@ -127,11 +126,9 @@ jobs:
           prerelease: false
         id: create_release
 
-      - name: Upload Package
+      - name: Upload Packages
         if: github.ref_type == 'tag'
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/unvm-0.0.1-Linux-x64.tar.gz
-          asset_name: unvm-0.0.1-Linux-x64.tar.gz
-          asset_content_type: application/gzip
+        run: |
+          gh release upload ${{ github.ref_name }} dist/* --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

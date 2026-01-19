@@ -54,3 +54,19 @@ if (ENABLE_COMPLETIONS)
             DESTINATION share/bash-completion/completions
             RENAME unvm)
 endif ()
+
+set(CPACK_PACKAGE_VENDOR "Scriptor25")
+set(CPACK_PACKAGE_DESCRIPTION_FILE ${CMAKE_SOURCE_DIR}/readme)
+set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/license)
+set(CPACK_RESOURCE_FILE_README ${CMAKE_SOURCE_DIR}/readme)
+set(CPACK_GENERATOR "TGZ")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+
+if (WIN32)
+    string(APPEND CPACK_GENERATOR ";ZIP;INNOSETUP;NSIS64")
+    set(CPACK_SOURCE_GENERATOR ";ZIP")
+else ()
+    set(CPACK_GENERATOR "STGZ;RPM")
+endif ()
+
+include(CPack)
