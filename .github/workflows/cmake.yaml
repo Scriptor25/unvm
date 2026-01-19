@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - "*"
+      - "release/*"
 
 jobs:
   build:
@@ -80,6 +80,8 @@ jobs:
             arch: arm64
             compiler: msvc
             runner: windows-latest
+            cc: cl
+            cxx: cl
 
           - os: windows
             arch: arm64
