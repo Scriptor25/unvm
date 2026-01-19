@@ -1,0 +1,143 @@
+name: CMake Multi-Platform Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }} | ${{ matrix.arch }} | ${{ matrix.compiler }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # =====================
+          # Linux x64
+          # =====================
+          - os: linux
+            arch: x64
+            compiler: gcc
+            runner: ubuntu-latest
+            cc: gcc
+            cxx: g++
+
+          - os: linux
+            arch: x64
+            compiler: clang
+            runner: ubuntu-latest
+            cc: clang
+            cxx: clang++
+
+          # =====================
+          # Linux arm64
+          # =====================
+          - os: linux
+            arch: arm64
+            compiler: gcc
+            runner: ubuntu-latest
+            cc: aarch64-linux-gnu-gcc
+            cxx: aarch64-linux-gnu-g++
+
+          - os: linux
+            arch: arm64
+            compiler: clang
+            runner: ubuntu-latest
+            cc: clang
+            cxx: clang++
+
+          # =====================
+          # Windows x64
+          # =====================
+          - os: windows
+            arch: x64
+            compiler: msvc
+            runner: windows-latest
+
+          - os: windows
+            arch: x64
+            compiler: gcc
+            runner: windows-latest
+            cc: gcc
+            cxx: g++
+
+          - os: windows
+            arch: x64
+            compiler: clang
+            runner: windows-latest
+            cc: clang
+            cxx: clang++
+
+          # =====================
+          # Windows arm64
+          # =====================
+          - os: windows
+            arch: arm64
+            compiler: msvc
+            runner: windows-latest
+
+          - os: windows
+            arch: arm64
+            compiler: clang
+            runner: windows-latest
+            cc: clang
+            cxx: clang++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # =====================
+      # Linux dependencies
+      # =====================
+      - name: Install Linux dependencies
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            clang \
+            gcc \
+            g++ \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu
+
+      # =====================
+      # Windows dependencies
+      # =====================
+      - name: Setup MSVC
+        if: matrix.os == 'windows' && matrix.compiler == 'msvc'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Setup MinGW
+        if: matrix.os == 'windows' && matrix.compiler == 'gcc'
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: ${{ matrix.arch }}
+
+      - name: Setup LLVM
+        if: matrix.os == 'windows' && matrix.compiler == 'clang'
+        uses: llvm/actions/setup-llvm@v1
+        with:
+          version: "17"
+
+      # =====================
+      # Configure
+      # =====================
+      - name: Configure CMake
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release
+
+      # =====================
+      # Build
+      # =====================
+      - name: Build
+        run: |
+          cmake --build build --config Release
