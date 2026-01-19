@@ -111,17 +111,12 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
 
-      - name: Setup MinGW
-        if: matrix.os == 'windows' && matrix.compiler == 'gcc'
-        uses: egor-tensin/setup-mingw@v2
+      - name: Setup MinGW & LLVM
+        if: matrix.os == 'windows' && (matrix.compiler == 'gcc' || matrix.compiler == 'clang')
+        uses: bwoodsend/setup-winlibs-action@v1
         with:
-          platform: ${{ matrix.arch }}
-
-      - name: Setup LLVM
-        if: matrix.os == 'windows' && matrix.compiler == 'clang'
-        uses: llvm/actions/setup-llvm@main
-        with:
-          version: "17"
+          with_clang: true
+          architecture: ${{ matrix.arch == 'arm64' && 'aarch64' || 'x86_64' }}
 
       # =====================
       # Configure
