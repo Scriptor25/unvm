@@ -118,9 +118,6 @@ std::ostream &json::Node::Print(std::ostream &stream) const
             case '\b':
                 stream << "\\b";
                 break;
-            case '\e':
-                stream << "\\e";
-                break;
             case '\f':
                 stream << "\\f";
                 break;
@@ -421,9 +418,6 @@ void json::Parser::Next()
                         break;
                     case 'b':
                         m_Buffer = '\b';
-                        break;
-                    case 'e':
-                        m_Buffer = '\e';
                         break;
                     case 'f':
                         m_Buffer = '\f';
