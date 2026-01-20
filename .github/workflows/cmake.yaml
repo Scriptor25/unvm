@@ -91,6 +91,8 @@ jobs:
             target="dist/unvm-${sanitized}-${{ matrix.os }}-${{ matrix.compiler }}.${ext}"
 
             mv "$file" "$target"
+
+            echo "Upload $target to ${{ github.ref_name }}"
             gh release upload ${{ github.ref_name }} "$target" --clobber
           done
         shell: bash

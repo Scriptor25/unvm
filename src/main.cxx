@@ -619,6 +619,7 @@ static int list(Config &config, http::HttpClient &client, const bool available)
 {
     Table out(
         {
+            { "", true },
             { "Lts", true },
             { "Version", true },
             { "Npm", true },
@@ -635,6 +636,7 @@ static int list(Config &config, http::HttpClient &client, const bool available)
         if (available || config.Installed.contains(entry.Version))
         {
             out
+                    << (config.Active.has_value() && config.Active.value() == entry.Version ? "*" : "")
                     << (entry.Lts.HasValue ? entry.Lts.Value : "")
                     << entry.Version
                     << (entry.Npm.has_value() ? entry.Npm.value() : "")
