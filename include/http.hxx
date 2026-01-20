@@ -145,6 +145,7 @@ namespace http
 std::ostream &operator<<(std::ostream &stream, http::HttpMethod method);
 std::ostream &operator<<(std::ostream &stream, http::HttpStatusCode status_code);
 std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code);
+std::ostream &operator<<(std::ostream &stream, http::HttpLocation &location);
 
 template<>
 struct std::formatter<http::HttpStatusCode> : std::formatter<int>

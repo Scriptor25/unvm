@@ -1,5 +1,6 @@
 #include <http.hxx>
 #include <iostream>
+#include <url.hxx>
 #include <util.hxx>
 
 #include <istream>
@@ -60,7 +61,7 @@ static void set_header_if_missing(http::HttpHeaders &headers, const std::string 
 
 int http::HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message)
 {
-    std::string http_version;
+    std::string http_version; // TODO: check if version is supported
 
     stream >> http_version >> status_code;
     GetLine(stream, status_message, EOL);
@@ -71,6 +72,8 @@ int http::HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std
 
 int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
 {
+    headers.clear();
+
     std::string line;
     while (GetLine(stream, line, EOL))
     {
@@ -131,7 +134,10 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     hints.ai_protocol = IPPROTO_TCP;
 
     if (getaddrinfo(request.Location.Host.c_str(), service.c_str(), &hints, &res))
+    {
+        std::cerr << "request failed: failed to get address info." << std::endl;
         return 1;
+    }
 
     platform_socket_t sock = -1;
 
@@ -154,7 +160,10 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     freeaddrinfo(res);
 
     if (sock < 0)
+    {
+        std::cerr << "request failed: failed to open socket." << std::endl;
         return 1;
+    }
 
     set_header_if_missing(request.Headers, "Host", request.Location.Host);
     set_header_if_missing(request.Headers, "Connection", "close");
@@ -170,6 +179,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     if (send(sock, packet.str().data(), packet.str().size(), 0) < 0)
     {
         socket_close(sock);
+        std::cerr << "request failed: failed to send header." << std::endl;
         return 1;
     }
 
@@ -186,6 +196,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
             if (send(sock, buf, len, 0) < 0)
             {
                 socket_close(sock);
+                std::cerr << "request failed: failed to send chunk." << std::endl;
                 return 1;
             }
 
@@ -235,6 +246,35 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     }
 
     socket_close(sock);
+
+    if (is_redirect(response.StatusCode))
+    {
+        if (!response.Headers.contains("location"))
+        {
+            std::cerr << response.Headers << std::endl;
+            std::cerr << "request failed: missing location header in redirect response." << std::endl;
+            return 1;
+        }
+
+        auto location = response.Headers.at("location");
+
+        if (location.find("://") != std::string::npos)
+        {
+            request.Location = ParseUrl(location);
+        }
+        else if (location.starts_with("/"))
+        {
+            request.Location.Pathname = location;
+        }
+        else
+        {
+            request.Location.Pathname += location;
+        }
+
+        std::cerr << "redirect to " << location << " --> " << request.Location << std::endl;
+        return Request(std::move(request), response);
+    }
+
     return 0;
 }
 
@@ -265,4 +305,9 @@ std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code
     stream >> status_code_int;
     status_code = static_cast<http::HttpStatusCode>(status_code_int);
     return stream;
+}
+
+std::ostream &operator<<(std::ostream &stream, http::HttpLocation &location)
+{
+    return stream << location.Scheme << "://" << location.Host << ":" << location.Port << location.Pathname;
 }
