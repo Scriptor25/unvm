@@ -81,10 +81,14 @@ jobs:
           for file in dist/*; do
             [ -f "$file" ] || continue
 
-            base="$(basename "$file")"
-            ext="${base#*.}"
+            ext="$(basename "$file")"
+            ext="${ext#*.}"
 
-            target="dist/unvm-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.compiler }}.${ext}"
+            sanitized="${{ github.ref_name }}"
+            sanitized="${sanitized#*/}"
+            sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/-/g')
+
+            target="dist/unvm-${sanitized}-${{ matrix.os }}-${{ matrix.compiler }}.${ext}"
 
             mv "$file" "$target"
             gh release upload ${{ github.ref_name }} "$target" --clobber
