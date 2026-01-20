@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }} | ${{ matrix.arch }} | ${{ matrix.compiler }}
+    name: "${{ matrix.os }} | ${{ matrix.compiler }}"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
@@ -18,80 +18,35 @@ jobs:
       matrix:
         include:
           # =====================
-          # Linux x64
+          # Linux
           # =====================
           - os: linux
-            arch: x64
             compiler: gcc
             runner: ubuntu-latest
             cc: gcc
             cxx: g++
 
           - os: linux
-            arch: x64
             compiler: clang
             runner: ubuntu-latest
             cc: clang
             cxx: clang++
 
           # =====================
-          # Linux arm64
-          # =====================
-          - os: linux
-            arch: arm64
-            compiler: gcc
-            runner: ubuntu-latest
-            cc: gcc
-            cxx: g++
-
-          - os: linux
-            arch: arm64
-            compiler: clang
-            runner: ubuntu-latest
-            cc: clang
-            cxx: clang++
-
-          # =====================
-          # Windows x64
+          # Windows
           # =====================
           - os: windows
-            arch: x64
             compiler: msvc
             generator: Visual Studio 17 2022
             runner: windows-latest
 
           - os: windows
-            arch: x64
             compiler: gcc
             runner: windows-latest
             cc: gcc
             cxx: g++
 
           - os: windows
-            arch: x64
-            compiler: clang
-            runner: windows-latest
-            cc: clang
-            cxx: clang++
-
-          # =====================
-          # Windows arm64
-          # =====================
-          - os: windows
-            arch: arm64
-            compiler: msvc
-            generator: Visual Studio 17 2022
-            runner: windows-latest
-
-          - os: windows
-            arch: arm64
-            compiler: gcc
-            runner: windows-latest
-            cc: gcc
-            cxx: g++
-
-          - os: windows
-            arch: arm64
             compiler: clang
             runner: windows-latest
             cc: clang
@@ -129,7 +84,7 @@ jobs:
             base="$(basename "$file")"
             ext="${base#*.}"
 
-            target="dist/unvm-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.compiler }}.${ext}"
+            target="dist/unvm-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.compiler }}.${ext}"
 
             mv "$file" "$target"
             gh release upload ${{ github.ref_name }} "$target" --clobber
