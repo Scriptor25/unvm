@@ -128,6 +128,14 @@ namespace http
     int HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
     int HttpParseHeaders(std::istream &stream, HttpHeaders &headers);
 
+    struct HttpTransport
+    {
+        virtual ~HttpTransport() = default;
+
+        virtual int write(const void* buf, std::size_t len) = 0;
+        virtual int read(void* buf, std::size_t len) = 0;
+    };
+
     class HttpClient
     {
     public:

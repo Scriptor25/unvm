@@ -3,7 +3,11 @@
 #include <url.hxx>
 #include <util.hxx>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include <istream>
+#include <memory>
 #include <ostream>
 
 #ifdef SYSTEM_WINDOWS
@@ -35,13 +39,13 @@ inline int socket_close(platform_socket_t s)
 
 #endif
 
-static int recv_until(platform_socket_t sock, std::string &dst, const char *delim)
+static int read_until(http::HttpTransport *transport, std::string &dst, const char *delim)
 {
     char buf[1024];
 
     while (dst.find(delim) == std::string::npos)
     {
-        const auto len = recv(sock, buf, sizeof(buf), 0);
+        const auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
             return 1;
 
@@ -95,34 +99,79 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
     return 0;
 }
 
-#ifdef SYSTEM_WINDOWS
+struct HttpTcpTransport final : http::HttpTransport
+{
+    HttpTcpTransport(platform_socket_t sock)
+        : sock(sock) {}
+
+    int write(const void *buf, std::size_t len) override
+    {
+        return send(sock, buf, len, 0);
+    };
+    
+    int read(void *buf, std::size_t len) override
+    {
+        return recv(sock, buf, len, 0);
+    };
+
+    platform_socket_t sock;
+};
+
+struct HttpTlsTransport final : http::HttpTransport
+{
+    HttpTlsTransport(SSL *ssl)
+        : ssl(ssl) {}
+
+    int write(const void *buf, std::size_t len) override
+    {
+        return SSL_write(ssl, buf, static_cast<int>(len));
+    };
+    
+    int read(void *buf, std::size_t len) override
+    {
+        return SSL_read(ssl, buf, static_cast<int>(len));
+    };
+
+    SSL *ssl;
+};
 
 struct http::HttpClient::State
 {
+#ifdef SYSTEM_WINDOWS
     WSADATA WsaData;
+#endif
+    SSL_CTX *SslCtx;
 };
 
 http::HttpClient::HttpClient()
 {
     m_State = new State();
+
+#ifdef SYSTEM_WINDOWS
     WSAStartup(MAKEWORD(2, 2), &m_State->WsaData);
+#endif
+
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_ssl_algorithms();
+
+    m_State->SslCtx = SSL_CTX_new(TLS_client_method());
+    SSL_CTX_set_min_proto_version(m_State->SslCtx, TLS1_2_VERSION);
+    SSL_CTX_set_default_verify_paths(m_State->SslCtx);
 }
 
 http::HttpClient::~HttpClient()
 {
+    SSL_CTX_free(m_State->SslCtx);
+    EVP_cleanup();
+
+#ifdef SYSTEM_WINDOWS
     WSACleanup();
+#endif
+
     delete m_State;
     m_State = nullptr;
 }
-
-#endif
-
-#ifdef SYSTEM_LINUX
-
-http::HttpClient::HttpClient() = default;
-http::HttpClient::~HttpClient() = default;
-
-#endif
 
 int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 {
@@ -165,6 +214,44 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         return 1;
     }
 
+    auto use_tls = request.Location.Scheme == "https";
+    std::unique_ptr<HttpTransport> transport;
+    SSL *ssl = nullptr;
+
+    if (use_tls)
+    {
+        ssl = SSL_new(m_State->SslCtx);
+        SSL_set_fd(ssl, sock);
+
+        SSL_set_tlsext_host_name(ssl, request.Location.Host.c_str());
+        SSL_set1_host(ssl, request.Location.Host.c_str());
+        SSL_set_verify(ssl, SSL_VERIFY_PEER, nullptr);
+
+        if (SSL_connect(ssl) <= 0)
+        {
+            SSL_free(ssl);
+
+            socket_close(sock);
+            std::cerr << "request failed: TLS handshake failed." << std::endl;
+            return 1;
+        }
+
+        if (SSL_get_verify_result(ssl) != X509_V_OK)
+        {
+            SSL_free(ssl);
+
+            socket_close(sock);
+            std::cerr << "request failed: TLS certificate verification failed." << std::endl;
+            return 1;
+        }
+
+        transport = std::make_unique<HttpTlsTransport>(ssl);
+    }
+    else
+    {
+        transport = std::make_unique<HttpTcpTransport>(sock);
+    }
+
     set_header_if_missing(request.Headers, "Host", request.Location.Host);
     set_header_if_missing(request.Headers, "Connection", "close");
     set_header_if_missing(request.Headers, "Accept-Encoding", "identity");
@@ -176,8 +263,11 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         packet << key << ": " << val << EOL;
     packet << EOL;
 
-    if (send(sock, packet.str().data(), packet.str().size(), 0) < 0)
+    if (transport->write(packet.str().data(), packet.str().size()) < 0)
     {
+        if (ssl)
+            SSL_free(ssl);
+
         socket_close(sock);
         std::cerr << "request failed: failed to send header." << std::endl;
         return 1;
@@ -193,8 +283,11 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         {
             auto len = request.Body->readsome(buf, sizeof(buf));
 
-            if (send(sock, buf, len, 0) < 0)
+            if (transport->write(buf, len) < 0)
             {
+                if (ssl)
+                    SSL_free(ssl);
+                
                 socket_close(sock);
                 std::cerr << "request failed: failed to send chunk." << std::endl;
                 return 1;
@@ -205,8 +298,11 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     }
 
     std::string header_block;
-    if (auto error = recv_until(sock, header_block, EOL2))
+    if (auto error = read_until(transport.get(), header_block, EOL2))
     {
+        if (ssl)
+            SSL_free(ssl);
+        
         socket_close(sock);
         return error;
     }
@@ -235,7 +331,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     auto count = body_prefetch.size();
     while (content_length == ~0ULL || count < content_length)
     {
-        auto len = recv(sock, buf, sizeof(buf), 0);
+        auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
             break;
 
@@ -245,6 +341,9 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         count += len;
     }
 
+    if (ssl)
+        SSL_free(ssl);
+    
     socket_close(sock);
 
     if (is_redirect(response.StatusCode))

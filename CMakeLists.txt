@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.23)
 
 project(unvm VERSION 0.0.1)
 
+find_package(OpenSSL REQUIRED)
+
 option(ENABLE_COMPLETIONS "install shell completion scripts" ON)
 
 string(TOUPPER "${CMAKE_SYSTEM_NAME}" PLATFORM_SYSTEM_NAME)
@@ -31,7 +33,7 @@ add_subdirectory(third_party/libarchive)
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 target_include_directories(unvm PRIVATE "include")
-target_link_libraries(unvm PRIVATE archive)
+target_link_libraries(unvm PRIVATE ssl crypto archive)
 target_compile_definitions(unvm PRIVATE "SYSTEM_${PLATFORM_SYSTEM_NAME}" "ARCH_${PLATFORM_SYSTEM_PROCESSOR}")
 
 if (WIN32)

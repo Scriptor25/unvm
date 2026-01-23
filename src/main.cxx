@@ -203,7 +203,7 @@ static int load_version_table(http::HttpClient &client, VersionTable &table, boo
 
         http::HttpRequest request = {
             .Method = http::HttpMethod::Get,
-            .Location = http::ParseUrl("http://nodejs.org/dist/index.json"),
+            .Location = http::ParseUrl("https://nodejs.org/dist/index.json"),
         };
         http::HttpResponse response = {
             .Body = &stream,
@@ -479,9 +479,9 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
     http::HttpRequest request = {
         .Method = http::HttpMethod::Get,
         .Location = {
-            .Scheme = "http",
+            .Scheme = "https",
             .Host = "nodejs.org",
-            .Port = 80,
+            .Port = 443,
             .Pathname = pathname,
         },
     };
