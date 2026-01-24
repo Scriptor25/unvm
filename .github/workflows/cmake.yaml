@@ -61,12 +61,12 @@ jobs:
 
       - name: Setup (Linux)
         if: matrix.os == 'linux'
-        run: apt-get update && apt-get install libarchive-dev libssl-dev
+        run: sudo apt-get update && sudo apt-get install libarchive-dev libssl-dev
 
       - name: Setup (Windows, MSVC)
         if: matrix.os == 'windows' && matrix.compiler == 'msvc'
         run: |
-          git clone --depth 0 https://github.com/microsoft/vcpkg.git
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg install libarchive:x64-windows
 
