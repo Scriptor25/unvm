@@ -132,8 +132,8 @@ namespace http
     {
         virtual ~HttpTransport() = default;
 
-        virtual int write(const void *buf, std::size_t len) = 0;
-        virtual int read(void *buf, std::size_t len) = 0;
+        virtual int write(const char *buf, std::size_t len) = 0;
+        virtual int read(char *buf, std::size_t len) = 0;
     };
 
     class HttpClient
