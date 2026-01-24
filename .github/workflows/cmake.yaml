@@ -41,12 +41,6 @@ jobs:
             runner: windows-latest
 
           - os: windows
-            compiler: gcc
-            runner: windows-latest
-            cc: gcc
-            cxx: g++
-
-          - os: windows
             compiler: clang
             runner: windows-latest
             cc: clang
@@ -59,9 +53,9 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Cache (VCPKG)
+      - name: Cache (vcpkg)
         id: cache-vcpkg
-        if: matrix.os == 'windows' && matrix.compiler == 'msvc'
+        if: matrix.os == 'windows'
         uses: actions/cache@v4
         with:
           path: |
@@ -73,7 +67,7 @@ jobs:
         if: matrix.os == 'linux'
         run: sudo apt-get update && sudo apt-get install libarchive-dev libssl-dev
 
-      - name: Setup (Windows, MSVC)
+      - name: Setup (Windows)
         if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git
