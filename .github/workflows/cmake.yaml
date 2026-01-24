@@ -64,7 +64,9 @@ jobs:
 
       - name: Setup (Linux)
         if: matrix.os == 'linux'
-        run: sudo apt-get update && sudo apt-get install libarchive-dev libssl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install libarchive-dev libssl-dev
 
       - name: Setup (Windows)
         if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
@@ -76,7 +78,9 @@ jobs:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
         run: >
-          cmake -S . -B build
+          cmake
+          -S .
+          -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
           ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="{0}\\scripts\\buildsystems\\vcpkg.cmake"', env.VCPKG_INSTALLATION_ROOT) || '' }}
