@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 target_include_directories(unvm PRIVATE "include")
-target_link_libraries(unvm PRIVATE ssl crypto archive)
+target_link_libraries(unvm PRIVATE OpenSSL::SSL OpenSSL::Crypto LibArchive::LibArchive)
 target_compile_definitions(unvm PRIVATE "SYSTEM_${PLATFORM_SYSTEM_NAME}" "ARCH_${PLATFORM_SYSTEM_PROCESSOR}")
 
 if (WIN32)
