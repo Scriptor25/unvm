@@ -68,7 +68,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
-          .\vcpkg\vcpkg install libarchive:x64-windows
+          .\vcpkg\vcpkg install libarchive:x64-windows openssl:x64-windows
 
       - name: Setup (Windows, MinGW)
         if: matrix.os == 'windows' && matrix.compiler == 'gcc'
