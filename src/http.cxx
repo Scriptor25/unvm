@@ -114,12 +114,12 @@ struct HttpTcpTransport final : http::HttpTransport
     {
     }
 
-    int write(const void *buf, const std::size_t len) override
+    int write(const char *buf, const std::size_t len) override
     {
         return static_cast<int>(send(sock, buf, len, 0));
     }
 
-    int read(void *buf, const std::size_t len) override
+    int read(char *buf, const std::size_t len) override
     {
         return static_cast<int>(recv(sock, buf, len, 0));
     }
@@ -134,12 +134,12 @@ struct HttpTlsTransport final : http::HttpTransport
     {
     }
 
-    int write(const void *buf, const std::size_t len) override
+    int write(const char *buf, const std::size_t len) override
     {
         return SSL_write(ssl, buf, static_cast<int>(len));
     }
 
-    int read(void *buf, const std::size_t len) override
+    int read(char *buf, const std::size_t len) override
     {
         return SSL_read(ssl, buf, static_cast<int>(len));
     }
