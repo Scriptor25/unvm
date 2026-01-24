@@ -59,36 +59,26 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Cache (VCPKG)
+        id: cache-vcpkg
+        if: matrix.os == 'windows' && matrix.compiler == 'msvc'
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg
+            C:\\Users\\runneradmin\\AppData\\Local\\vcpkg\\archives
+          key: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}
+
       - name: Setup (Linux)
         if: matrix.os == 'linux'
         run: sudo apt-get update && sudo apt-get install libarchive-dev libssl-dev
 
       - name: Setup (Windows, MSVC)
-        if: matrix.os == 'windows' && matrix.compiler == 'msvc'
+        if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg install libarchive:x64-windows openssl:x64-windows
-
-      - name: Setup (Windows, MinGW)
-        if: matrix.os == 'windows' && matrix.compiler == 'gcc'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: mingw64
-          install: >
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-libarchive
-            mingw-w64-x86_64-openssl
-
-      - name: Setup (Windows, Clang)
-        if: matrix.os == 'windows' && matrix.compiler == 'clang'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: clang64
-          install: >
-            mingw-w64-clang-x86_64-toolchain
-            mingw-w64-clang-x86_64-libarchive
-            mingw-w64-clang-x86_64-openssl
 
       - name: Configure CMake
         env:
@@ -98,7 +88,7 @@ jobs:
           cmake -S . -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
-          ${{ matrix.compiler == 'msvc' && format('-DCMAKE_TOOLCHAIN_FILE={0}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake', github.workspace) || '' }}
+          ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE={0}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake', github.workspace) || '' }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
