@@ -63,7 +63,9 @@ struct json::Converter<Config>
     static bool To(const Node &node, Config &value)
     {
         if (!node.IsObject())
+        {
             return false;
+        }
 
         value.InstallDirectory = node.Get("install-directory").To<std::string>();
         value.ActiveDirectory = node.Get("active-directory").To<std::string>();
@@ -82,7 +84,9 @@ struct json::Converter<OptString>
         if (node.IsBoolean())
         {
             if (node.AsBoolean())
+            {
                 return false;
+            }
 
             value.HasValue = false;
             return true;
@@ -105,7 +109,9 @@ struct json::Converter<VersionEntry>
     static bool To(const Node &node, VersionEntry &value)
     {
         if (!node.IsObject())
+        {
             return false;
+        }
 
         value.Version = node.Get("version").To<std::string>();
         value.Date = node.Get("date").To<std::string>();
@@ -164,7 +170,8 @@ constexpr auto LIST_MOD_AVAILABLE_BITS = 0b00010000u;
  *  - bit 7 -> modifier present bit
  *  - bits [6:4] -> modifier value
  */
-static const std::map<std::string_view, unsigned> operation_map = {
+static const std::map<std::string_view, unsigned> operation_map
+{
     { "install", INSTALL_BITS },
     { "i", INSTALL_BITS },
     { "remove", REMOVE_BITS },
@@ -252,7 +259,9 @@ static std::string to_lower(const std::string_view &str)
 {
     std::string result;
     for (auto &c : str)
+    {
         result += static_cast<char>(std::tolower(c));
+    }
     return result;
 }
 
@@ -268,7 +277,9 @@ static unsigned count_version_segments(const std::string_view &str)
     }
 
     if (beg != str.length())
+    {
         ++segments;
+    }
 
     return segments;
 }
@@ -279,14 +290,20 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
     if (version == "latest")
     {
         if (!table.empty())
+        {
             return &table.front();
+        }
     }
     // latest lts
     else if (version == "lts")
     {
         for (auto &entry : table)
+        {
             if (entry.Lts.HasValue)
+            {
                 return &entry;
+            }
+        }
     }
     // version by pattern
     else if (version.starts_with('v'))
@@ -305,15 +322,23 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
         {
             const auto pattern = std::string(version) + '.';
             for (auto &entry : table)
+            {
                 if (entry.Version.starts_with(pattern))
+                {
                     return &entry;
+                }
+            }
             break;
         }
 
         case 3:
             for (auto &entry : table)
+            {
                 if (entry.Version == version)
+                {
                     return &entry;
+                }
+            }
             break;
 
         default:
@@ -325,8 +350,12 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
     {
         const auto name = to_lower(version);
         for (auto &entry : table)
+        {
             if (entry.Lts.HasValue && to_lower(entry.Lts.Value) == name)
+            {
                 return &entry;
+            }
+        }
     }
 
     return nullptr;
@@ -400,7 +429,9 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
             if (const auto error = archive_read_data_block(arc, &buf, &len, &off))
             {
                 if (error == ARCHIVE_EOF)
+                {
                     break;
+                }
 
                 std::cerr << "failed to read archive data block: " << archive_error_string(arc) << std::endl;
 
@@ -527,7 +558,9 @@ static int remove(Config &config, http::HttpClient &client, const std::string_vi
 {
     VersionTable table;
     if (const auto error = load_version_table(client, table, false))
+    {
         return error;
+    }
 
     const auto entry_ptr = find_effective_version(table, version);
 
@@ -544,8 +577,7 @@ static int remove(Config &config, http::HttpClient &client, const std::string_vi
         return 1;
     }
 
-    auto parent(config.InstallDirectory);
-    std::filesystem::remove_all(parent / entry.Version);
+    std::filesystem::remove_all(config.InstallDirectory / entry.Version);
 
     config.Installed.erase(entry.Version);
     return 0;
@@ -573,7 +605,9 @@ static int use(Config &config, http::HttpClient &client, const std::string_view 
 
     VersionTable table;
     if (const auto error = load_version_table(client, table, false))
+    {
         return error;
+    }
 
     const auto entry_ptr = find_effective_version(table, version);
 
@@ -629,7 +663,9 @@ static int list(Config &config, http::HttpClient &client, const bool available)
 
     VersionTable table;
     if (const auto error = load_version_table(client, table, available))
+    {
         return error;
+    }
 
     for (auto &entry : table)
     {

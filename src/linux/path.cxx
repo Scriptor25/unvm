@@ -7,7 +7,9 @@ std::filesystem::path GetDataDirectory()
     static std::pair<bool, std::filesystem::path> directory{ false, {} };
 
     if (directory.first)
+    {
         return directory.second;
+    }
 
     std::filesystem::path path;
     if (const auto xdg_config_home = std::getenv("XDG_CONFIG_HOME"))

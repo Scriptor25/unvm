@@ -3,8 +3,8 @@
 #include <url.hxx>
 #include <util.hxx>
 
-#include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #include <istream>
 #include <memory>
@@ -32,7 +32,7 @@ inline int socket_close(platform_socket_t s)
 
 using platform_socket_t = int;
 
-inline int socket_close(platform_socket_t s)
+inline int socket_close(const platform_socket_t s)
 {
     return close(s);
 }
@@ -47,7 +47,9 @@ static int read_until(http::HttpTransport *transport, std::string &dst, const ch
     {
         const auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
+        {
             return 1;
+        }
 
         dst.append(buf, len);
     }
@@ -58,7 +60,9 @@ static int read_until(http::HttpTransport *transport, std::string &dst, const ch
 static void set_header_if_missing(http::HttpHeaders &headers, const std::string &key, const std::string &val)
 {
     if (headers.contains(key) || headers.contains(Lower(key)))
+    {
         return;
+    }
 
     headers.emplace(key, val);
 }
@@ -82,11 +86,15 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
     while (GetLine(stream, line, EOL))
     {
         if (line.empty())
+        {
             break;
+        }
 
         const auto colon = line.find(':');
         if (colon == std::string::npos)
+        {
             continue;
+        }
 
         auto key = line.substr(0, colon);
         auto val = line.substr(colon + 1);
@@ -101,36 +109,40 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
 
 struct HttpTcpTransport final : http::HttpTransport
 {
-    HttpTcpTransport(platform_socket_t sock)
-        : sock(sock) {}
+    explicit HttpTcpTransport(const platform_socket_t sock)
+        : sock(sock)
+    {
+    }
 
-    int write(const void *buf, std::size_t len) override
+    int write(const void *buf, const std::size_t len) override
     {
-        return send(sock, buf, len, 0);
-    };
-    
-    int read(void *buf, std::size_t len) override
+        return static_cast<int>(send(sock, buf, len, 0));
+    }
+
+    int read(void *buf, const std::size_t len) override
     {
-        return recv(sock, buf, len, 0);
-    };
+        return static_cast<int>(recv(sock, buf, len, 0));
+    }
 
     platform_socket_t sock;
 };
 
 struct HttpTlsTransport final : http::HttpTransport
 {
-    HttpTlsTransport(SSL *ssl)
-        : ssl(ssl) {}
+    explicit HttpTlsTransport(SSL *ssl)
+        : ssl(ssl)
+    {
+    }
 
-    int write(const void *buf, std::size_t len) override
+    int write(const void *buf, const std::size_t len) override
     {
         return SSL_write(ssl, buf, static_cast<int>(len));
-    };
-    
-    int read(void *buf, std::size_t len) override
+    }
+
+    int read(void *buf, const std::size_t len) override
     {
         return SSL_read(ssl, buf, static_cast<int>(len));
-    };
+    }
 
     SSL *ssl;
 };
@@ -194,7 +206,9 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     {
         sock = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
         if (sock < 0)
+        {
             continue;
+        }
 
         if (connect(sock, it->ai_addr, it->ai_addrlen))
         {
@@ -260,13 +274,17 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     std::stringstream packet;
     packet << request.Method << ' ' << request.Location.Pathname << ' ' << "HTTP/1.1" << EOL;
     for (auto &[key, val] : request.Headers)
+    {
         packet << key << ": " << val << EOL;
+    }
     packet << EOL;
 
     if (transport->write(packet.str().data(), packet.str().size()) < 0)
     {
         if (ssl)
+        {
             SSL_free(ssl);
+        }
 
         socket_close(sock);
         std::cerr << "request failed: failed to send header." << std::endl;
@@ -286,8 +304,10 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
             if (transport->write(buf, len) < 0)
             {
                 if (ssl)
+                {
                     SSL_free(ssl);
-                
+                }
+
                 socket_close(sock);
                 std::cerr << "request failed: failed to send chunk." << std::endl;
                 return 1;
@@ -301,8 +321,10 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     if (auto error = read_until(transport.get(), header_block, EOL2))
     {
         if (ssl)
+        {
             SSL_free(ssl);
-        
+        }
+
         socket_close(sock);
         return error;
     }
@@ -323,27 +345,37 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 
     std::size_t content_length = ~0ULL;
     if (auto it = response.Headers.find("content-length"); it != response.Headers.end())
+    {
         content_length = std::stoull(it->second);
+    }
 
     if (response.Body && response.Body->good())
+    {
         response.Body->write(body_prefetch.data(), static_cast<long>(body_prefetch.size()));
+    }
 
     auto count = body_prefetch.size();
     while (content_length == ~0ULL || count < content_length)
     {
         auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
+        {
             break;
+        }
 
         if (response.Body && response.Body->good())
+        {
             response.Body->write(buf, len);
+        }
 
         count += len;
     }
 
     if (ssl)
+    {
         SSL_free(ssl);
-    
+    }
+
     socket_close(sock);
 
     if (is_redirect(response.StatusCode))

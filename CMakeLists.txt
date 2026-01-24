@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.23)
 project(unvm VERSION 0.0.1)
 
 find_package(OpenSSL REQUIRED)
+find_package(LibArchive REQUIRED)
 
 option(ENABLE_COMPLETIONS "install shell completion scripts" ON)
 
@@ -14,21 +15,6 @@ message(STATUS "Processor: ${PLATFORM_SYSTEM_PROCESSOR}")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-set(ZLIB_BUILD_TESTING OFF)
-
-add_subdirectory(third_party/zlib)
-
-set(ENABLE_ZLIB ON)
-set(ENABLE_TEST OFF)
-set(ENABLE_COVERAGE OFF)
-
-set(ENABLE_TAR OFF)
-set(ENABLE_CPIO OFF)
-set(ENABLE_CAT OFF)
-set(ENABLE_UNZIP OFF)
-
-add_subdirectory(third_party/libarchive)
 
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})

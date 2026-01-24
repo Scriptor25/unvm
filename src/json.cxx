@@ -67,24 +67,36 @@ const std::map<std::string, json::Node> &json::Node::AsObject() const
 json::Node &json::Node::Get(const std::string &key)
 {
     if (IsObject())
+    {
         if (auto &object = AsObject(); object.contains(key))
+        {
             return object.at(key);
+        }
+    }
     throw std::runtime_error(std::format("missing key {} in object", key));
 }
 
 const json::Node &json::Node::Get(const std::string &key) const
 {
     if (IsObject())
+    {
         if (auto &object = AsObject(); object.contains(key))
+        {
             return object.at(key);
+        }
+    }
     throw std::runtime_error(std::format("missing key {} in object", key));
 }
 
 json::Node json::Node::GetOrNull(const std::string &key) const
 {
     if (IsObject())
+    {
         if (auto &object = AsObject(); object.contains(key))
+        {
             return object.at(key);
+        }
+    }
     return {};
 }
 
@@ -107,8 +119,7 @@ std::ostream &json::Node::Print(std::ostream &stream) const
     case NodeType::String:
     {
         stream << '"';
-        auto &string = AsString();
-        for (auto &c : string)
+        for (auto &string = AsString(); auto &c : string)
         {
             switch (c)
             {
@@ -168,7 +179,9 @@ std::ostream &json::Node::Print(std::ostream &stream) const
         for (auto i = values.begin(); i != values.end(); ++i)
         {
             if (i != values.begin())
+            {
                 stream << ',';
+            }
             stream << *i;
         }
         stream << ']';
@@ -182,7 +195,9 @@ std::ostream &json::Node::Print(std::ostream &stream) const
         for (auto i = values.begin(); i != values.end(); ++i)
         {
             if (i != values.begin())
+            {
                 stream << ',';
+            }
             stream << '"' << i->first << '"' << ':' << i->second;
         }
         stream << '}';
@@ -232,7 +247,9 @@ json::Node json::Parser::Parse()
             values[key] = Parse();
 
             if (!At(TokenType::Other, "}"))
+            {
                 Expect(TokenType::Other, ",");
+            }
         }
         Expect(TokenType::Other, "}");
 
@@ -252,7 +269,9 @@ json::Node json::Parser::Parse()
             values.push_back(Parse());
 
             if (!At(TokenType::Other, "]"))
+            {
                 Expect(TokenType::Other, ",");
+            }
         }
         Expect(TokenType::Other, "]");
 
@@ -509,7 +528,9 @@ json::Token json::Parser::Skip()
 json::Token json::Parser::Expect(TokenType type)
 {
     if (m_Token.Type == type)
+    {
         return Skip();
+    }
     throw std::runtime_error(
         std::format(
             "expect {}, got {}",
@@ -520,7 +541,9 @@ json::Token json::Parser::Expect(TokenType type)
 json::Token json::Parser::Expect(TokenType type, const std::string &value)
 {
     if (m_Token.Type == type && m_Token.String == value)
+    {
         return Skip();
+    }
     throw std::runtime_error(
         std::format(
             "expect {} '{}', got {} '{}'",

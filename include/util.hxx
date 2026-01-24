@@ -16,7 +16,7 @@ std::string Trim(std::string string);
 std::string Lower(std::string string);
 
 template<typename K, typename V>
-std::ostream& operator<<(std::ostream& stream, const std::map<K, V>& map)
+std::ostream &operator<<(std::ostream &stream, const std::map<K, V> &map)
 {
     stream << "{ ";
     for (auto it = map.begin(); it != map.end(); ++it)

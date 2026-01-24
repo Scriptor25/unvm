@@ -53,18 +53,22 @@ static std::wstring GetErrorMessage(DWORD error)
 int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
     if (!std::filesystem::is_directory(target))
+    {
         return 1;
+    }
 
     auto abs_link = std::filesystem::absolute(link).wstring();
     auto abs_target = std::filesystem::absolute(target).wstring();
 
     if (!CreateDirectoryW(abs_link.c_str(), nullptr))
+    {
         if (auto error = GetLastError(); error != ERROR_ALREADY_EXISTS)
         {
             auto message = GetErrorMessage(error);
             std::wcerr << message << std::endl;
             return 1;
         }
+    }
 
     HANDLE h = CreateFileW(
         abs_link.c_str(),
@@ -148,7 +152,9 @@ int RemoveLink(const std::filesystem::path &link)
         nullptr);
 
     if (h == INVALID_HANDLE_VALUE)
+    {
         return 1;
+    }
 
     REPARSE_JUNCTION_DATA_BUFFER reparse{};
     reparse.ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
