@@ -58,7 +58,7 @@ jobs:
         if: matrix.os == 'windows'
         uses: actions/cache@v4
         with:
-          path: ${{ env.VCPKG_INSTALLATION_ROOT }}\\installed
+          path: C:\\vcpkg\\installed
           key: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}
         continue-on-error: true
 
@@ -83,7 +83,7 @@ jobs:
           -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
-          ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="{0}\\scripts\\buildsystems\\vcpkg.cmake"', env.VCPKG_INSTALLATION_ROOT) || '' }}
+          ${{ matrix.os == 'windows' && '-DCMAKE_TOOLCHAIN_FILE="C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"' || '' }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
