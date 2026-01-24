@@ -1,0 +1,8 @@
+{
+  "name": "unvm",
+  "version-string": "0.0.1",
+  "dependencies": [
+    "libarchive",
+    "openssl"
+  ]
+}
