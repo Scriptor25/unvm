@@ -68,15 +68,6 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Cache (vcpkg)
-        id: cache-vcpkg
-        if: matrix.os == 'windows'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.HOME }}\AppData\Local\vcpkg\archives
-          key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-${{ hashFiles('vcpkg.json') }}
-
       - name: Setup (Linux)
         if: matrix.os == 'linux'
         run: |
@@ -85,8 +76,13 @@ jobs:
 
       - name: Setup (Windows)
         if: matrix.os == 'windows'
-        run: |
-          vcpkg install
+        id: vcpkg
+        uses: johnwason/vcpkg-action@v7
+        with:
+          pkgs: libarchive openssl
+          triplet: x64-windows-release
+          token: ${{ github.token }}
+          cache-key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
 
       - name: Setup (Darwin)
         if: matrix.os == 'darwin'
@@ -104,8 +100,8 @@ jobs:
           -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
-          ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"', github.workspace) || '' }}
-          ${{ matrix.os == 'darwin' && '-DCMAKE_PREFIX_PATH="/opt/homebrew;/opt/homebrew/opt/libarchive"' }}
+          ${{ matrix.os == 'windows' && steps.vcpkg.outputs.vcpkg-cmake-config || '' }}
+          ${{ matrix.os == 'darwin' && '-DCMAKE_PREFIX_PATH="/opt/homebrew;/opt/homebrew/opt/libarchive"' || '' }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
