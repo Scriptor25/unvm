@@ -16,6 +16,10 @@ message(STATUS "Processor: ${PLATFORM_SYSTEM_PROCESSOR}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+endif()
+
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 target_include_directories(unvm PRIVATE "include")
@@ -36,14 +40,17 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT APPLE)
     target_link_options(unvm PRIVATE -fuse-ld=lld)
 endif ()
 
-if (WIN32)
+if(WIN32)
     install(TARGETS unvm
-            RUNTIME_DEPENDENCIES
+            RUNTIME DESTINATION bin
+            RUNTIME_DEPENDENCY_SET unvm_deps)
+    install(RUNTIME_DEPENDENCY_SET unvm_deps
+            RUNTIME DESTINATION bin
             PRE_EXCLUDE_REGEXES "api-ms-.*" "ext-ms-.*"
             POST_EXCLUDE_REGEXES ".*system32/.*")
-else ()
-    install(TARGETS unvm)
-endif ()
+else()
+    install(TARGETS unvm RUNTIME DESTINATION bin)
+endif()
 
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh

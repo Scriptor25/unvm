@@ -56,14 +56,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Cache vcpkg
         if: matrix.os == 'windows'
         id: cache-vcpkg
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/vcpkg
           key: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}-${{ hashFiles('vcpkg.json') }}
@@ -73,14 +73,15 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libarchive-dev libssl-dev ninja-build
+          sudo apt-get install -y --no-install-recommends libarchive-dev libssl-dev ninja-build
 
       - name: Setup (macOS)
         if: matrix.os == 'macos'
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
           HOMEBREW_NO_INSTALL_CLEANUP: 1
-        run: brew install --quiet ninja openssl libarchive
+        run: |
+          brew install ninja openssl@3 libarchive 2>/dev/null || true
 
       - name: Clone vcpkg (Windows)
         if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
@@ -122,18 +123,27 @@ jobs:
         if: github.event_name == 'release'
         shell: bash
         run: |
+          set -e
+          VERSION="${{ github.event.release.tag_name }}"
           cpack --config build/CPackConfig.cmake \
             -B cpack_out \
-            -D CPACK_PACKAGE_FILE_NAME="unvm-${{ matrix.os }}-${{ matrix.compiler }}"
+            -D CPACK_PACKAGE_FILE_NAME="unvm-${VERSION}-${{ matrix.os }}-${{ matrix.compiler }}"
           mkdir -p dist
-          cp cpack_out/unvm-${{ matrix.os }}-${{ matrix.compiler }}.* dist/
+          shopt -s nullglob
+          files=(cpack_out/unvm-${VERSION}-${{ matrix.os }}-${{ matrix.compiler }}.*)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "ERROR: No package files generated"
+            ls -la cpack_out/
+            exit 1
+          fi
+          cp "${files[@]}" dist/
           ls -la dist/
 
       - name: Upload Artifact
         if: github.event_name == 'release'
         uses: actions/upload-artifact@v4
         with:
-          name: unvm-${{ matrix.os }}-${{ matrix.compiler }}
+          name: unvm-${{ github.event.release.tag_name }}-${{ matrix.os }}-${{ matrix.compiler }}
           path: dist/*
           retention-days: 1
           if-no-files-found: error
@@ -147,15 +157,22 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Download Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: false
+
+      - name: Generate Checksums
+        run: |
+          cd artifacts
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.exe" -o -name "*.sh" -o -name "*.rpm" \) \
+            -exec sha256sum {} \; | sed 's|  \./[^/]*/|  |' | sort -k2 > ../SHA256SUMS
+          cat ../SHA256SUMS
 
       - name: Generate Changelog
         id: changelog
@@ -168,19 +185,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Release
-        uses: softprops/action-gh-release@v2
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag: ${{ github.event.release.tag_name }}
+          allowUpdates: true
+          omitBodyDuringUpdate: false
           body: |
             ${{ github.event.release.body }}
 
             ## Changelog
             ${{ steps.changelog.outputs.changelog }}
-          files: |
+          artifacts: |
+            SHA256SUMS
             artifacts/**/*.tar.gz
             artifacts/**/*.zip
             artifacts/**/*.exe
             artifacts/**/*.sh
             artifacts/**/*.rpm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
