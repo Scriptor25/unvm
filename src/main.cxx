@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <sstream>
 
 #include <archive.h>
 #include <archive_entry.h>
