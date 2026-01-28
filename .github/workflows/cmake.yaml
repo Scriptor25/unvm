@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: "${{ matrix.os }} | ${{ matrix.compiler }}"
+    name: "${{ matrix.os }} | ${{ matrix.toolchain }}"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
@@ -21,14 +21,14 @@ jobs:
           # Linux
           # =====================
           - os: linux
-            compiler: gcc
             runner: ubuntu-latest
+            toolchain: gcc
             cc: gcc
             cxx: g++
 
           - os: linux
-            compiler: clang
             runner: ubuntu-latest
+            toolchain: clang
             cc: clang
             cxx: clang++
 
@@ -36,13 +36,40 @@ jobs:
           # Windows
           # =====================
           - os: windows
-            compiler: msvc
-            generator: Visual Studio 17 2022
             runner: windows-latest
+            toolchain: msvc
+            generator: Visual Studio 17 2022
 
           - os: windows
-            compiler: clang
             runner: windows-latest
+            toolchain: clang
+            cc: clang
+            cxx: clang++
+
+          # =====================
+          # Darwin
+          # =====================
+          - os: darwin
+            runner: macos-latest
+            toolchain: gcc
+            cc: gcc
+            cxx: g++
+
+          - os: darwin
+            runner: macos-latest
+            toolchain: clang
+            cc: clang
+            cxx: clang++
+
+          - os: darwin-x
+            runner: macos-latest-large
+            toolchain: gcc
+            cc: gcc
+            cxx: g++
+
+          - os: darwin-x
+            runner: macos-latest-large
+            toolchain: clang
             cc: clang
             cxx: clang++
 
@@ -60,7 +87,7 @@ jobs:
         with:
           path: |
             ${{ env.HOME }}\AppData\Local\vcpkg\archives
-          key: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-${{ hashFiles('vcpkg.json') }}
 
       - name: Setup (Linux)
         if: matrix.os == 'linux'
@@ -72,6 +99,12 @@ jobs:
         if: matrix.os == 'windows'
         run: |
           vcpkg install
+
+      - name: Setup (Darwin)
+        if: matrix.os == 'darwin' || matrix.os == 'darwin-x'
+        run: |
+          brew update
+          brew install libarchive openssl
 
       - name: Configure CMake
         env:
@@ -108,7 +141,7 @@ jobs:
             sanitized="${sanitized#*/}"
             sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/-/g')
 
-            target="dist/unvm-${sanitized}-${{ matrix.os }}-${{ matrix.compiler }}.${ext}"
+            target="dist/unvm-${sanitized}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
 
             mv "$file" "$target"
 
