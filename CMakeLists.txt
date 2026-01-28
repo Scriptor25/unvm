@@ -36,7 +36,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif ()
 
 if (WIN32)
-    install(TARGETS unvm RUNTIME_DEPENDENCIES PRE_EXCLUDE_REGEXES "api-ms-.*" "ext-ms-.*" POST_EXCLUDE_REGEXES ".*system32/.*")
+    install(TARGETS unvm
+            RUNTIME_DEPENDENCIES
+            PRE_EXCLUDE_REGEXES "api-ms-.*" "ext-ms-.*"
+            POST_EXCLUDE_REGEXES ".*system32/.*")
 else ()
     install(TARGETS unvm)
 endif ()
