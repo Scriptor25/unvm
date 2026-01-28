@@ -61,18 +61,6 @@ jobs:
             cc: clang
             cxx: clang++
 
-          - os: darwin-x
-            runner: macos-latest-large
-            toolchain: gcc
-            cc: gcc
-            cxx: g++
-
-          - os: darwin-x
-            runner: macos-latest-large
-            toolchain: clang
-            cc: clang
-            cxx: clang++
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,7 +89,7 @@ jobs:
           vcpkg install
 
       - name: Setup (Darwin)
-        if: matrix.os == 'darwin' || matrix.os == 'darwin-x'
+        if: matrix.os == 'darwin'
         run: |
           brew update
           brew install libarchive openssl
@@ -117,6 +105,7 @@ jobs:
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
           ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"', github.workspace) || '' }}
+          ${{ matrix.os == 'darwin' && '-DCMAKE_PREFIX_PATH="/opt/homebrew"' }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
