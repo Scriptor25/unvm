@@ -9,6 +9,7 @@
 #include <istream>
 #include <memory>
 #include <ostream>
+#include <sstream>
 
 #ifdef SYSTEM_WINDOWS
 
