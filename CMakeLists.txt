@@ -46,7 +46,7 @@ if (MINGW)
     target_link_libraries(unvm PRIVATE pthread)
 endif ()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT APPLE)
     target_link_options(unvm PRIVATE -fuse-ld=lld)
 endif ()
 
