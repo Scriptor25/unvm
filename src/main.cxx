@@ -218,7 +218,7 @@ static int load_version_table(http::HttpClient &client, VersionTable &table, boo
 
         if (auto error = client.Request(request, response))
         {
-            std::cerr << "failed to get file" << std::endl;
+            std::cerr << "failed to get file." << std::endl;
             return error;
         }
 
@@ -488,16 +488,44 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
         return 0;
     }
 
-#ifdef SYSTEM_WINDOWS
+#if defined(SYSTEM_WINDOWS)
 
+#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr auto format = "node-{}-win-x64";
+#endif
+
+#if defined(ARCH_ARM64)
+    constexpr auto format = "node-{}-win-arm64";
+#endif
+
     constexpr auto ending = "zip";
 
 #endif
 
-#ifdef SYSTEM_LINUX
+#if defined(SYSTEM_LINUX)
 
+#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr auto format = "node-{}-linux-x64";
+#endif
+
+#if defined(ARCH_ARM64)
+    constexpr auto format = "node-{}-linux-arm64";
+#endif
+
+    constexpr auto ending = "tar.xz";
+
+#endif
+
+#if defined(SYSTEM_DARWIN)
+
+#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
+    constexpr auto format = "node-{}-darwin-x64";
+#endif
+
+#if defined(ARCH_ARM64)
+    constexpr auto format = "node-{}-darwin-arm64";
+#endif
+
     constexpr auto ending = "tar.xz";
 
 #endif
@@ -522,7 +550,7 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
 
     if (auto error = client.Request(request, response))
     {
-        std::cerr << "failed to get file" << std::endl;
+        std::cerr << "failed to get file." << std::endl;
         return error;
     }
 

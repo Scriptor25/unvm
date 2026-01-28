@@ -1,4 +1,4 @@
-#ifdef SYSTEM_LINUX
+#ifdef SYSTEM_DARWIN
 
 #include <util.hxx>
 

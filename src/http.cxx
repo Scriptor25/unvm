@@ -39,6 +39,21 @@ inline int socket_close(const platform_socket_t s)
 
 #endif
 
+#ifdef SYSTEM_DARWIN
+
+#include <netdb.h>
+#include <unistd.h>
+#include <sys/socket.h>
+
+using platform_socket_t = int;
+
+inline int socket_close(const platform_socket_t s)
+{
+    return close(s);
+}
+
+#endif
+
 static int read_until(http::HttpTransport *transport, std::string &dst, const char *delim)
 {
     char buf[1024];

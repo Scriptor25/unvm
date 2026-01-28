@@ -23,11 +23,26 @@ target_link_libraries(unvm PRIVATE OpenSSL::SSL OpenSSL::Crypto LibArchive::LibA
 target_compile_definitions(unvm PRIVATE "SYSTEM_${PLATFORM_SYSTEM_NAME}" "ARCH_${PLATFORM_SYSTEM_PROCESSOR}")
 
 if (WIN32)
-    target_link_libraries(unvm PRIVATE ws2_32 bcrypt xmllite uuid kernel32 user32 gdi32 winspool shell32 ole32 oleaut32 comdlg32 advapi32)
+    target_link_libraries(unvm PRIVATE
+            ws2_32
+            bcrypt
+            xmllite
+            uuid
+            kernel32
+            user32
+            gdi32
+            winspool
+            shell32
+            ole32
+            oleaut32
+            comdlg32
+            advapi32)
 endif ()
 
 if (MINGW)
-    target_link_options(unvm PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(unvm PRIVATE
+            -static-libgcc
+            -static-libstdc++)
     target_link_libraries(unvm PRIVATE pthread)
 endif ()
 
