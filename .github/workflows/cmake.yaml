@@ -58,7 +58,8 @@ jobs:
         if: matrix.os == 'windows'
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}\\vcpkg
+          path: |
+            ${{ env.HOME }}\AppData\Local\vcpkg\archives
           key: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}-${{ hashFiles('vcpkg.json') }}
 
       - name: Setup (Linux)
@@ -67,20 +68,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install libarchive-dev libssl-dev
 
-      - name: Get vcpkg (Windows)
-        if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
-        run: git clone --depth 1 --single-branch https://github.com/microsoft/vcpkg.git
-
-      - name: Configure Environment (Windows)
-        if: matrix.os == 'windows'
-        shell: bash
-        run: echo "VCPKG_BINARY_SOURCES=clear;files,${{ github.workspace }}\\vcpkg\\binary-cache,readwrite" >> $env:GITHUB_ENV
-
       - name: Setup (Windows)
         if: matrix.os == 'windows'
         run: |
-          ${{ github.workspace }}\\vcpkg\\bootstrap-vcpkg.bat
-          ${{ github.workspace }}\\vcpkg\\vcpkg install
+          vcpkg install
 
       - name: Configure CMake
         env:
@@ -92,7 +83,7 @@ jobs:
           -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
-          ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="{0}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"', github.workspace) || '' }}
+          ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"', github.workspace) || '' }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
