@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <sstream>
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -498,6 +499,18 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
 #ifdef SYSTEM_LINUX
 
     constexpr auto format = "node-{}-linux-x64";
+    constexpr auto ending = "tar.xz";
+
+// TODO: Please refactor i have no idea of C++ best practices (its for macos support)
+#endif
+
+#ifdef SYSTEM_DARWIN
+
+#ifdef ARCH_ARM64
+    constexpr auto format = "node-{}-darwin-arm64";
+#else
+    constexpr auto format = "node-{}-darwin-x64";
+#endif
     constexpr auto ending = "tar.xz";
 
 #endif

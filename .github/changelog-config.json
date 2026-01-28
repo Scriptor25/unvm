@@ -1,0 +1,204 @@
+{
+  "template": "#{{CHANGELOG}}\n\n**Full Changelog**: #{{RELEASE_DIFF}}",
+  "pr_template": "- #{{TITLE}} (#{{NUMBER}}) by @#{{AUTHOR}}",
+  "commit_template": "- #{{TITLE}} (#{{SHORT_SHA}})",
+  "empty_template": "No notable changes",
+  "custom_placeholders": [
+    {
+      "name": "SHORT_SHA",
+      "source": "SHA",
+      "transformer": {
+        "pattern": "^(.{7}).*$",
+        "target": "$1"
+      }
+    }
+  ],
+  "label_extractor": [
+    {
+      "pattern": "^[a-z]+(?:\\([\\w\\-\\.]+\\))?!: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "breaking"
+      ]
+    },
+    {
+      "pattern": "^feat(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "feature"
+      ]
+    },
+    {
+      "pattern": "^fix(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "fix"
+      ]
+    },
+    {
+      "pattern": "^perf(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "performance"
+      ]
+    },
+    {
+      "pattern": "^refactor(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "refactor"
+      ]
+    },
+    {
+      "pattern": "^docs(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "docs"
+      ]
+    },
+    {
+      "pattern": "^test(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "test"
+      ]
+    },
+    {
+      "pattern": "^(build|ci)(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "build"
+      ]
+    },
+    {
+      "pattern": "^(chore|style|revert)(?:\\([\\w\\-\\.]+\\))?: .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "chore"
+      ]
+    },
+    {
+      "pattern": "^Merge .+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "labels": [
+        "skip-changelog"
+      ]
+    },
+    {
+      "pattern": "^(v?\\d+\\.\\d+\\.\\d+|bump|release|version)",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "flags": "i",
+      "labels": [
+        "skip-changelog"
+      ]
+    },
+    {
+      "pattern": ".+",
+      "on_property": "title",
+      "method": "match",
+      "target": "$0",
+      "labels": [
+        "other"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "title": "## Breaking Changes",
+      "labels": [
+        "breaking"
+      ]
+    },
+    {
+      "title": "## Features",
+      "labels": [
+        "feature"
+      ]
+    },
+    {
+      "title": "## Bug Fixes",
+      "labels": [
+        "fix"
+      ]
+    },
+    {
+      "title": "## Performance",
+      "labels": [
+        "performance"
+      ]
+    },
+    {
+      "title": "## Refactoring",
+      "labels": [
+        "refactor"
+      ]
+    },
+    {
+      "title": "## Documentation",
+      "labels": [
+        "docs"
+      ]
+    },
+    {
+      "title": "## Tests",
+      "labels": [
+        "test"
+      ]
+    },
+    {
+      "title": "## Build & CI",
+      "labels": [
+        "build"
+      ]
+    },
+    {
+      "title": "## Other Changes",
+      "labels": [
+        "chore",
+        "other"
+      ]
+    }
+  ],
+  "ignore_labels": [
+    "skip-changelog"
+  ],
+  "sort": {
+    "order": "ASC",
+    "on_property": "mergedAt"
+  },
+  "trim_values": true,
+  "max_tags_to_fetch": 200,
+  "max_pull_requests": 200,
+  "max_back_track_time_days": 365
+}

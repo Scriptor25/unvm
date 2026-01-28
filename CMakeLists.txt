@@ -31,7 +31,8 @@ if (MINGW)
     target_link_libraries(unvm PRIVATE pthread)
 endif ()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+# TODO: Please refactor i have no idea of CMake best practices
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT APPLE)
     target_link_options(unvm PRIVATE -fuse-ld=lld)
 endif ()
 
@@ -60,6 +61,8 @@ set(CPACK_SOURCE_GENERATOR "TGZ")
 if (WIN32)
     string(APPEND CPACK_GENERATOR ";ZIP;INNOSETUP")
     string(APPEND CPACK_SOURCE_GENERATOR ";ZIP")
+elseif (APPLE)
+    string(APPEND CPACK_GENERATOR ";STGZ") # TODO: Please refactor i have no idea of CMake best practices
 else ()
     string(APPEND CPACK_GENERATOR ";STGZ;RPM")
 endif ()

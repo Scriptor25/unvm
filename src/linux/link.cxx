@@ -1,4 +1,4 @@
-#ifdef SYSTEM_LINUX
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN) // TODO: Please refactor i have no idea of C++ best practices (its for macos support)
 
 #include <util.hxx>
 

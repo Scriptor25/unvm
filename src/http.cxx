@@ -9,6 +9,7 @@
 #include <istream>
 #include <memory>
 #include <ostream>
+#include <sstream>
 
 #ifdef SYSTEM_WINDOWS
 
@@ -24,7 +25,7 @@ inline int socket_close(platform_socket_t s)
 
 #endif
 
-#ifdef SYSTEM_LINUX
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN) // TODO: Please refactor i have no idea of C++ best practices (its for macos support)
 
 #include <netdb.h>
 #include <unistd.h>

@@ -1,120 +1,186 @@
-name: CMake Multi-Platform Build
+name: Release
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
-  push:
-    tags:
-      - "release/*"
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    name: "${{ matrix.os }} | ${{ matrix.compiler }}"
+    name: Build (${{ matrix.os }}-${{ matrix.compiler }})
     runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: write
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          # =====================
-          # Linux
-          # =====================
           - os: linux
             compiler: gcc
             runner: ubuntu-latest
             cc: gcc
             cxx: g++
-
           - os: linux
             compiler: clang
             runner: ubuntu-latest
             cc: clang
             cxx: clang++
-
-          # =====================
-          # Windows
-          # =====================
           - os: windows
             compiler: msvc
             generator: Visual Studio 17 2022
             runner: windows-latest
-
+            cc: cl
+            cxx: cl
           - os: windows
             compiler: clang
             runner: windows-latest
             cc: clang
             cxx: clang++
+          - os: macos
+            compiler: appleclang
+            runner: macos-latest
+            cc: clang
+            cxx: clang++
+          - os: macos
+            compiler: appleclang-x64
+            runner: macos-15-intel
+            cc: clang
+            cxx: clang++
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          submodules: recursive
-          fetch-depth: 0
+          fetch-depth: 1
 
-      - name: Cache (vcpkg)
-        id: cache-vcpkg
+      - name: Cache vcpkg
         if: matrix.os == 'windows'
-        uses: actions/cache@v4
+        id: cache-vcpkg
+        uses: actions/cache@v5
         with:
-          path: |
-            ${{ env.HOME }}\AppData\Local\vcpkg\archives
+          path: ${{ github.workspace }}/vcpkg
           key: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.os }}-${{ matrix.compiler }}-
 
       - name: Setup (Linux)
         if: matrix.os == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install libarchive-dev libssl-dev
+          sudo apt-get install -y libarchive-dev libssl-dev ninja-build
 
-      - name: Setup (Windows)
-        if: matrix.os == 'windows'
+      - name: Setup (macOS)
+        if: matrix.os == 'macos'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+        run: brew install --quiet ninja openssl libarchive
+
+      - name: Clone vcpkg (Windows)
+        if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        shell: bash
+        run: git clone --depth 1 https://github.com/microsoft/vcpkg.git
+
+      - name: Bootstrap vcpkg (Windows)
+        if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        shell: pwsh
         run: |
-          vcpkg install
+          & "${{ github.workspace }}/vcpkg/bootstrap-vcpkg.bat"
 
-      - name: Configure CMake
+      - name: Install vcpkg packages (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}/vcpkg/vcpkg.exe" install
+
+      - name: Configure
+        shell: bash
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: >
-          cmake
-          -S .
-          -B build
-          -G "${{ matrix.generator || 'Ninja' }}"
-          -DCMAKE_BUILD_TYPE=Release
-          ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"', github.workspace) || '' }}
+        run: |
+          args=()
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            args+=("-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake")
+          elif [ "${{ matrix.os }}" = "macos" ]; then
+            args+=("-DCMAKE_PREFIX_PATH=$(brew --prefix openssl);$(brew --prefix libarchive)")
+          fi
+          cmake -S . -B build -G "${{ matrix.generator || 'Ninja' }}" \
+            -DCMAKE_BUILD_TYPE=Release "${args[@]}"
 
       - name: Build
+        shell: bash
         run: cmake --build build --config Release --parallel
 
-      - name: Install and Package
-        if: github.ref_type == 'tag'
-        run: |
-          mkdir dist
-          cd dist
-          cpack --config ../build/CPackConfig.cmake -D CPACK_PACKAGE_FILE_NAME=dist
-
-      - name: Upload Packages
-        if: github.ref_type == 'tag'
-        run: |
-          for file in dist/*; do
-            [ -f "$file" ] || continue
-
-            ext="$(basename "$file")"
-            ext="${ext#*.}"
-
-            sanitized="${{ github.ref_name }}"
-            sanitized="${sanitized#*/}"
-            sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/-/g')
-
-            target="dist/unvm-${sanitized}-${{ matrix.os }}-${{ matrix.compiler }}.${ext}"
-
-            mv "$file" "$target"
-
-            echo "Upload $target to ${{ github.ref_name }}"
-            gh release upload ${{ github.ref_name }} "$target" --clobber
-          done
+      - name: Package
+        if: github.event_name == 'release'
         shell: bash
+        run: |
+          cpack --config build/CPackConfig.cmake \
+            -B cpack_out \
+            -D CPACK_PACKAGE_FILE_NAME="unvm-${{ matrix.os }}-${{ matrix.compiler }}"
+          mkdir -p dist
+          cp cpack_out/unvm-${{ matrix.os }}-${{ matrix.compiler }}.* dist/
+          ls -la dist/
+
+      - name: Upload Artifact
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unvm-${{ matrix.os }}-${{ matrix.compiler }}
+          path: dist/*
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Generate Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          mode: COMMIT
+          toTag: ${{ github.event.release.tag_name }}
+          configuration: .github/changelog-config.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          body: |
+            ${{ github.event.release.body }}
+
+            ## Changelog
+            ${{ steps.changelog.outputs.changelog }}
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.sh
+            artifacts/**/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
