@@ -35,7 +35,11 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_link_options(unvm PRIVATE -fuse-ld=lld)
 endif ()
 
-install(TARGETS unvm)
+if (WIN32)
+    install(TARGETS unvm RUNTIME_DEPENDENCIES PRE_EXCLUDE_REGEXES "api-ms-.*" "ext-ms-.*" POST_EXCLUDE_REGEXES ".*system32/.*")
+else ()
+    install(TARGETS unvm)
+endif ()
 
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh
