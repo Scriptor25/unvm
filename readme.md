@@ -17,6 +17,13 @@ configurations are automatically built in a workflow:
 - Windows x64, Ninja, Clang
 - Linux x64, Ninja, GCC
 - Linux x64, Ninja, Clang
+- Darwin ARM64, Ninja, GCC
+- Darwin ARM64, Ninja, Clang
+
+You have to have the following dependencies installed:
+
+- LibArchive
+- OpenSSL
 
 ### Example: Fedora Linux 43
 
