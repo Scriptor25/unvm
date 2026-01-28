@@ -67,10 +67,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install libarchive-dev libssl-dev
 
-      - name: Setup (Windows)
+      - name: Get vcpkg (Windows)
         if: matrix.os == 'windows' && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        run: git clone --depth 1 --single-branch https://github.com/microsoft/vcpkg.git
+
+      - name: Configure Environment (Windows)
+        if: matrix.os == 'windows'
+        shell: bash
+        run: echo "VCPKG_BINARY_SOURCES=clear;files,${{ github.workspace }}\\vcpkg\\binary-cache,readwrite" >> $env:GITHUB_ENV
+
+      - name: Setup (Windows)
+        if: matrix.os == 'windows'
         run: |
-          git clone --depth 1 --single-branch https://github.com/microsoft/vcpkg.git
           ${{ github.workspace }}\\vcpkg\\bootstrap-vcpkg.bat
           ${{ github.workspace }}\\vcpkg\\vcpkg install
 
