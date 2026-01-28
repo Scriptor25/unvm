@@ -105,7 +105,7 @@ jobs:
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
           ${{ matrix.os == 'windows' && format('-DCMAKE_TOOLCHAIN_FILE="C:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake"', github.workspace) || '' }}
-          ${{ matrix.os == 'darwin' && '-DCMAKE_PREFIX_PATH="/opt/homebrew"' }}
+          ${{ matrix.os == 'darwin' && '-DCMAKE_PREFIX_PATH="/opt/homebrew;/opt/homebrew/opt/libarchive"' }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
