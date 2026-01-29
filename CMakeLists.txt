@@ -24,11 +24,24 @@ message(STATUS "Processor: ${PLATFORM_SYSTEM_PROCESSOR}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CERT_INPUT ${CMAKE_SOURCE_DIR}/ssl/cacert.pem)
+set(CERT_OUTPUT ${CMAKE_BINARY_DIR}/ssl/cert.h)
+
+add_custom_command(
+        OUTPUT ${CERT_OUTPUT}
+        COMMAND xxd -i -n cert_data ${CERT_INPUT} ${CERT_OUTPUT}
+        DEPENDS ${CERT_INPUT}
+        COMMENT "embedding cert.pem with xxd"
+)
+add_custom_target(generate_cert DEPENDS ${CERT_OUTPUT})
+
 file(GLOB_RECURSE SRC "src/*.cxx")
 
 add_executable(unvm ${SRC})
 
-target_include_directories(unvm PRIVATE "include")
+add_dependencies(unvm generate_cert)
+
+target_include_directories(unvm PRIVATE ${CMAKE_BINARY_DIR} "include")
 
 target_link_libraries(unvm PRIVATE
         OpenSSL::SSL
@@ -146,10 +159,6 @@ if (ENABLE_COMPLETIONS)
             RENAME unvm
     )
 endif ()
-
-install(FILES ssl/nodejs.pem
-        DESTINATION ${CMAKE_INSTALL_BINDIR}/ssl
-)
 
 ### CPack Config ###
 

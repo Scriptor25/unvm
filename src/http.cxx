@@ -6,6 +6,8 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
+#include <ssl/cert.h>
+
 #include <istream>
 #include <memory>
 #include <ostream>
@@ -164,6 +166,42 @@ struct http::HttpClient::State
     SSL_CTX *SslCtx;
 };
 
+static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, const int len)
+{
+    const auto bio = BIO_new_mem_buf(buf, len);
+    if (!bio)
+    {
+        return 1;
+    }
+
+    const auto x509 = PEM_X509_INFO_read_bio(bio, nullptr, nullptr, nullptr);
+    if (!x509)
+    {
+        BIO_free(bio);
+        return 1;
+    }
+
+    const auto store = SSL_CTX_get_cert_store(context);
+    for (unsigned i = 0; i < sk_X509_INFO_num(x509); ++i)
+    {
+        if (const auto info = sk_X509_INFO_value(x509, i); info->x509)
+        {
+            if (!X509_STORE_add_cert(store, info->x509))
+            {
+                sk_X509_INFO_pop_free(x509, X509_INFO_free);
+                BIO_free(bio);
+                return 1;
+            }
+
+            info->x509 = nullptr;
+        }
+    }
+
+    sk_X509_INFO_pop_free(x509, X509_INFO_free);
+    BIO_free(bio);
+    return 0;
+}
+
 http::HttpClient::HttpClient()
 {
     m_State = new State();
@@ -178,8 +216,14 @@ http::HttpClient::HttpClient()
 
     m_State->SslCtx = SSL_CTX_new(TLS_client_method());
     SSL_CTX_set_min_proto_version(m_State->SslCtx, TLS1_2_VERSION);
-    SSL_CTX_set_default_verify_paths(m_State->SslCtx);
-    SSL_CTX_load_verify_file(m_State->SslCtx, "ssl/nodejs.pem");
+
+    SSL_CTX_set_verify(m_State->SslCtx, SSL_VERIFY_PEER, nullptr);
+
+    if (load_cert_chain_from_shared_mem(m_State->SslCtx, cert_data, static_cast<int>(cert_data_len)))
+    {
+        std::cerr << "failed to load vendor certificates." << std::endl;
+        return;
+    }
 }
 
 http::HttpClient::~HttpClient()
@@ -250,7 +294,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         SSL_set1_host(ssl, request.Location.Host.c_str());
         SSL_set_verify(ssl, SSL_VERIFY_PEER, nullptr);
 
-        if (SSL_connect(ssl) <= 0)
+        if (auto result = SSL_connect(ssl); result <= 0)
         {
             SSL_free(ssl);
 
