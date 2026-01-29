@@ -539,7 +539,7 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
     http::HttpRequest request = {
         .Method = http::HttpMethod::Get,
         .Location = {
-            .Scheme = "https",
+            .UseTLS = true,
             .Host = "nodejs.org",
             .Port = 443,
             .Pathname = pathname,

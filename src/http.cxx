@@ -25,22 +25,7 @@ inline int socket_close(platform_socket_t s)
 
 #endif
 
-#ifdef SYSTEM_LINUX
-
-#include <netdb.h>
-#include <unistd.h>
-#include <sys/socket.h>
-
-using platform_socket_t = int;
-
-inline int socket_close(const platform_socket_t s)
-{
-    return close(s);
-}
-
-#endif
-
-#ifdef SYSTEM_DARWIN
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
 
 #include <netdb.h>
 #include <unistd.h>
@@ -244,11 +229,10 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         return 1;
     }
 
-    auto use_tls = request.Location.Scheme == "https";
     std::unique_ptr<HttpTransport> transport;
     SSL *ssl = nullptr;
 
-    if (use_tls)
+    if (request.Location.UseTLS)
     {
         ssl = SSL_new(m_State->SslCtx);
         SSL_set_fd(ssl, sock);
@@ -454,7 +438,13 @@ std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code
     return stream;
 }
 
-std::ostream &operator<<(std::ostream &stream, http::HttpLocation &location)
+std::ostream &operator<<(std::ostream &stream, const http::HttpLocation &location)
 {
-    return stream << location.Scheme << "://" << location.Host << ":" << location.Port << location.Pathname;
+    return stream
+           << (location.UseTLS ? "https" : "http")
+           << "://"
+           << location.Host
+           << ":"
+           << location.Port
+           << location.Pathname;
 }

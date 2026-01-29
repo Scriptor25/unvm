@@ -1,4 +1,4 @@
-#ifdef SYSTEM_DARWIN
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
 
 #include <util.hxx>
 
@@ -12,9 +12,13 @@ std::filesystem::path GetDataDirectory()
     }
 
     std::filesystem::path path;
-    if (const auto home = std::getenv("HOME"))
+    if (const auto xdg_config_home = std::getenv("XDG_CONFIG_HOME"))
     {
-        path = std::filesystem::path(home) / "Library" / "Application Support" / "unvm";
+        path = std::filesystem::path(xdg_config_home) / "unvm";
+    }
+    else if (const auto home = std::getenv("HOME"))
+    {
+        path = std::filesystem::path(home) / ".config" / "unvm";
     }
     else
     {

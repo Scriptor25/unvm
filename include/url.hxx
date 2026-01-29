@@ -11,7 +11,9 @@ namespace http
     constexpr void ParseUrl(HttpLocation &dst, const std::string_view &src)
     {
         const auto scheme_end = src.find("://");
-        dst.Scheme = src.substr(0, scheme_end);
+        const auto scheme = src.substr(0, scheme_end);
+
+        dst.UseTLS = scheme == "https";
 
         const auto host_begin = scheme_end + 3;
         const auto path_begin = src.find('/', host_begin);
@@ -34,7 +36,7 @@ namespace http
         else
         {
             dst.Host = host_port;
-            dst.Port = dst.Scheme == "https" ? 443 : 80;
+            dst.Port = scheme == "https" ? 443 : 80;
         }
     }
 

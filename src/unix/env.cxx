@@ -1,4 +1,4 @@
-#ifdef SYSTEM_LINUX
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
 
 #include <util.hxx>
 

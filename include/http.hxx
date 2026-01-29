@@ -101,7 +101,7 @@ namespace http
 
     struct HttpLocation
     {
-        std::string Scheme;
+        bool UseTLS;
         std::string Host;
         std::uint16_t Port{};
         std::string Pathname;
@@ -151,9 +151,11 @@ namespace http
 }
 
 std::ostream &operator<<(std::ostream &stream, http::HttpMethod method);
+
 std::ostream &operator<<(std::ostream &stream, http::HttpStatusCode status_code);
 std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code);
-std::ostream &operator<<(std::ostream &stream, http::HttpLocation &location);
+
+std::ostream &operator<<(std::ostream &stream, const http::HttpLocation &location);
 
 template<>
 struct std::formatter<http::HttpStatusCode> : std::formatter<int>
