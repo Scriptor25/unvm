@@ -179,6 +179,7 @@ http::HttpClient::HttpClient()
     m_State->SslCtx = SSL_CTX_new(TLS_client_method());
     SSL_CTX_set_min_proto_version(m_State->SslCtx, TLS1_2_VERSION);
     SSL_CTX_set_default_verify_paths(m_State->SslCtx);
+    SSL_CTX_load_verify_file(m_State->SslCtx, "ssl/nodejs.pem");
 }
 
 http::HttpClient::~HttpClient()

@@ -147,6 +147,10 @@ if (ENABLE_COMPLETIONS)
     )
 endif ()
 
+install(FILES ssl/nodejs.pem
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/ssl
+)
+
 ### CPack Config ###
 
 set(CPACK_PACKAGE_VENDOR "Scriptor25")
