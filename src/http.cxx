@@ -71,8 +71,12 @@ static void set_header_if_missing(http::HttpHeaders &headers, const std::string 
 int http::HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message)
 {
     std::string http_version; // TODO: check if version is supported
+    stream >> http_version;
 
-    stream >> http_version >> status_code;
+    if (http_version != "HTTP/1.1")
+        return 1;
+
+    stream >> status_code;
     GetLine(stream, status_message, EOL);
 
     status_message = Trim(std::move(status_message));
@@ -339,9 +343,15 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     GetLine(headers_stream, status_line, EOL);
 
     std::istringstream status_stream(status_line);
-    HttpParseStatus(status_stream, response.StatusCode, response.StatusMessage);
+    if (auto error = HttpParseStatus(status_stream, response.StatusCode, response.StatusMessage))
+    {
+        return error;
+    }
 
-    HttpParseHeaders(headers_stream, response.Headers);
+    if (auto error = HttpParseHeaders(headers_stream, response.Headers))
+    {
+        return error;
+    }
 
     std::size_t content_length = ~0ULL;
     if (auto it = response.Headers.find("content-length"); it != response.Headers.end())
