@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(unvm VERSION 0.0.1)
+project(unvm VERSION 0.0.3)
 
 find_package(OpenSSL REQUIRED)
 find_package(LibArchive REQUIRED)
@@ -21,6 +21,18 @@ add_executable(unvm ${SRC})
 target_include_directories(unvm PRIVATE "include")
 target_link_libraries(unvm PRIVATE OpenSSL::SSL OpenSSL::Crypto LibArchive::LibArchive)
 target_compile_definitions(unvm PRIVATE "SYSTEM_${PLATFORM_SYSTEM_NAME}" "ARCH_${PLATFORM_SYSTEM_PROCESSOR}")
+
+### Platform Config ###
+
+if (APPLE)
+    set(CMAKE_INSTALL_RPATH "@loader_path/../lib")
+    set(CMAKE_BUILD_RPATH "@loader_path/../lib")
+elseif (UNIX)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+    set(CMAKE_BUILD_RPATH "$ORIGIN/../lib")
+endif ()
+
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 if (WIN32)
     target_link_libraries(unvm PRIVATE
@@ -50,6 +62,8 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT APPLE)
     target_link_options(unvm PRIVATE -fuse-ld=lld)
 endif ()
 
+### Install Config ###
+
 if (WIN32)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
@@ -65,6 +79,8 @@ if (ENABLE_COMPLETIONS)
             RENAME unvm)
 endif ()
 
+### CPack Config ###
+
 set(CPACK_PACKAGE_VENDOR "Scriptor25")
 set(CPACK_PACKAGE_DESCRIPTION_FILE)
 set(CPACK_RESOURCE_FILE_LICENSE)
@@ -75,6 +91,8 @@ set(CPACK_SOURCE_GENERATOR "TGZ")
 if (WIN32)
     string(APPEND CPACK_GENERATOR ";ZIP;INNOSETUP")
     string(APPEND CPACK_SOURCE_GENERATOR ";ZIP")
+elseif (APPLE)
+    string(APPEND CPACK_GENERATOR ";STGZ")
 else ()
     string(APPEND CPACK_GENERATOR ";STGZ;RPM")
 endif ()
