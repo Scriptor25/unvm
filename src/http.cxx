@@ -49,6 +49,7 @@ static int read_until(http::HttpTransport *transport, std::string &dst, const ch
         const auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
         {
+            std::cerr << "failed to read chunk." << std::endl;
             return 1;
         }
 
@@ -74,7 +75,10 @@ int http::HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std
     stream >> http_version;
 
     if (http_version != "HTTP/1.1")
+    {
+        std::cerr << "invalid http version." << std::endl;
         return 1;
+    }
 
     stream >> status_code;
     GetLine(stream, status_message, EOL);
@@ -201,7 +205,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 
     if (getaddrinfo(request.Location.Host.c_str(), service.c_str(), &hints, &res))
     {
-        std::cerr << "request failed: failed to get address info." << std::endl;
+        std::cerr << "failed to get address info." << std::endl;
         return 1;
     }
 
@@ -229,7 +233,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 
     if (sock < 0)
     {
-        std::cerr << "request failed: failed to open socket." << std::endl;
+        std::cerr << "failed to open socket." << std::endl;
         return 1;
     }
 
@@ -250,7 +254,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
             SSL_free(ssl);
 
             socket_close(sock);
-            std::cerr << "request failed: TLS handshake failed." << std::endl;
+            std::cerr << "TLS handshake failed." << std::endl;
             return 1;
         }
 
@@ -259,7 +263,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
             SSL_free(ssl);
 
             socket_close(sock);
-            std::cerr << "request failed: TLS certificate verification failed." << std::endl;
+            std::cerr << "TLS certificate verification failed." << std::endl;
             return 1;
         }
 
@@ -291,7 +295,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         }
 
         socket_close(sock);
-        std::cerr << "request failed: failed to send header." << std::endl;
+        std::cerr << "failed to send header." << std::endl;
         return 1;
     }
 
@@ -313,7 +317,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
                 }
 
                 socket_close(sock);
-                std::cerr << "request failed: failed to send chunk." << std::endl;
+                std::cerr << "failed to send chunk." << std::endl;
                 return 1;
             }
 
@@ -330,6 +334,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         }
 
         socket_close(sock);
+        std::cerr << "failed to read header block." << std::endl;
         return error;
     }
 
@@ -345,11 +350,13 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     std::istringstream status_stream(status_line);
     if (auto error = HttpParseStatus(status_stream, response.StatusCode, response.StatusMessage))
     {
+        std::cerr << "failed to parse status line." << std::endl;
         return error;
     }
 
     if (auto error = HttpParseHeaders(headers_stream, response.Headers))
     {
+        std::cerr << "failed to parse headers." << std::endl;
         return error;
     }
 
@@ -393,7 +400,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         if (!response.Headers.contains("location"))
         {
             std::cerr << response.Headers << std::endl;
-            std::cerr << "request failed: missing location header in redirect response." << std::endl;
+            std::cerr << "missing location header in redirect response." << std::endl;
             return 1;
         }
 
