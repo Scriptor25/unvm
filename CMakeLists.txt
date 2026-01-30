@@ -6,6 +6,7 @@ project(unvm VERSION 0.0.3)
 
 find_package(OpenSSL REQUIRED)
 find_package(LibArchive REQUIRED)
+find_package(ZLIB REQUIRED)
 
 ### Options ###
 
@@ -47,6 +48,7 @@ target_link_libraries(unvm PRIVATE
         OpenSSL::SSL
         OpenSSL::Crypto
         LibArchive::LibArchive
+        ZLIB::ZLIB
 )
 
 target_compile_definitions(unvm PRIVATE
@@ -94,64 +96,40 @@ endif ()
 
 ### Install Config ###
 
-install(TARGETS unvm
-        RUNTIME_DEPENDENCY_SET dependencies
-        RUNTIME DESTINATION bin
-)
+install(TARGETS unvm)
 
 if (WIN32)
-    set(RUNTIME_DEPENDENCY_DESTINATION bin)
+    set(VENDOR_LIB_DESTINATION bin)
 else ()
-    set(RUNTIME_DEPENDENCY_DESTINATION lib)
+    set(VENDOR_LIB_DESTINATION lib)
 endif ()
 
-install(RUNTIME_DEPENDENCY_SET dependencies
-        DESTINATION ${RUNTIME_DEPENDENCY_DESTINATION}
-        PRE_EXCLUDE_REGEXES
+get_target_property(OPENSSL_SSL_LOCATION OpenSSL::SSL IMPORTED_LOCATION)
+get_target_property(OPENSSL_CRYPTO_LOCATION OpenSSL::Crypto IMPORTED_LOCATION)
 
-        #### Windows ####
-        "api-ms-"
-        "ext-ms-"
-        "^C:/Windows"
+if (OPENSSL_SSL_LOCATION)
+    install(FILES "${OPENSSL_SSL_LOCATION}"
+            DESTINATION ${VENDOR_LIB_DESTINATION})
+endif ()
 
-        #### Linux ####
-        "^/lib"
-        "^/usr/lib"
-        "^/lib64"
-        "^/usr/lib64"
+if (OPENSSL_CRYPTO_LOCATION)
+    install(FILES "${OPENSSL_CRYPTO_LOCATION}"
+            DESTINATION ${VENDOR_LIB_DESTINATION})
+endif ()
 
-        #### MacOS ####
-        "^/System/Library"
-        "^/usr/lib"
+get_target_property(LIBARCHIVE_LOCATION LibArchive::LibArchive IMPORTED_LOCATION)
 
-        POST_EXCLUDE_REGEXES
+if (LIBARCHIVE_LOCATION)
+    install(FILES "${LIBARCHIVE_LOCATION}"
+            DESTINATION ${VENDOR_LIB_DESTINATION})
+endif ()
 
-        #### Windows ####
-        "kernel32.dll"
-        "user32.dll"
-        "gdi32.dll"
-        "advapi32.dll"
-        "msvcp.*.dll"
-        "vcruntime.*.dll"
-        "ucrtbase.dll"
+get_target_property(ZLIB_LOCATION ZLIB::ZLIB IMPORTED_LOCATION)
 
-        #### Linux ####
-
-        "ld-linux"
-
-        #### Unix ####
-
-        "libc\\.so"
-        "libm\\.so"
-        "librt\\.so"
-        "libpthread\\.so"
-        "libdl\\.so"
-
-        #### GNU ####
-
-        "libgcc_s.*"
-        "libstdc\\+\\+.*"
-)
+if (ZLIB_LOCATION)
+    install(FILES "${ZLIB_LOCATION}"
+            DESTINATION ${VENDOR_LIB_DESTINATION})
+endif ()
 
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh
