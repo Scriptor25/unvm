@@ -99,36 +99,21 @@ endif ()
 install(TARGETS unvm)
 
 if (WIN32)
-    set(VENDOR_LIB_DESTINATION bin)
-else ()
-    set(VENDOR_LIB_DESTINATION lib)
-endif ()
-
-get_target_property(OPENSSL_SSL_LOCATION OpenSSL::SSL IMPORTED_LOCATION)
-get_target_property(OPENSSL_CRYPTO_LOCATION OpenSSL::Crypto IMPORTED_LOCATION)
-
-if (OPENSSL_SSL_LOCATION)
-    install(FILES "${OPENSSL_SSL_LOCATION}"
-            DESTINATION ${VENDOR_LIB_DESTINATION})
-endif ()
-
-if (OPENSSL_CRYPTO_LOCATION)
-    install(FILES "${OPENSSL_CRYPTO_LOCATION}"
-            DESTINATION ${VENDOR_LIB_DESTINATION})
-endif ()
-
-get_target_property(LIBARCHIVE_LOCATION LibArchive::LibArchive IMPORTED_LOCATION)
-
-if (LIBARCHIVE_LOCATION)
-    install(FILES "${LIBARCHIVE_LOCATION}"
-            DESTINATION ${VENDOR_LIB_DESTINATION})
-endif ()
-
-get_target_property(ZLIB_LOCATION ZLIB::ZLIB IMPORTED_LOCATION)
-
-if (ZLIB_LOCATION)
-    install(FILES "${ZLIB_LOCATION}"
-            DESTINATION ${VENDOR_LIB_DESTINATION})
+    install(FILES
+            $<TARGET_FILE:OpenSSL::SSL>
+            $<TARGET_FILE:OpenSSL::Crypto>
+            $<TARGET_FILE:LibArchive::LibArchive>
+            $<TARGET_FILE:ZLIB::ZLIB>
+            DESTINATION bin
+    )
+elseif (APPLE)
+    install(FILES
+            $<TARGET_FILE:OpenSSL::SSL>
+            $<TARGET_FILE:OpenSSL::Crypto>
+            $<TARGET_FILE:LibArchive::LibArchive>
+            $<TARGET_FILE:ZLIB::ZLIB>
+            DESTINATION lib
+    )
 endif ()
 
 if (ENABLE_COMPLETIONS)
@@ -152,7 +137,9 @@ if (WIN32)
     string(APPEND CPACK_SOURCE_GENERATOR ";ZIP")
 elseif (APPLE)
     string(APPEND CPACK_GENERATOR ";STGZ")
-else ()
+elseif (UNIX)
+    set(CPACK_RPM_PACKAGE_REQUIRES "openssl, libarchive, zlib")
+
     string(APPEND CPACK_GENERATOR ";STGZ;RPM")
 endif ()
 
