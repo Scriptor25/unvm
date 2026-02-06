@@ -74,14 +74,21 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Sanitize Tag Name
-        id: tag-name
+      - name: Sanitize Version Name
+        id: version-name
         if: github.ref_type == 'tag'
         run: |
-          sanitized="${{ github.ref_name }}"
-          sanitized="${sanitized#*/}"
-          sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/-/g')
-          echo "tag=$sanitized" >> "$GITHUB_OUTPUT"
+          ref="${{ github.ref_name }}"
+          
+          version="${ref##*/}"
+          version="${version#v}"
+          version=$(echo "$version" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          
+          if [[ "$version" =~ ^[0-9]+(\.[0-9]+)+([._-][A-Za-z0-9]+)?$ ]]; then
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0"
+          fi
         shell: bash
 
       - name: Setup vcpkg
@@ -103,7 +110,7 @@ jobs:
           -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
-          -DUNVM_PROJECT_VERSION='${{ steps.tag-name.outputs.tag }}'
+          -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
           ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
 
       - name: Build
@@ -125,7 +132,7 @@ jobs:
             ext="$(basename "$file")"
             ext="${ext#*.}"
 
-            target="dist/unvm-${{ steps.tag-name.outputs.tag }}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
+            target="dist/unvm-${{ steps.version-name.outputs.version }}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
 
             mv "$file" "$target"
 
