@@ -6,9 +6,9 @@ project(unvm
 
 ### Find dependencies ###
 
-find_package(OpenSSL REQUIRED CONFIG)
+find_package(OpenSSL REQUIRED)
 find_package(LibArchive REQUIRED)
-find_package(ZLIB REQUIRED CONFIG)
+find_package(ZLIB REQUIRED)
 
 ### Options ###
 
