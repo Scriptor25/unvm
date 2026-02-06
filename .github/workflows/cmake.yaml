@@ -74,6 +74,15 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Sanitize Tag Name
+        id: tag-name
+        run: |
+          sanitized="${{ github.ref_name }}"
+          sanitized="${sanitized#*/}"
+          sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          echo "tag=$sanitized" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - name: Setup vcpkg
         id: vcpkg
         uses: johnwason/vcpkg-action@v7
@@ -93,6 +102,7 @@ jobs:
           -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
+          -DUNVM_PROJECT_VERSION='${{ steps.tag-name.outputs.tag }}'
           ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
 
       - name: Build
@@ -114,11 +124,7 @@ jobs:
             ext="$(basename "$file")"
             ext="${ext#*.}"
 
-            sanitized="${{ github.ref_name }}"
-            sanitized="${sanitized#*/}"
-            sanitized=$(echo "$sanitized" | sed 's/[^a-zA-Z0-9._-]/-/g')
-
-            target="dist/unvm-${sanitized}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
+            target="dist/unvm-${{ steps.tag-name.outputs.tag }}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
 
             mv "$file" "$target"
 

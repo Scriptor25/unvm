@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(unvm VERSION 0.0.3)
+project(unvm
+        LANGUAGES CXX
+        VERSION "${UNVM_PROJECT_VERSION}")
 
 ### Find dependencies ###
 

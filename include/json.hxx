@@ -40,7 +40,9 @@ namespace json
         static Node From(const T &value)
         {
             if (Node node; Converter<T>::From(node, value))
+            {
                 return node;
+            }
             throw std::runtime_error("conversion failed");
         }
 
@@ -48,7 +50,9 @@ namespace json
         T To() const
         {
             if (T value; Converter<T>::To(*this, value))
+            {
                 return value;
+            }
             throw std::runtime_error("conversion failed");
         }
 
@@ -91,7 +95,9 @@ namespace json
         static bool To(const Node &node, bool &value)
         {
             if (!node.IsBoolean())
+            {
                 return false;
+            }
 
             value = node.AsBoolean();
             return true;
@@ -111,7 +117,9 @@ namespace json
         static bool To(const Node &node, long double &value)
         {
             if (!node.IsNumber())
+            {
                 return false;
+            }
 
             value = node.AsNumber();
             return true;
@@ -131,7 +139,9 @@ namespace json
         static bool To(const Node &node, std::string &value)
         {
             if (!node.IsString())
+            {
                 return false;
+            }
 
             value = node.AsString();
             return true;
@@ -145,7 +155,9 @@ namespace json
         {
             std::vector<Node> array(value.size());
             for (std::size_t i = 0; i < array.size(); ++i)
+            {
                 array[i] = Node::From(value.at(i));
+            }
 
             node.Type = NodeType::Array;
             node.Value = std::move(array);
@@ -155,13 +167,17 @@ namespace json
         static bool To(const Node &node, std::vector<T> &value)
         {
             if (!node.IsArray())
+            {
                 return false;
+            }
 
             auto &array = node.AsArray();
 
             value.resize(array.size());
             for (std::size_t i = 0; i < array.size(); ++i)
+            {
                 value[i] = array.at(i).To<T>();
+            }
 
             return true;
         }
@@ -174,7 +190,9 @@ namespace json
         {
             std::vector<Node> array;
             for (auto &entry : value)
+            {
                 array.emplace_back(Node::From(entry));
+            }
 
             node.Type = NodeType::Array;
             node.Value = std::move(array);
@@ -184,13 +202,17 @@ namespace json
         static bool To(const Node &node, std::set<T> &value)
         {
             if (!node.IsArray())
+            {
                 return false;
+            }
 
             auto &array = node.AsArray();
 
             value.clear();
             for (auto &entry : array)
+            {
                 value.emplace(entry.To<T>());
+            }
 
             return true;
         }
@@ -262,17 +284,17 @@ namespace json
 
         Node Parse();
 
-    private:
+    protected:
         void Get();
         void Next();
 
         [[nodiscard]] bool At(TokenType type) const;
-        [[nodiscard]] bool At(TokenType type, const std::string &value) const;
+        [[nodiscard]] bool At(TokenType type, std::string_view value) const;
 
         Token Skip();
 
         Token Expect(TokenType type);
-        Token Expect(TokenType type, const std::string &value);
+        Token Expect(TokenType type, std::string_view value);
 
     private:
         std::istream &m_Stream;

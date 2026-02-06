@@ -89,7 +89,7 @@ int http::HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std
     return 0;
 }
 
-int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
+void http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
 {
     headers.clear();
 
@@ -115,7 +115,6 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
 
         headers.emplace(Lower(std::move(key)), std::move(val));
     }
-    return 0;
 }
 
 struct HttpTcpTransport final : http::HttpTransport
@@ -399,11 +398,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
         return error;
     }
 
-    if (auto error = HttpParseHeaders(headers_stream, response.Headers))
-    {
-        std::cerr << "failed to parse headers." << std::endl;
-        return error;
-    }
+    HttpParseHeaders(headers_stream, response.Headers);
 
     std::size_t content_length = ~0ULL;
     if (auto it = response.Headers.find("content-length"); it != response.Headers.end())

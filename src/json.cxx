@@ -338,7 +338,7 @@ void json::Parser::Next()
         String,
     } state = State::None;
 
-    bool floating = false;
+    auto floating = false;
     std::string value;
 
     while (m_Buffer >= 0)
@@ -513,7 +513,7 @@ bool json::Parser::At(const TokenType type) const
     return m_Token.Type == type;
 }
 
-bool json::Parser::At(const TokenType type, const std::string &value) const
+bool json::Parser::At(const TokenType type, const std::string_view value) const
 {
     return m_Token.Type == type && m_Token.String == value;
 }
@@ -525,7 +525,7 @@ json::Token json::Parser::Skip()
     return token;
 }
 
-json::Token json::Parser::Expect(TokenType type)
+json::Token json::Parser::Expect(const TokenType type)
 {
     if (m_Token.Type == type)
     {
@@ -538,7 +538,7 @@ json::Token json::Parser::Expect(TokenType type)
             m_Token.Type));
 }
 
-json::Token json::Parser::Expect(TokenType type, const std::string &value)
+json::Token json::Parser::Expect(const TokenType type, const std::string_view value)
 {
     if (m_Token.Type == type && m_Token.String == value)
     {

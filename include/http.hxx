@@ -126,7 +126,7 @@ namespace http
     };
 
     int HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
-    int HttpParseHeaders(std::istream &stream, HttpHeaders &headers);
+    void HttpParseHeaders(std::istream &stream, HttpHeaders &headers);
 
     struct HttpTransport
     {
