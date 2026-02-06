@@ -76,6 +76,7 @@ jobs:
 
       - name: Sanitize Tag Name
         id: tag-name
+        if: github.ref_type == 'tag'
         run: |
           sanitized="${{ github.ref_name }}"
           sanitized="${sanitized#*/}"
