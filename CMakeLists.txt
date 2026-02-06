@@ -1,14 +1,14 @@
-cmake_minimum_required(VERSION 3.23)
+cmake_minimum_required(VERSION 3.31)
 
 project(unvm
-        LANGUAGES CXX
+        LANGUAGES C CXX
         VERSION "${UNVM_PROJECT_VERSION}")
 
 ### Find dependencies ###
 
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL REQUIRED CONFIG)
 find_package(LibArchive REQUIRED)
-find_package(ZLIB REQUIRED)
+find_package(ZLIB REQUIRED CONFIG)
 
 ### Options ###
 
@@ -102,18 +102,18 @@ install(TARGETS unvm)
 
 if (WIN32)
     install(FILES
-            $<TARGET_FILE:OpenSSL::SSL>
-            $<TARGET_FILE:OpenSSL::Crypto>
-            $<TARGET_FILE:LibArchive::LibArchive>
-            $<TARGET_FILE:ZLIB::ZLIB>
+            $<TARGET_LINKER_FILE:OpenSSL::SSL>
+            $<TARGET_LINKER_FILE:OpenSSL::Crypto>
+            $<TARGET_LINKER_FILE:LibArchive::LibArchive>
+            $<TARGET_LINKER_FILE:ZLIB::ZLIB>
             DESTINATION bin
     )
 elseif (APPLE)
     install(FILES
-            $<TARGET_FILE:OpenSSL::SSL>
-            $<TARGET_FILE:OpenSSL::Crypto>
-            $<TARGET_FILE:LibArchive::LibArchive>
-            $<TARGET_FILE:ZLIB::ZLIB>
+            $<TARGET_LINKER_FILE:OpenSSL::SSL>
+            $<TARGET_LINKER_FILE:OpenSSL::Crypto>
+            $<TARGET_LINKER_FILE:LibArchive::LibArchive>
+            $<TARGET_LINKER_FILE:ZLIB::ZLIB>
             DESTINATION lib
     )
 endif ()
