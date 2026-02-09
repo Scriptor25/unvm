@@ -102,6 +102,25 @@ if (APPLE)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
             FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
+elseif (WIN32)
+    install(TARGETS unvm
+            RUNTIME_DEPENDENCIES
+            PRE_EXCLUDE_REGEXES
+            "api-ms-win-.*"
+            "ext-ms-.*"
+            "kernel32\\.dll"
+            "user32\\.dll"
+            "gdi32\\.dll"
+            "advapi32\\.dll"
+            "shell32\\.dll"
+            "ole32\\.dll"
+            "oleaut32\\.dll"
+            "ws2_32\\.dll"
+            "ntdll\\.dll"
+            POST_EXCLUDE_REGEXES
+            ".*system32/.*"
+            ".*System32/.*"
+            RUNTIME DESTINATION bin)
 else ()
     install(TARGETS unvm RUNTIME_DEPENDENCIES)
 endif ()
