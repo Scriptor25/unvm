@@ -98,7 +98,13 @@ endif ()
 
 ### Install Config ###
 
-install(TARGETS unvm RUNTIME_DEPENDENCIES)
+if (APPLE)
+    install(TARGETS unvm
+            RUNTIME_DEPENDENCIES
+            FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
+else ()
+    install(TARGETS unvm RUNTIME_DEPENDENCIES)
+endif ()
 
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh
