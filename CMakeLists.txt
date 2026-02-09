@@ -98,14 +98,7 @@ endif ()
 
 ### Install Config ###
 
-install(TARGETS unvm)
-
-if (WIN32)
-    install(FILES
-            $<TARGET_RUNTIME_DLLS:unvm>
-            DESTINATION bin
-    )
-endif ()
+install(TARGETS unvm RUNTIME_DEPENDENCIES)
 
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh
