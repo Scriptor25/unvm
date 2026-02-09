@@ -362,19 +362,20 @@ static const VersionEntry *find_effective_version(const VersionTable &table, con
     return nullptr;
 }
 
-static la_ssize_t read_callback(archive *arc, void *user_data, const void **buffer)
+static la_ssize_t read_callback(archive */*arc*/, void *user_data, const void **buffer)
 {
-    static char buf[16348];
+    static char buf[0x4000];
 
     const auto stream = static_cast<std::istream *>(user_data);
 
-    if (!stream->good())
+    stream->read(buf, sizeof(buf));
+    const auto len = stream->gcount();
+
+    if (len <= 0)
     {
         *buffer = nullptr;
         return 0;
     }
-
-    const auto len = stream->readsome(buf, sizeof(buf));
 
     *buffer = buf;
     return len;
