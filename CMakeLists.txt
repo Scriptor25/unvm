@@ -122,7 +122,7 @@ elseif (WIN32)
             ".*System32/.*"
             RUNTIME DESTINATION bin)
 else ()
-    install(TARGETS unvm RUNTIME_DEPENDENCIES)
+    install(TARGETS unvm)
 endif ()
 
 if (ENABLE_COMPLETIONS)
