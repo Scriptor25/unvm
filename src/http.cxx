@@ -349,9 +349,15 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     {
         std::size_t count = 0;
 
-        while (request.Body->good())
+        while (true)
         {
-            auto len = request.Body->readsome(buf, sizeof(buf));
+            request.Body->read(buf, sizeof(buf));
+            const auto len = request.Body->gcount();
+
+            if (len <= 0)
+            {
+                break;
+            }
 
             if (transport->write(buf, len) < 0)
             {
