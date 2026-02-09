@@ -4,10 +4,17 @@ project(unvm
         LANGUAGES C CXX
         VERSION "${UNVM_PROJECT_VERSION}")
 
+set(BUILD_SHARED_LIBS OFF)
+
 ### Find dependencies ###
 
+set(OPENSSL_USE_STATIC_LIBS ON)
 find_package(OpenSSL REQUIRED)
+
+set(LibArchive_USE_STATIC_LIBS ON)
 find_package(LibArchive REQUIRED)
+
+set(ZLIB_USE_STATIC_LIBS ON)
 find_package(ZLIB REQUIRED)
 
 ### Options ###
@@ -68,7 +75,7 @@ elseif (UNIX)
     set(CMAKE_BUILD_RPATH "$ORIGIN/../lib")
 endif ()
 
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 if (WIN32)
     target_link_libraries(unvm PRIVATE
