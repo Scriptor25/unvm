@@ -101,7 +101,7 @@ endif ()
 if (APPLE)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
-            FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
+            FRAMEWORK DESTINATION lib)
 elseif (WIN32)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
