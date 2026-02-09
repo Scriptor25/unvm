@@ -52,7 +52,7 @@ static std::wstring GetErrorMessage(DWORD error)
 
 int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
-    if (!std::filesystem::is_directory(target))
+    if (!std::filesystem::exists(target) || !std::filesystem::is_directory(target))
     {
         return 1;
     }

@@ -2,7 +2,7 @@
 
 #include <util.hxx>
 
-#include <unistd.h>
+#include <iostream>
 
 int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
@@ -16,12 +16,13 @@ int CreateLink(const std::filesystem::path &link, const std::filesystem::path &t
         return 1;
     }
 
-    const auto link_string = link.string();
-    const auto target_string = target.string();
+    std::error_code error;
+    std::filesystem::create_directory_symlink(target, link, error);
 
-    if (const auto error = symlink(target_string.c_str(), link_string.c_str()))
+    if (error)
     {
-        return error;
+        std::cerr << "failed to create link: " << error.message() << std::endl;
+        return error.value();
     }
 
     return 0;
@@ -34,11 +35,13 @@ int RemoveLink(const std::filesystem::path &link)
         return 1;
     }
 
-    const auto link_string = link.string();
+    std::error_code error;
+    std::filesystem::remove(link, error);
 
-    if (const auto error = unlink(link_string.c_str()))
+    if (error)
     {
-        return error;
+        std::cerr << "failed to remove link: " << error.message() << std::endl;
+        return error.value();
     }
 
     return 0;
