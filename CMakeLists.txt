@@ -102,19 +102,8 @@ install(TARGETS unvm)
 
 if (WIN32)
     install(FILES
-            $<TARGET_LINKER_FILE:OpenSSL::SSL>
-            $<TARGET_LINKER_FILE:OpenSSL::Crypto>
-            $<TARGET_LINKER_FILE:LibArchive::LibArchive>
-            $<TARGET_LINKER_FILE:ZLIB::ZLIB>
+            $<TARGET_RUNTIME_DLLS:unvm>
             DESTINATION bin
-    )
-elseif (APPLE)
-    install(FILES
-            $<TARGET_LINKER_FILE:OpenSSL::SSL>
-            $<TARGET_LINKER_FILE:OpenSSL::Crypto>
-            $<TARGET_LINKER_FILE:LibArchive::LibArchive>
-            $<TARGET_LINKER_FILE:ZLIB::ZLIB>
-            DESTINATION lib
     )
 endif ()
 
