@@ -41,7 +41,7 @@ int AppendUserPath(std::filesystem::path directory)
     {
         if (!path.empty() && path.back() != L';')
         {
-            path += L':';
+            path += L';';
         }
 
         path += directory.wstring();
