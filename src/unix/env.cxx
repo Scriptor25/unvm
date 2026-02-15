@@ -1,7 +1,8 @@
-#ifdef SYSTEM_LINUX
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
+
+#include <util.hxx>
 
 #include <iostream>
-#include <util.hxx>
 
 int AppendUserPath(std::filesystem::path directory)
 {

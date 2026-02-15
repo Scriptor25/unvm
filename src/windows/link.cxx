@@ -2,6 +2,7 @@
 
 #include <util.hxx>
 
+#include <filesystem>
 #include <iostream>
 #include <vector>
 
@@ -52,19 +53,32 @@ static std::wstring GetErrorMessage(DWORD error)
 
 int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
-    if (!std::filesystem::is_directory(target))
+    if (!std::filesystem::exists(target) || !std::filesystem::is_directory(target))
+    {
         return 1;
+    }
+
+    {
+        std::error_code error;
+        std::filesystem::create_directory_symlink(target, link, error);
+        if (!error)
+        {
+            return 0;
+        }
+    }
 
     auto abs_link = std::filesystem::absolute(link).wstring();
     auto abs_target = std::filesystem::absolute(target).wstring();
 
     if (!CreateDirectoryW(abs_link.c_str(), nullptr))
+    {
         if (auto error = GetLastError(); error != ERROR_ALREADY_EXISTS)
         {
             auto message = GetErrorMessage(error);
             std::wcerr << message << std::endl;
             return 1;
         }
+    }
 
     HANDLE h = CreateFileW(
         abs_link.c_str(),
@@ -136,6 +150,18 @@ int CreateLink(const std::filesystem::path &link, const std::filesystem::path &t
 
 int RemoveLink(const std::filesystem::path &link)
 {
+    if (std::filesystem::is_symlink(link))
+    {
+        std::error_code error;
+        std::filesystem::remove(link, error);
+        if (error)
+        {
+            std::cerr << "failed to remove link: " << error.message() << std::endl;
+            return error.value();
+        }
+        return 0;
+    }
+
     auto abs_link = std::filesystem::absolute(link).wstring();
 
     HANDLE h = CreateFileW(
@@ -148,7 +174,9 @@ int RemoveLink(const std::filesystem::path &link)
         nullptr);
 
     if (h == INVALID_HANDLE_VALUE)
+    {
         return 1;
+    }
 
     REPARSE_JUNCTION_DATA_BUFFER reparse{};
     reparse.ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;

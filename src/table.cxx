@@ -36,11 +36,20 @@ std::ostream &Table::Print(std::ostream &stream) const
 {
     for (auto &column : m_Columns)
     {
+        if (!column.Width)
+        {
+            continue;
+        }
+
         stream << std::setw(static_cast<int>(column.Width));
         if (column.Left)
+        {
             stream << std::left;
+        }
         else
+        {
             stream << std::right;
+        }
         stream << column.Label << ' ';
     }
     stream << std::endl;
@@ -50,11 +59,20 @@ std::ostream &Table::Print(std::ostream &stream) const
         for (std::size_t i = 0; i < m_Columns.size(); ++i)
         {
             auto &column = m_Columns.at(i);
+            if (!column.Width)
+            {
+                continue;
+            }
+
             stream << std::setw(static_cast<int>(column.Width));
             if (column.Left)
+            {
                 stream << std::left;
+            }
             else
+            {
                 stream << std::right;
+            }
             stream << m_Entries.at(j + i) << ' ';
         }
         stream << std::endl;

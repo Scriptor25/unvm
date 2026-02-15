@@ -1,9 +1,17 @@
 #include <http.hxx>
 #include <iostream>
+#include <url.hxx>
 #include <util.hxx>
 
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+
+#include <ssl/cert.h>
+
 #include <istream>
+#include <memory>
 #include <ostream>
+#include <sstream>
 
 #ifdef SYSTEM_WINDOWS
 
@@ -19,7 +27,7 @@ inline int socket_close(platform_socket_t s)
 
 #endif
 
-#ifdef SYSTEM_LINUX
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
 
 #include <netdb.h>
 #include <unistd.h>
@@ -27,22 +35,25 @@ inline int socket_close(platform_socket_t s)
 
 using platform_socket_t = int;
 
-inline int socket_close(platform_socket_t s)
+inline int socket_close(const platform_socket_t s)
 {
     return close(s);
 }
 
 #endif
 
-static int recv_until(platform_socket_t sock, std::string &dst, const char *delim)
+static int read_until(http::HttpTransport *transport, std::string &dst, const char *delim)
 {
     char buf[1024];
 
     while (dst.find(delim) == std::string::npos)
     {
-        const auto len = recv(sock, buf, sizeof(buf), 0);
+        const auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
+        {
+            std::cerr << "failed to read chunk." << std::endl;
             return 1;
+        }
 
         dst.append(buf, len);
     }
@@ -53,33 +64,48 @@ static int recv_until(platform_socket_t sock, std::string &dst, const char *deli
 static void set_header_if_missing(http::HttpHeaders &headers, const std::string &key, const std::string &val)
 {
     if (headers.contains(key) || headers.contains(Lower(key)))
+    {
         return;
+    }
 
     headers.emplace(key, val);
 }
 
 int http::HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message)
 {
-    std::string http_version;
+    std::string http_version; // TODO: check if version is supported
+    stream >> http_version;
 
-    stream >> http_version >> status_code;
+    if (http_version != "HTTP/1.1")
+    {
+        std::cerr << "invalid http version." << std::endl;
+        return 1;
+    }
+
+    stream >> status_code;
     GetLine(stream, status_message, EOL);
 
     status_message = Trim(std::move(status_message));
     return 0;
 }
 
-int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
+void http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
 {
+    headers.clear();
+
     std::string line;
     while (GetLine(stream, line, EOL))
     {
         if (line.empty())
+        {
             break;
+        }
 
         const auto colon = line.find(':');
         if (colon == std::string::npos)
+        {
             continue;
+        }
 
         auto key = line.substr(0, colon);
         auto val = line.substr(colon + 1);
@@ -89,37 +115,128 @@ int http::HttpParseHeaders(std::istream &stream, HttpHeaders &headers)
 
         headers.emplace(Lower(std::move(key)), std::move(val));
     }
-    return 0;
 }
 
-#ifdef SYSTEM_WINDOWS
+struct HttpTcpTransport final : http::HttpTransport
+{
+    explicit HttpTcpTransport(const platform_socket_t sock)
+        : sock(sock)
+    {
+    }
+
+    int write(const char *buf, const std::size_t len) override
+    {
+        return static_cast<int>(send(sock, buf, len, 0));
+    }
+
+    int read(char *buf, const std::size_t len) override
+    {
+        return static_cast<int>(recv(sock, buf, len, 0));
+    }
+
+    platform_socket_t sock;
+};
+
+struct HttpTlsTransport final : http::HttpTransport
+{
+    explicit HttpTlsTransport(SSL *ssl)
+        : ssl(ssl)
+    {
+    }
+
+    int write(const char *buf, const std::size_t len) override
+    {
+        return SSL_write(ssl, buf, static_cast<int>(len));
+    }
+
+    int read(char *buf, const std::size_t len) override
+    {
+        return SSL_read(ssl, buf, static_cast<int>(len));
+    }
+
+    SSL *ssl;
+};
 
 struct http::HttpClient::State
 {
+#ifdef SYSTEM_WINDOWS
     WSADATA WsaData;
+#endif
+    SSL_CTX *SslCtx;
 };
+
+static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, const int len)
+{
+    const auto bio = BIO_new_mem_buf(buf, len);
+    if (!bio)
+    {
+        return 1;
+    }
+
+    const auto x509 = PEM_X509_INFO_read_bio(bio, nullptr, nullptr, nullptr);
+    if (!x509)
+    {
+        BIO_free(bio);
+        return 1;
+    }
+
+    const auto store = SSL_CTX_get_cert_store(context);
+    for (unsigned i = 0; i < sk_X509_INFO_num(x509); ++i)
+    {
+        if (const auto info = sk_X509_INFO_value(x509, i); info->x509)
+        {
+            if (!X509_STORE_add_cert(store, info->x509))
+            {
+                sk_X509_INFO_pop_free(x509, X509_INFO_free);
+                BIO_free(bio);
+                return 1;
+            }
+
+            info->x509 = nullptr;
+        }
+    }
+
+    sk_X509_INFO_pop_free(x509, X509_INFO_free);
+    BIO_free(bio);
+    return 0;
+}
 
 http::HttpClient::HttpClient()
 {
     m_State = new State();
+
+#ifdef SYSTEM_WINDOWS
     WSAStartup(MAKEWORD(2, 2), &m_State->WsaData);
+#endif
+
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_ssl_algorithms();
+
+    m_State->SslCtx = SSL_CTX_new(TLS_client_method());
+    SSL_CTX_set_min_proto_version(m_State->SslCtx, TLS1_2_VERSION);
+
+    SSL_CTX_set_verify(m_State->SslCtx, SSL_VERIFY_PEER, nullptr);
+
+    if (load_cert_chain_from_shared_mem(m_State->SslCtx, cert_data, static_cast<int>(cert_data_len)))
+    {
+        std::cerr << "failed to load vendor certificates." << std::endl;
+        return;
+    }
 }
 
 http::HttpClient::~HttpClient()
 {
+    SSL_CTX_free(m_State->SslCtx);
+    EVP_cleanup();
+
+#ifdef SYSTEM_WINDOWS
     WSACleanup();
+#endif
+
     delete m_State;
     m_State = nullptr;
 }
-
-#endif
-
-#ifdef SYSTEM_LINUX
-
-http::HttpClient::HttpClient() = default;
-http::HttpClient::~HttpClient() = default;
-
-#endif
 
 int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
 {
@@ -131,7 +248,10 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     hints.ai_protocol = IPPROTO_TCP;
 
     if (getaddrinfo(request.Location.Host.c_str(), service.c_str(), &hints, &res))
+    {
+        std::cerr << "failed to get address info." << std::endl;
         return 1;
+    }
 
     platform_socket_t sock = -1;
 
@@ -139,7 +259,9 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     {
         sock = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
         if (sock < 0)
+        {
             continue;
+        }
 
         if (connect(sock, it->ai_addr, it->ai_addrlen))
         {
@@ -154,7 +276,47 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     freeaddrinfo(res);
 
     if (sock < 0)
+    {
+        std::cerr << "failed to open socket." << std::endl;
         return 1;
+    }
+
+    std::unique_ptr<HttpTransport> transport;
+    SSL *ssl = nullptr;
+
+    if (request.Location.UseTLS)
+    {
+        ssl = SSL_new(m_State->SslCtx);
+        SSL_set_fd(ssl, sock);
+
+        SSL_set_tlsext_host_name(ssl, request.Location.Host.c_str());
+        SSL_set1_host(ssl, request.Location.Host.c_str());
+        SSL_set_verify(ssl, SSL_VERIFY_PEER, nullptr);
+
+        if (auto result = SSL_connect(ssl); result <= 0)
+        {
+            SSL_free(ssl);
+
+            socket_close(sock);
+            std::cerr << "TLS handshake failed." << std::endl;
+            return 1;
+        }
+
+        if (SSL_get_verify_result(ssl) != X509_V_OK)
+        {
+            SSL_free(ssl);
+
+            socket_close(sock);
+            std::cerr << "TLS certificate verification failed." << std::endl;
+            return 1;
+        }
+
+        transport = std::make_unique<HttpTlsTransport>(ssl);
+    }
+    else
+    {
+        transport = std::make_unique<HttpTcpTransport>(sock);
+    }
 
     set_header_if_missing(request.Headers, "Host", request.Location.Host);
     set_header_if_missing(request.Headers, "Connection", "close");
@@ -164,12 +326,20 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     std::stringstream packet;
     packet << request.Method << ' ' << request.Location.Pathname << ' ' << "HTTP/1.1" << EOL;
     for (auto &[key, val] : request.Headers)
+    {
         packet << key << ": " << val << EOL;
+    }
     packet << EOL;
 
-    if (send(sock, packet.str().data(), packet.str().size(), 0) < 0)
+    if (transport->write(packet.str().data(), packet.str().size()) < 0)
     {
+        if (ssl)
+        {
+            SSL_free(ssl);
+        }
+
         socket_close(sock);
+        std::cerr << "failed to send header." << std::endl;
         return 1;
     }
 
@@ -179,13 +349,25 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     {
         std::size_t count = 0;
 
-        while (request.Body->good())
+        while (true)
         {
-            auto len = request.Body->readsome(buf, sizeof(buf));
+            request.Body->read(buf, sizeof(buf));
+            const auto len = request.Body->gcount();
 
-            if (send(sock, buf, len, 0) < 0)
+            if (len <= 0)
             {
+                break;
+            }
+
+            if (transport->write(buf, len) < 0)
+            {
+                if (ssl)
+                {
+                    SSL_free(ssl);
+                }
+
                 socket_close(sock);
+                std::cerr << "failed to send chunk." << std::endl;
                 return 1;
             }
 
@@ -194,9 +376,15 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     }
 
     std::string header_block;
-    if (auto error = recv_until(sock, header_block, EOL2))
+    if (auto error = read_until(transport.get(), header_block, EOL2))
     {
+        if (ssl)
+        {
+            SSL_free(ssl);
+        }
+
         socket_close(sock);
+        std::cerr << "failed to read header block." << std::endl;
         return error;
     }
 
@@ -210,31 +398,77 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     GetLine(headers_stream, status_line, EOL);
 
     std::istringstream status_stream(status_line);
-    HttpParseStatus(status_stream, response.StatusCode, response.StatusMessage);
+    if (auto error = HttpParseStatus(status_stream, response.StatusCode, response.StatusMessage))
+    {
+        std::cerr << "failed to parse status line." << std::endl;
+        return error;
+    }
 
     HttpParseHeaders(headers_stream, response.Headers);
 
     std::size_t content_length = ~0ULL;
     if (auto it = response.Headers.find("content-length"); it != response.Headers.end())
+    {
         content_length = std::stoull(it->second);
+    }
 
     if (response.Body && response.Body->good())
+    {
         response.Body->write(body_prefetch.data(), static_cast<long>(body_prefetch.size()));
+    }
 
     auto count = body_prefetch.size();
     while (content_length == ~0ULL || count < content_length)
     {
-        auto len = recv(sock, buf, sizeof(buf), 0);
+        auto len = transport->read(buf, sizeof(buf));
         if (len <= 0)
+        {
             break;
+        }
 
         if (response.Body && response.Body->good())
+        {
             response.Body->write(buf, len);
+        }
 
         count += len;
     }
 
+    if (ssl)
+    {
+        SSL_free(ssl);
+    }
+
     socket_close(sock);
+
+    if (is_redirect(response.StatusCode))
+    {
+        if (!response.Headers.contains("location"))
+        {
+            std::cerr << response.Headers << std::endl;
+            std::cerr << "missing location header in redirect response." << std::endl;
+            return 1;
+        }
+
+        auto location = response.Headers.at("location");
+
+        if (location.find("://") != std::string::npos)
+        {
+            request.Location = ParseUrl(location);
+        }
+        else if (location.starts_with("/"))
+        {
+            request.Location.Pathname = location;
+        }
+        else
+        {
+            request.Location.Pathname += location;
+        }
+
+        std::cerr << "redirect to " << location << " --> " << request.Location << std::endl;
+        return Request(std::move(request), response);
+    }
+
     return 0;
 }
 
@@ -265,4 +499,15 @@ std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code
     stream >> status_code_int;
     status_code = static_cast<http::HttpStatusCode>(status_code_int);
     return stream;
+}
+
+std::ostream &operator<<(std::ostream &stream, const http::HttpLocation &location)
+{
+    return stream
+           << (location.UseTLS ? "https" : "http")
+           << "://"
+           << location.Host
+           << ":"
+           << location.Port
+           << location.Pathname;
 }

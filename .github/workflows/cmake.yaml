@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }} | ${{ matrix.arch }} | ${{ matrix.compiler }}
+    name: "${{ matrix.os }} | ${{ matrix.toolchain }}"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
@@ -18,82 +18,52 @@ jobs:
       matrix:
         include:
           # =====================
-          # Linux x64
+          # Linux
           # =====================
           - os: linux
-            arch: x64
-            compiler: gcc
             runner: ubuntu-latest
+            triplet: x64-linux
+            toolchain: gcc
             cc: gcc
             cxx: g++
 
           - os: linux
-            arch: x64
-            compiler: clang
             runner: ubuntu-latest
+            triplet: x64-linux
+            toolchain: clang
             cc: clang
             cxx: clang++
 
           # =====================
-          # Linux arm64
+          # Windows
           # =====================
-          - os: linux
-            arch: arm64
-            compiler: gcc
-            runner: ubuntu-latest
-            cc: gcc
-            cxx: g++
+          - os: windows
+            runner: windows-latest
+            triplet: x64-windows
+            toolchain: msvc
+            generator: Visual Studio 17 2022
 
-          - os: linux
-            arch: arm64
-            compiler: clang
-            runner: ubuntu-latest
+          - os: windows
+            runner: windows-latest
+            triplet: x64-windows
+            toolchain: clang
             cc: clang
             cxx: clang++
 
           # =====================
-          # Windows x64
+          # Darwin
           # =====================
-          - os: windows
-            arch: x64
-            compiler: msvc
-            runner: windows-latest
-
-          - os: windows
-            arch: x64
-            compiler: gcc
-            runner: windows-latest
+          - os: darwin
+            runner: macos-latest
+            triplet: arm64-osx
+            toolchain: gcc
             cc: gcc
             cxx: g++
 
-          - os: windows
-            arch: x64
-            compiler: clang
-            runner: windows-latest
-            cc: clang
-            cxx: clang++
-
-          # =====================
-          # Windows arm64
-          # =====================
-          - os: windows
-            arch: arm64
-            compiler: msvc
-            runner: windows-latest
-            cc: cl
-            cxx: cl
-
-          - os: windows
-            arch: arm64
-            compiler: gcc
-            runner: windows-latest
-            cc: gcc
-            cxx: g++
-
-          - os: windows
-            arch: arm64
-            compiler: clang
-            runner: windows-latest
+          - os: darwin
+            runner: macos-latest
+            triplet: arm64-osx
+            toolchain: clang
             cc: clang
             cxx: clang++
 
@@ -104,11 +74,44 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Sanitize Version Name
+        id: version-name
+        if: github.ref_type == 'tag'
+        run: |
+          ref="${{ github.ref_name }}"
+          
+          version="${ref##*/}"
+          version="${version#v}"
+          version=$(echo "$version" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          
+          if [[ "$version" =~ ^[0-9]+(\.[0-9]+)+([._-][A-Za-z0-9]+)?$ ]]; then
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Setup vcpkg
+        id: vcpkg
+        uses: johnwason/vcpkg-action@v7
+        with:
+          pkgs: libarchive openssl
+          triplet: ${{ matrix.triplet }}-release
+          token: ${{ github.token }}
+          cache-key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
+
       - name: Configure CMake
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: >
+          cmake
+          -S .
+          -B build
+          -G "${{ matrix.generator || 'Ninja' }}"
+          -DCMAKE_BUILD_TYPE=Release
+          -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+          ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
 
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -125,13 +128,15 @@ jobs:
         run: |
           for file in dist/*; do
             [ -f "$file" ] || continue
-          
-            base="$(basename "$file")"
-            ext="${base#*.}"
-          
-            target="dist/unvm-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.compiler }}.${ext}"
-          
+
+            ext="$(basename "$file")"
+            ext="${ext#*.}"
+
+            target="dist/unvm-${{ steps.version-name.outputs.version }}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
+
             mv "$file" "$target"
+
+            echo "Upload $target to ${{ github.ref_name }}"
             gh release upload ${{ github.ref_name }} "$target" --clobber
           done
         shell: bash

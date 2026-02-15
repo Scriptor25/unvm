@@ -15,7 +15,9 @@ int AppendUserPath(std::filesystem::path directory)
             0,
             KEY_READ | KEY_WRITE,
             &key) != ERROR_SUCCESS)
+    {
         return 1;
+    }
 
     DWORD type = 0;
     DWORD size = 0;

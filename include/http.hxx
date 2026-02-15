@@ -101,7 +101,7 @@ namespace http
 
     struct HttpLocation
     {
-        std::string Scheme;
+        bool UseTLS;
         std::string Host;
         std::uint16_t Port{};
         std::string Pathname;
@@ -126,7 +126,15 @@ namespace http
     };
 
     int HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
-    int HttpParseHeaders(std::istream &stream, HttpHeaders &headers);
+    void HttpParseHeaders(std::istream &stream, HttpHeaders &headers);
+
+    struct HttpTransport
+    {
+        virtual ~HttpTransport() = default;
+
+        virtual int write(const char *buf, std::size_t len) = 0;
+        virtual int read(char *buf, std::size_t len) = 0;
+    };
 
     class HttpClient
     {
@@ -143,8 +151,11 @@ namespace http
 }
 
 std::ostream &operator<<(std::ostream &stream, http::HttpMethod method);
+
 std::ostream &operator<<(std::ostream &stream, http::HttpStatusCode status_code);
 std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code);
+
+std::ostream &operator<<(std::ostream &stream, const http::HttpLocation &location);
 
 template<>
 struct std::formatter<http::HttpStatusCode> : std::formatter<int>
