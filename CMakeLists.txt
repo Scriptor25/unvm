@@ -105,10 +105,18 @@ endif ()
 
 ### Install Config ###
 
+set(COMMON_LICENSE_FILES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+    "${CMAKE_CURRENT_SOURCE_DIR}/README"
+    "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES"
+)
+
 if (APPLE)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
             FRAMEWORK DESTINATION lib)
+
+    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_PREFIX}/unvm.app/Contents/Resources")
 elseif (WIN32)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
@@ -128,8 +136,12 @@ elseif (WIN32)
             ".*system32/.*"
             ".*System32/.*"
             RUNTIME DESTINATION bin)
+    
+    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_PREFIX}/licenses")
 else ()
     install(TARGETS unvm)
+    
+    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_PREFIX}/share/doc/unvm/licenses")
 endif ()
 
 if (ENABLE_COMPLETIONS)
