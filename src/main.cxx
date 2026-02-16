@@ -13,6 +13,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+#include <version.h>
+
 struct Config
 {
     std::filesystem::path InstallDirectory;
@@ -133,23 +135,27 @@ struct json::Converter<VersionEntry>
 static void print()
 {
     std::cerr
-            << "unvm"
-            << std::endl
-            << std::endl
-            << "<version>: latest, lts, v<uint>[.<uint>[.<uint>]], <lts-name>"
-            << std::endl
-            << std::endl
-            << "\t- install, i <version>  - download and install node package"
-            << std::endl
-            << "\t- remove, r <version>   - remove node package"
-            << std::endl
-            << "\t- use, u <version>|none - set node package as active, or inactive by using 'none'"
-            << std::endl
-            << "\t- list, l [available]   - list installed or available packages"
-            << std::endl
-            << "\t- ls                    - short for `list` or `l`"
-            << std::endl
-            << "\t- la                    - short for `list available` or `l available`"
+            << PROJECT_NAME << " - " << PROJECT_TITLE << "\n"
+            << "\n"
+            << "  Version:    " << PROJECT_VERSION << "\n"
+            << "  Build date: " << PROJECT_BUILD_DATE << "\n"
+            << "\n"
+            << "Usage:\n"
+            << "  <version> := latest | lts | v<uint>[.<uint>[.<uint>]] | <lts-name>\n"
+            << "\n"
+            << "Commands:\n"
+            << "  install, i <version>        Install the specified Node.js version\n"
+            << "  remove,  r <version>        Remove the specified Node.js version\n"
+            << "  use,     u <version>|none   Set active Node.js version, or 'none' to deactivate\n"
+            << "  list,    l [available|a]    List installed or available versions\n"
+            << "           ls                 Alias for `list`\n"
+            << "           la                 Alias for `list available`\n"
+            << "\n"
+            << "Examples:\n"
+            << "  unvm install lts\n"
+            << "  unvm install iron\n"
+            << "  unvm use v20.3.1\n"
+            << "  unvm list available\n"
             << std::endl;
 }
 

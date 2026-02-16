@@ -4,6 +4,12 @@ project(unvm
         LANGUAGES C CXX
         VERSION "${UNVM_PROJECT_VERSION}")
 
+set(PROJECT_NAME "UNVM")
+set(PROJECT_TITLE "Universal Node Version Manager")
+
+string(TIMESTAMP BUILD_DATE "%d/%m/%Y")
+set(PROJECT_BUILD_DATE "${BUILD_DATE}")
+
 ### Find dependencies ###
 
 find_package(OpenSSL REQUIRED)
@@ -28,7 +34,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
-set(CA_BUNDLE_OUTPUT ${CMAKE_BINARY_DIR}/ssl/ca-bundle.h)
+set(CA_BUNDLE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/ca-bundle.h)
 
 add_custom_command(
         OUTPUT ${CA_BUNDLE_OUTPUT}
@@ -38,13 +44,14 @@ add_custom_command(
 )
 add_custom_target(ca_bundle_h DEPENDS ${CA_BUNDLE_OUTPUT})
 
-file(GLOB_RECURSE SRC "src/*.cxx")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY) 
 
+file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 
 add_dependencies(unvm ca_bundle_h)
 
-target_include_directories(unvm PRIVATE ${CMAKE_BINARY_DIR} "include")
+target_include_directories(unvm PRIVATE ${CMAKE_CURRENT_BINARY_DIR} "include")
 
 target_link_libraries(unvm PRIVATE
         OpenSSL::SSL
