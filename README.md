@@ -80,12 +80,12 @@ This file controls:
 ## License
 
 UNVM is released under the **MIT License**.  
-See the installed [`LICENSE`](./LICENSE) file for the full license text.
+See the installed [`LICENSE`](./LICENSE.txt) file for the full license text.
 
 ## Third-Party Software
 
 This project includes third-party software.  
-See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES) file for full details and attributions.
+See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file for full details and attributions.
 
 Included libraries:
 
