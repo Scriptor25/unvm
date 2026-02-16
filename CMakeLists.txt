@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.28)
 
 project(unvm
         LANGUAGES C CXX
@@ -27,22 +27,22 @@ message(STATUS "Processor: ${PLATFORM_SYSTEM_PROCESSOR}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CERT_INPUT ${CMAKE_SOURCE_DIR}/ssl/cacert.pem)
-set(CERT_OUTPUT ${CMAKE_BINARY_DIR}/ssl/cert.h)
+set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
+set(CA_BUNDLE_OUTPUT ${CMAKE_BINARY_DIR}/ssl/ca-bundle.h)
 
 add_custom_command(
-        OUTPUT ${CERT_OUTPUT}
-        COMMAND xxd -i -n cert_data ${CERT_INPUT} ${CERT_OUTPUT}
-        DEPENDS ${CERT_INPUT}
-        COMMENT "embedding cert.pem with xxd"
+        OUTPUT ${CA_BUNDLE_OUTPUT}
+        COMMAND xxd -i -n ca_bundle_data ${CA_BUNDLE_INPUT} ${CA_BUNDLE_OUTPUT}
+        DEPENDS ${CA_BUNDLE_INPUT}
+        COMMENT "embedding ca-bundle.crt with xxd"
 )
-add_custom_target(generate_cert DEPENDS ${CERT_OUTPUT})
+add_custom_target(ca_bundle_h DEPENDS ${CA_BUNDLE_OUTPUT})
 
 file(GLOB_RECURSE SRC "src/*.cxx")
 
 add_executable(unvm ${SRC})
 
-add_dependencies(unvm generate_cert)
+add_dependencies(unvm ca_bundle_h)
 
 target_include_directories(unvm PRIVATE ${CMAKE_BINARY_DIR} "include")
 

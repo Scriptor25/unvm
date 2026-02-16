@@ -6,7 +6,7 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#include <ssl/cert.h>
+#include <ssl/ca-bundle.h>
 
 #include <istream>
 #include <memory>
@@ -218,7 +218,7 @@ http::HttpClient::HttpClient()
 
     SSL_CTX_set_verify(m_State->SslCtx, SSL_VERIFY_PEER, nullptr);
 
-    if (load_cert_chain_from_shared_mem(m_State->SslCtx, cert_data, static_cast<int>(cert_data_len)))
+    if (load_cert_chain_from_shared_mem(m_State->SslCtx, ca_bundle_data, static_cast<int>(ca_bundle_data_len)))
     {
         std::cerr << "failed to load vendor certificates." << std::endl;
         return;
