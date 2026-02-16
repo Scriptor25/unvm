@@ -116,7 +116,7 @@ if (APPLE)
             RUNTIME_DEPENDENCIES
             FRAMEWORK DESTINATION lib)
 
-    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_PREFIX}/unvm.app/Contents/Resources")
+    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "unvm.app/Contents/Resources")
 elseif (WIN32)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
@@ -137,11 +137,11 @@ elseif (WIN32)
             ".*System32/.*"
             RUNTIME DESTINATION bin)
     
-    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_PREFIX}/licenses")
+    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "licenses")
 else ()
     install(TARGETS unvm)
     
-    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "${CMAKE_INSTALL_PREFIX}/share/doc/unvm/licenses")
+    install(FILES ${COMMON_LICENSE_FILES} DESTINATION "share/doc/unvm/licenses")
 endif ()
 
 if (ENABLE_COMPLETIONS)
