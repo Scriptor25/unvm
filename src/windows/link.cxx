@@ -37,7 +37,7 @@ static std::wstring GetErrorMessage(DWORD error)
         nullptr,
         error,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPWSTR) & buffer,
+        (LPWSTR) &buffer,
         0,
         nullptr);
 
@@ -175,6 +175,7 @@ int RemoveLink(const std::filesystem::path &link)
 
     if (h == INVALID_HANDLE_VALUE)
     {
+        std::cerr << "failed to remove link: invalid handle value" << std::endl;
         return 1;
     }
 
