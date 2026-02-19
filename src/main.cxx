@@ -159,17 +159,18 @@ static void print()
             << std::endl;
 }
 
-constexpr auto MOD_PRESENT_BITS = 0b10000000u;
-constexpr auto MOD_VALUE_BITS = 0b01110000u;
-constexpr auto OPERATION_BITS = 0b00001111u;
+constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
+constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
+constexpr auto OPERATION_BITS = 0b0000111100000000u;
 
-constexpr auto INSTALL_BITS = 0b0001u;
-constexpr auto REMOVE_BITS = 0b0010u;
-constexpr auto USE_BITS = 0b0100u;
-constexpr auto LIST_BITS = 0b1000u;
+constexpr auto INSTALL_BITS = 0b00000001u;
+constexpr auto REMOVE_BITS = 0b00000010u;
+constexpr auto USE_BITS = 0b00000100u;
+constexpr auto LIST_BITS = 0b00001000u;
+constexpr auto WORKSPACE_BITS = 0b00010000u;
 
-constexpr auto LIST_MOD_INSTALLED_BITS = 0b00000000u;
-constexpr auto LIST_MOD_AVAILABLE_BITS = 0b00010000u;
+constexpr auto LIST_MOD_INSTALLED_BITS = 0b0000000000000000u;
+constexpr auto LIST_MOD_AVAILABLE_BITS = 0b0001000000000000u;
 
 /**
  * bits [3:0] -> operation
@@ -189,6 +190,8 @@ static const std::map<std::string_view, unsigned> operation_map
     { "l", LIST_BITS },
     { "ls", MOD_PRESENT_BITS | LIST_MOD_INSTALLED_BITS | LIST_BITS },
     { "la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS },
+    { "workspace", WORKSPACE_BITS },
+    { "w", WORKSPACE_BITS },
 };
 
 static int load_version_table(http::HttpClient &client, VersionTable &table, bool online)
@@ -827,6 +830,9 @@ static int execute(const std::vector<std::string_view> &args)
         code = list(config, client, available);
         break;
     }
+
+    case WORKSPACE_BITS:
+        break;
 
     default:
         code = 1;
