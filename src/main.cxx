@@ -145,12 +145,13 @@ static void print()
             << "  <version> := latest | lts | v<uint>[.<uint>[.<uint>]] | <lts-name>\n"
             << "\n"
             << "Commands:\n"
-            << "  install, i <version>        Install the specified Node.js version\n"
-            << "  remove,  r <version>        Remove the specified Node.js version\n"
-            << "  use,     u <version>|none   Set active Node.js version, or 'none' to deactivate\n"
-            << "  list,    l [available|a]    List installed or available versions\n"
-            << "           ls                 Alias for `list`\n"
-            << "           la                 Alias for `list available`\n"
+            << "  install,   i <version>        Install the specified Node.js version\n"
+            << "  remove,    r <version>        Remove the specified Node.js version\n"
+            << "  use,       u <version>|none   Set active Node.js version, or 'none' to deactivate\n"
+            << "  list,      l [available|a]    List installed or available versions\n"
+            << "             ls                 Alias for `list`\n"
+            << "             la                 Alias for `list available`\n"
+            << "  workspace, w                  Read package.json in current directory and automatically install and use a suitable Node.js version.\n"
             << "\n"
             << "Examples:\n"
             << "  unvm install lts\n"
@@ -693,7 +694,7 @@ static int use(Config &config, http::HttpClient &client, std::string_view versio
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 1;
     }
-    
+
     return use(config, client, version, *entry_ptr);
 }
 
@@ -750,7 +751,7 @@ static int workspace(Config &config, http::HttpClient &client)
     }
 
     std::ifstream stream(package_json);
-    
+
     if (!stream)
     {
         std::cerr << "failed to open package.json." << std::endl;
@@ -788,7 +789,7 @@ static int workspace(Config &config, http::HttpClient &client)
     {
         return error;
     }
-    
+
     for (auto &entry : table)
     {
         if (!semver::IsInRange(set, entry.Version))

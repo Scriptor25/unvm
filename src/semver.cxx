@@ -1,7 +1,8 @@
 #include <semver.hxx>
 
-#include <sstream>
 #include <iostream>
+#include <map>
+#include <sstream>
 
 semver::Parser::Parser(std::istream &stream)
     : m_Stream(stream)
@@ -28,10 +29,11 @@ semver::RangeSet semver::Parser::Parse()
 
             auto end = ParsePartial();
 
-            set.push_back(Hyphen{
-                .Begin = std::move(begin.Value),
-                .End = std::move(end),
-            });
+            set.emplace_back(
+                Hyphen{
+                    .Begin = std::move(begin.Value),
+                    .End = std::move(end),
+                });
         }
         else
         {
@@ -44,11 +46,12 @@ semver::RangeSet semver::Parser::Parse()
                 Skip(" ");
             }
 
-            set.push_back(primitives);
+            set.emplace_back(std::move(primitives));
         }
 
         Skip(" ");
-    } while (Skip("||"));
+    }
+    while (Skip("||"));
 
     return set;
 }
@@ -56,13 +59,13 @@ semver::RangeSet semver::Parser::Parse()
 semver::Primitive semver::Parser::ParsePrimitive()
 {
     static const std::map<std::string_view, PrimitiveType> map = {
-        {"=", PrimitiveType::Equal},
-        {"<", PrimitiveType::LessThan},
-        {"<=", PrimitiveType::LessThanOrEqual},
-        {">", PrimitiveType::GreaterThan},
-        {">=", PrimitiveType::GreaterThanOrEqual},
-        {"~", PrimitiveType::Tilde},
-        {"^", PrimitiveType::Caret},
+        { "=", PrimitiveType::Equal },
+        { "<", PrimitiveType::LessThan },
+        { "<=", PrimitiveType::LessThanOrEqual },
+        { ">", PrimitiveType::GreaterThan },
+        { ">=", PrimitiveType::GreaterThanOrEqual },
+        { "~", PrimitiveType::Tilde },
+        { "^", PrimitiveType::Caret },
     };
 
     PrimitiveType type{};
@@ -126,7 +129,8 @@ semver::Partial semver::Parser::ParsePartial()
         {
             value.push_back(std::move(m_Token));
             m_Token = Next();
-        } while (Skip("."));
+        }
+        while (Skip("."));
 
         partial.Value.PreRelease = std::move(value);
     }
@@ -138,7 +142,8 @@ semver::Partial semver::Parser::ParsePartial()
         {
             value.push_back(std::move(m_Token));
             m_Token = Next();
-        } while (Skip("."));
+        }
+        while (Skip("."));
 
         partial.Value.Build = std::move(value);
     }
@@ -169,7 +174,8 @@ semver::Version semver::Parser::ParseVersion()
         {
             value.push_back(std::move(m_Token));
             m_Token = Next();
-        } while (Skip("."));
+        }
+        while (Skip("."));
 
         version.PreRelease = std::move(value);
     }
@@ -181,7 +187,8 @@ semver::Version semver::Parser::ParseVersion()
         {
             value.push_back(std::move(m_Token));
             m_Token = Next();
-        } while (Skip("."));
+        }
+        while (Skip("."));
 
         version.Build = std::move(value);
     }
@@ -202,13 +209,18 @@ bool semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
 
 void semver::Parser::ParseVersionPart(std::uint32_t &value)
 {
-    auto token = m_Token;
+    auto token = std::move(m_Token);
     m_Token = Next();
+
+    if (token.front() == 'v')
+    {
+        token = token.substr(1);
+    }
 
     value = std::stoul(token);
 }
 
-bool semver::Parser::At(std::set<std::string_view> set) const
+bool semver::Parser::At(const std::set<std::string_view> &set) const
 {
     for (auto &e : set)
     {
@@ -220,9 +232,9 @@ bool semver::Parser::At(std::set<std::string_view> set) const
     return false;
 }
 
-bool semver::Parser::Skip(std::set<std::string_view> set)
+bool semver::Parser::Skip(const std::set<std::string_view> &set)
 {
-    if (At(std::move(set)))
+    if (At(set))
     {
         m_Token = Next();
         return true;
@@ -231,11 +243,11 @@ bool semver::Parser::Skip(std::set<std::string_view> set)
     return false;
 }
 
-std::string semver::Parser::Expect(std::set<std::string_view> set)
+std::string semver::Parser::Expect(const std::set<std::string_view> &set)
 {
-    if (At(std::move(set)))
+    if (At(set))
     {
-        auto token = m_Token;
+        auto token = std::move(m_Token);
         m_Token = Next();
         return token;
     }
@@ -342,7 +354,7 @@ std::string semver::Parser::Next()
         }
     }
 
-    return {};
+    return value;
 }
 
 semver::RangeSet semver::ParseRangeSet(std::istream &stream)
@@ -351,19 +363,19 @@ semver::RangeSet semver::ParseRangeSet(std::istream &stream)
     return parser.Parse();
 }
 
-semver::RangeSet semver::ParseRangeSet(std::string_view string)
+semver::RangeSet semver::ParseRangeSet(const std::string_view string)
 {
-    std::string s(string);
+    const std::string s(string);
     std::istringstream stream(s);
     return ParseRangeSet(stream);
 }
 
-bool semver::IsInRange(const RangeSet &set, std::string_view version)
+bool semver::IsInRange(const RangeSet &set, const std::string_view version)
 {
-    std::string s(version);
+    const std::string s(version);
     std::istringstream stream(s);
     Parser parser(stream);
-    auto parsed = parser.ParseVersion();
+    const auto parsed = parser.ParseVersion();
     return IsInRange(set, parsed);
 }
 
@@ -389,7 +401,7 @@ bool semver::IsInRange(const RangeSet &set, const Version &version)
 
     for (auto &range : set)
     {
-        if (auto hyphen = std::get_if<Hyphen>(&range))
+        if (const auto hyphen = std::get_if<Hyphen>(&range))
         {
             auto &begin = hyphen->Begin;
             auto &end = hyphen->End;
@@ -402,9 +414,9 @@ bool semver::IsInRange(const RangeSet &set, const Version &version)
             continue;
         }
 
-        if (auto primitive_set = std::get_if<PrimitiveSet>(&range))
+        if (const auto primitive_set = std::get_if<PrimitiveSet>(&range))
         {
-            bool match = true;
+            auto match = true;
             for (auto &primitive : *primitive_set)
             {
                 switch (primitive.Type)
@@ -570,20 +582,20 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
         return 0;
     }
 
-    auto count = std::min(a.size(), b.size());
+    const auto count = std::min(a.size(), b.size());
 
     for (std::size_t i = 0; i < count; ++i)
     {
         auto &a_entry = a.at(i);
         auto &b_entry = b.at(i);
 
-        auto a_numeric = is_numeric(a_entry);
-        auto b_numeric = is_numeric(b_entry);
+        const auto a_numeric = is_numeric(a_entry);
+        const auto b_numeric = is_numeric(b_entry);
 
         if (a_numeric && b_numeric)
         {
-            auto a_value = std::stoul(a_entry);
-            auto b_value = std::stoul(b_entry);
+            const auto a_value = std::stoul(a_entry);
+            const auto b_value = std::stoul(b_entry);
 
             if (a_value < b_value)
             {
@@ -595,11 +607,11 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
                 return 1;
             }
         }
-        else if (a_numeric && !b_numeric)
+        else if (a_numeric)
         {
             return -1;
         }
-        else if (!a_numeric && b_numeric)
+        else if (b_numeric)
         {
             return 1;
         }
@@ -632,10 +644,10 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
 bool semver::operator<(const Partial &a, const Partial &b)
 {
-    auto precision = std::min(a.Mask, b.Mask);
+    const auto precision = std::min(a.Mask, b.Mask);
 
-    auto a_major = (a.Mod & 0b001) ? 0u : a.Value.Major;
-    auto b_major = (b.Mod & 0b001) ? 0u : b.Value.Major;
+    const auto a_major = (a.Mod & 0b001) ? 0u : a.Value.Major;
+    const auto b_major = (b.Mod & 0b001) ? 0u : b.Value.Major;
 
     if (a_major != b_major)
     {
@@ -644,8 +656,8 @@ bool semver::operator<(const Partial &a, const Partial &b)
 
     if (precision >= 1)
     {
-        auto a_minor = (a.Mod & 0b010) ? 0u : a.Value.Minor;
-        auto b_minor = (b.Mod & 0b010) ? 0u : b.Value.Minor;
+        const auto a_minor = (a.Mod & 0b010) ? 0u : a.Value.Minor;
+        const auto b_minor = (b.Mod & 0b010) ? 0u : b.Value.Minor;
 
         if (a_minor != b_minor)
         {
@@ -655,23 +667,23 @@ bool semver::operator<(const Partial &a, const Partial &b)
 
     if (precision >= 2)
     {
-        auto a_patch = (a.Mod & 0b100) ? 0u : a.Value.Patch;
-        auto b_patch = (b.Mod & 0b100) ? 0u : b.Value.Patch;
+        const auto a_patch = (a.Mod & 0b100) ? 0u : a.Value.Patch;
+        const auto b_patch = (b.Mod & 0b100) ? 0u : b.Value.Patch;
 
         if (a_patch != b_patch)
         {
             return a_patch < b_patch;
         }
 
-        auto wildcard = (a.Mod & 0b100) || (b.Mod & 0b100);
+        const auto wildcard = (a.Mod & 0b100) || (b.Mod & 0b100);
 
         if (!wildcard)
         {
             auto &a_pre = a.Value.PreRelease;
             auto &b_pre = b.Value.PreRelease;
 
-            auto a_empty = a_pre.empty();
-            auto b_empty = b_pre.empty();
+            const auto a_empty = a_pre.empty();
+            const auto b_empty = b_pre.empty();
 
             if (a_empty && !b_empty)
             {
@@ -685,7 +697,7 @@ bool semver::operator<(const Partial &a, const Partial &b)
 
             if (!a_empty && !b_empty)
             {
-                auto cmp = compare_pre_release(a_pre, b_pre);
+                const auto cmp = compare_pre_release(a_pre, b_pre);
                 if (cmp != 0)
                 {
                     return cmp < 0;

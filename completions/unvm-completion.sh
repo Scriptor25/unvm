@@ -5,7 +5,7 @@ _unvm_completions() {
 
   word="${COMP_WORDS[COMP_CWORD]}"
 
-  commands="install i remove r use u list l ls la"
+  commands="install i remove r use u list l ls la workspace w"
   versions="latest lts none"
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -14,7 +14,7 @@ _unvm_completions() {
   fi
 
   case "${COMP_WORDS[1]}" in
-    install|i|remove|r|use|u)
+    install|i|remove|r|use|u|workspace|w)
       COMPREPLY=( $(compgen -W "${versions}" -- ${word}) )
       ;;
     list|l)

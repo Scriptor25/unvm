@@ -37,7 +37,7 @@ static std::wstring GetErrorMessage(DWORD error)
         nullptr,
         error,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPWSTR) &buffer,
+        (LPWSTR) & buffer,
         0,
         nullptr);
 

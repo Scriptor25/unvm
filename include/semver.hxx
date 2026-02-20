@@ -1,15 +1,14 @@
 #pragma once
 
-#include <istream>
 #include <cstdint>
-#include <vector>
-#include <variant>
-#include <string>
-#include <map>
-#include <set>
+#include <istream>
 #include <optional>
+#include <set>
+#include <string>
+#include <variant>
+#include <vector>
 
-template <typename T>
+template<typename T>
 concept StringLike = std::is_convertible_v<T, std::string_view>;
 
 namespace semver
@@ -62,7 +61,7 @@ namespace semver
 
     struct Primitive
     {
-        PrimitiveType Type;
+        PrimitiveType Type{};
         Partial Value;
     };
 
@@ -91,28 +90,28 @@ namespace semver
         bool ParsePossibleWildcard(std::uint32_t &value);
         void ParseVersionPart(std::uint32_t &value);
 
-        bool At(std::set<std::string_view> set) const;
+        [[nodiscard]] bool At(const std::set<std::string_view> &set) const;
 
-        template <StringLike... S>
+        template<StringLike... S>
         bool At(S... s) const
         {
-            return At(std::set<std::string_view>{s...});
+            return At(std::set<std::string_view>{ s... });
         }
 
-        bool Skip(std::set<std::string_view> set);
+        bool Skip(const std::set<std::string_view> &set);
 
-        template <StringLike... S>
+        template<StringLike... S>
         bool Skip(S... s)
         {
-            return Skip(std::set<std::string_view>{s...});
+            return Skip(std::set<std::string_view>{ s... });
         }
 
-        std::string Expect(std::set<std::string_view> set);
+        std::string Expect(const std::set<std::string_view> &set);
 
-        template <StringLike... S>
+        template<StringLike... S>
         std::string Expect(S... s)
         {
-            return Expect(std::set<std::string_view>{s...});
+            return Expect(std::set<std::string_view>{ s... });
         }
 
         std::string Next();
