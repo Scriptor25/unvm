@@ -1,5 +1,6 @@
 #include <http.hxx>
 #include <json.hxx>
+#include <semver.hxx>
 #include <table.hxx>
 #include <url.hxx>
 #include <util.hxx>
@@ -161,7 +162,7 @@ static void print()
 
 constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
 constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
-constexpr auto OPERATION_BITS = 0b0000111100000000u;
+constexpr auto OPERATION_BITS = 0b0000000011111111u;
 
 constexpr auto INSTALL_BITS = 0b00000001u;
 constexpr auto REMOVE_BITS = 0b00000010u;
@@ -476,23 +477,8 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
     return 0;
 }
 
-static int install(Config &config, http::HttpClient &client, std::string_view version)
+static int install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
 {
-    VersionTable table;
-    if (auto error = load_version_table(client, table, true))
-    {
-        std::cerr << "failed to load version table." << std::endl;
-        return error;
-    }
-
-    auto entry_ptr = find_effective_version(table, version);
-    if (!entry_ptr)
-    {
-        std::cerr << "no effective version for '" << version << "'." << std::endl;
-        return 1;
-    }
-
-    auto &entry = *entry_ptr;
     if (config.Installed.contains(entry.Version))
     {
         std::cerr << "version '" << version << "' is already installed." << std::endl;
@@ -593,6 +579,25 @@ static int install(Config &config, http::HttpClient &client, std::string_view ve
     return 0;
 }
 
+static int install(Config &config, http::HttpClient &client, std::string_view version)
+{
+    VersionTable table;
+    if (auto error = load_version_table(client, table, true))
+    {
+        std::cerr << "failed to load version table." << std::endl;
+        return error;
+    }
+
+    auto entry_ptr = find_effective_version(table, version);
+    if (!entry_ptr)
+    {
+        std::cerr << "no effective version for '" << version << "'." << std::endl;
+        return 1;
+    }
+
+    return install(config, client, version, *entry_ptr);
+}
+
 static int remove(Config &config, http::HttpClient &client, std::string_view version)
 {
     VersionTable table;
@@ -619,6 +624,39 @@ static int remove(Config &config, http::HttpClient &client, std::string_view ver
     std::filesystem::remove_all(config.InstallDirectory / entry.Version);
 
     config.Installed.erase(entry.Version);
+    return 0;
+}
+
+static int use(Config &config, http::HttpClient &client, const std::string_view &version, const VersionEntry &entry)
+{
+    if (config.Active.has_value())
+    {
+        if (config.Active.value() == entry.Version)
+        {
+            std::cerr << "version '" << version << "' is already installed and active." << std::endl;
+            return 0;
+        }
+
+        if (const auto error = RemoveLink(config.ActiveDirectory))
+        {
+            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
+            return error;
+        }
+    }
+
+    if (const auto error = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version))
+    {
+        std::cerr << "failed to link new active version '" << version << "'." << std::endl;
+        return error;
+    }
+
+    if (const auto error = AppendUserPath(config.ActiveDirectory))
+    {
+        std::cerr << "failed to append active directory to user path variable." << std::endl;
+        return error;
+    }
+
+    config.Active = entry.Version;
     return 0;
 }
 
@@ -655,37 +693,8 @@ static int use(Config &config, http::HttpClient &client, std::string_view versio
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 1;
     }
-
-    auto &entry = *entry_ptr;
-    if (config.Active.has_value())
-    {
-        if (config.Active.value() == entry.Version)
-        {
-            std::cerr << "version '" << version << "' is already installed and active." << std::endl;
-            return 0;
-        }
-
-        if (const auto error = RemoveLink(config.ActiveDirectory))
-        {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
-            return error;
-        }
-    }
-
-    if (const auto error = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version))
-    {
-        std::cerr << "failed to link new active version '" << version << "'." << std::endl;
-        return error;
-    }
-
-    if (const auto error = AppendUserPath(config.ActiveDirectory))
-    {
-        std::cerr << "failed to append active directory to user path variable." << std::endl;
-        return error;
-    }
-
-    config.Active = entry.Version;
-    return 0;
+    
+    return use(config, client, version, *entry_ptr);
 }
 
 static int list(Config &config, http::HttpClient &client, const bool available)
@@ -728,6 +737,80 @@ static int list(Config &config, http::HttpClient &client, const bool available)
 
     std::cerr << out;
     return 0;
+}
+
+static int workspace(Config &config, http::HttpClient &client)
+{
+    auto package_json = std::filesystem::weakly_canonical("./package.json");
+
+    if (!std::filesystem::exists(package_json))
+    {
+        std::cerr << "no package.json in current directory." << std::endl;
+        return 1;
+    }
+
+    std::ifstream stream(package_json);
+    
+    if (!stream)
+    {
+        std::cerr << "failed to open package.json." << std::endl;
+        return 1;
+    }
+
+    auto node = json::Parser::Parse(stream);
+    auto maybe_version = node.GetOrNull("engines").GetOrNull("node").To<std::optional<std::string>>();
+
+    auto version = maybe_version.has_value() ? maybe_version.value() : "*";
+    auto set = semver::ParseRangeSet(version);
+
+    VersionTable table;
+    if (const auto error = load_version_table(client, table, false))
+    {
+        return error;
+    }
+
+    for (auto &entry : table)
+    {
+        if (!config.Installed.contains(entry.Version))
+        {
+            continue;
+        }
+
+        if (!semver::IsInRange(set, entry.Version))
+        {
+            continue;
+        }
+
+        return use(config, client, version, entry);
+    }
+
+    if (const auto error = load_version_table(client, table, true))
+    {
+        return error;
+    }
+    
+    for (auto &entry : table)
+    {
+        if (!semver::IsInRange(set, entry.Version))
+        {
+            continue;
+        }
+
+        if (const auto error = install(config, client, version, entry))
+        {
+            return error;
+        }
+
+        if (const auto error = use(config, client, version, entry))
+        {
+            return error;
+        }
+
+        return 0;
+    }
+
+    std::cerr << "no version match for '" << version << "'." << std::endl;
+    return 1;
 }
 
 static int execute(const std::vector<std::string_view> &args)
