@@ -10,7 +10,7 @@ int RemoveLink(const std::filesystem::path &link);
 
 std::filesystem::path GetDataDirectory();
 
-std::istream &GetLine(std::istream &stream, std::string &string, const std::string_view &delim);
+std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
 
 std::string Trim(std::string string);
 std::string Lower(std::string string);

@@ -1,6 +1,6 @@
 #include <util.hxx>
 
-std::istream &GetLine(std::istream &stream, std::string &string, const std::string_view &delim)
+std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim)
 {
     string.clear();
 

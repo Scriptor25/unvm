@@ -265,7 +265,7 @@ static int load_version_table(http::HttpClient &client, VersionTable &table, boo
     return 0;
 }
 
-static std::string to_lower(const std::string_view &str)
+static std::string to_lower(std::string_view str)
 {
     std::string result;
     for (auto &c : str)
@@ -275,7 +275,7 @@ static std::string to_lower(const std::string_view &str)
     return result;
 }
 
-static unsigned count_version_segments(const std::string_view &str)
+static unsigned count_version_segments(std::string_view str)
 {
     unsigned segments = 0;
 
@@ -294,7 +294,7 @@ static unsigned count_version_segments(const std::string_view &str)
     return segments;
 }
 
-static const VersionEntry *find_effective_version(const VersionTable &table, const std::string_view &version)
+static const VersionEntry *find_effective_version(const VersionTable &table, std::string_view version)
 {
     // latest
     if (version == "latest")
@@ -476,7 +476,7 @@ static int unpack(std::istream &stream, const std::filesystem::path &directory)
     return 0;
 }
 
-static int install(Config &config, http::HttpClient &client, const std::string_view &version)
+static int install(Config &config, http::HttpClient &client, std::string_view version)
 {
     VersionTable table;
     if (auto error = load_version_table(client, table, true))
@@ -593,7 +593,7 @@ static int install(Config &config, http::HttpClient &client, const std::string_v
     return 0;
 }
 
-static int remove(Config &config, http::HttpClient &client, const std::string_view &version)
+static int remove(Config &config, http::HttpClient &client, std::string_view version)
 {
     VersionTable table;
     if (const auto error = load_version_table(client, table, false))
@@ -622,7 +622,7 @@ static int remove(Config &config, http::HttpClient &client, const std::string_vi
     return 0;
 }
 
-static int use(Config &config, http::HttpClient &client, const std::string_view &version)
+static int use(Config &config, http::HttpClient &client, std::string_view version)
 {
     if (version == "none")
     {
@@ -832,6 +832,12 @@ static int execute(const std::vector<std::string_view> &args)
     }
 
     case WORKSPACE_BITS:
+        if (args.size() != 1)
+        {
+            std::cerr << "invalid argument count." << std::endl;
+            return 1;
+        }
+        code = workspace(config, client);
         break;
 
     default:

@@ -8,7 +8,7 @@
 
 namespace http
 {
-    constexpr void ParseUrl(HttpLocation &dst, const std::string_view &src)
+    constexpr void ParseUrl(HttpLocation &dst, std::string_view src)
     {
         const auto scheme_end = src.find("://");
         const auto scheme = src.substr(0, scheme_end);
@@ -40,7 +40,7 @@ namespace http
         }
     }
 
-    constexpr HttpLocation ParseUrl(const std::string_view &src)
+    constexpr HttpLocation ParseUrl(std::string_view src)
     {
         HttpLocation dst;
         ParseUrl(dst, src);
