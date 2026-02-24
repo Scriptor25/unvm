@@ -1,4 +1,4 @@
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
 #include <util.hxx>
 
