@@ -245,7 +245,7 @@ int http::HttpClient::Request(HttpRequest request, HttpResponse &response)
     addrinfo hints{}, *res = nullptr;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_protocol = 0;
 
     if (getaddrinfo(request.Location.Host.c_str(), service.c_str(), &hints, &res))
     {
