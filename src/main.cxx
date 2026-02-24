@@ -500,13 +500,13 @@ static int install(Config &config, http::HttpClient &client, std::string_view ve
 
 #endif
 
-#if defined(SYSTEM_LINUX)
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID)
 
 #if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr auto format = "node-{}-linux-x64";
 #endif
 
-#if defined(ARCH_ARM64)
+#if defined(ARCH_ARM64) || defined(ARCH_AARCH64)
     constexpr auto format = "node-{}-linux-arm64";
 #endif
 

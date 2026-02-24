@@ -27,7 +27,7 @@ inline int socket_close(platform_socket_t s)
 
 #endif
 
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_DARWIN)
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
 #include <netdb.h>
 #include <unistd.h>
