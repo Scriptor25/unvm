@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
 
-add_subdirectory(deps/json)
-
 project(unvm
         LANGUAGES C CXX
         VERSION "${UNVM_PROJECT_VERSION}")
@@ -29,6 +27,10 @@ string(TOUPPER "${CMAKE_SYSTEM_PROCESSOR}" PLATFORM_SYSTEM_PROCESSOR)
 
 message(STATUS "System: ${PLATFORM_SYSTEM_NAME}")
 message(STATUS "Processor: ${PLATFORM_SYSTEM_PROCESSOR}")
+
+### Subdirectories ###
+
+add_subdirectory(deps/json)
 
 ### Targets ###
 
