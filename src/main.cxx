@@ -1,11 +1,11 @@
-#include <json.hxx>
-#include <parser.hxx>
-
 #include <http.hxx>
 #include <semver.hxx>
 #include <table.hxx>
 #include <url.hxx>
 #include <util.hxx>
+
+#include <json/json.hxx>
+#include <json/parser.hxx>
 
 #include <format>
 #include <fstream>
@@ -51,17 +51,36 @@ struct VersionEntry
 using VersionTable = std::vector<VersionEntry>;
 
 template<>
+bool from_json(const json::Node &node, std::filesystem::path &value)
+{
+    if (std::string s; from_json(node, s))
+    {
+        value = std::move(s);
+        return true;
+    }
+    return false;
+}
+
+template<>
+void to_json(json::Node &node, const std::filesystem::path &value)
+{
+    to_json(node, value.string());
+}
+
+template<>
 bool from_json(const json::Node &node, Config &value)
 {
     if (!node.IsObject())
         return false;
 
-    from_json(node["install-directory"], value.InstallDirectory);
-    from_json(node["active-directory"], value.ActiveDirectory);
-    from_json(node["installed"], value.Installed);
-    from_json(node["active"], value.Active);
+    auto ok = true;
 
-    return true;
+    ok &= from_json(node["install-directory"], value.InstallDirectory);
+    ok &= from_json(node["active-directory"], value.ActiveDirectory);
+    ok &= from_json(node["installed"], value.Installed);
+    ok &= from_json(node["active"], value.Active);
+
+    return ok;
 }
 
 template<>
@@ -80,19 +99,19 @@ void to_json(json::Node &node, const Config &value)
 template<>
 bool from_json(const json::Node &node, OptString &value)
 {
-    if (node.IsBoolean())
+    if (bool val; from_json(node, val))
     {
-        if (node.GetBoolean())
+        if (val)
             return false;
 
         value.HasValue = false;
         return true;
     }
 
-    if (node.IsString())
+    if (std::string val; from_json(node, val))
     {
         value.HasValue = true;
-        value.Value = node.GetString();
+        value.Value = std::move(val);
         return true;
     }
 
@@ -744,10 +763,13 @@ static int workspace(Config &config, http::HttpClient &client)
         return 1;
     }
 
-    auto node = json::Parser(stream).Parse();
-    auto maybe_version = node["engines"]["node"];
+    json::Node node;
+    stream >> node;
 
-    auto version = maybe_version.has_value() ? maybe_version.value() : "*";
+    std::optional<std::string> maybe_version;
+    node["engines"]["node"] >> maybe_version;
+
+    auto version = maybe_version.value_or("*");
     auto set = semver::ParseRangeSet(version);
 
     VersionTable table;
