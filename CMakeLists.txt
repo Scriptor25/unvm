@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 
+add_subdirectory(deps/json)
+
 project(unvm
         LANGUAGES C CXX
         VERSION "${UNVM_PROJECT_VERSION}")
@@ -54,6 +56,7 @@ add_dependencies(unvm ca_bundle_h)
 target_include_directories(unvm PRIVATE ${CMAKE_CURRENT_BINARY_DIR} "include")
 
 target_link_libraries(unvm PRIVATE
+        json
         OpenSSL::SSL
         OpenSSL::Crypto
         LibArchive::LibArchive
