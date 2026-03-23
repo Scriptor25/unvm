@@ -1,5 +1,7 @@
-#include <http.hxx>
 #include <json.hxx>
+#include <parser.hxx>
+
+#include <http.hxx>
 #include <semver.hxx>
 #include <table.hxx>
 #include <url.hxx>
@@ -49,89 +51,74 @@ struct VersionEntry
 using VersionTable = std::vector<VersionEntry>;
 
 template<>
-struct json::Converter<Config>
+bool from_json(const json::Node &node, Config &value)
 {
-    static bool From(Node &node, const Config &value)
-    {
-        std::map<std::string, Node> entries;
-        entries["install-directory"] = Node::From(value.InstallDirectory.string());
-        entries["active-directory"] = Node::From(value.ActiveDirectory.string());
-        entries["installed"] = Node::From(value.Installed);
-        entries["active"] = Node::From(value.Active);
-
-        node.Type = NodeType::Object;
-        node.Value = entries;
-        return true;
-    }
-
-    static bool To(const Node &node, Config &value)
-    {
-        if (!node.IsObject())
-        {
-            return false;
-        }
-
-        value.InstallDirectory = node.Get("install-directory").To<std::string>();
-        value.ActiveDirectory = node.Get("active-directory").To<std::string>();
-        value.Installed = node.Get("installed").To<std::set<std::string>>();
-        value.Active = node.GetOrNull("active").To<std::optional<std::string>>();
-
-        return true;
-    }
-};
-
-template<>
-struct json::Converter<OptString>
-{
-    static bool To(const Node &node, OptString &value)
-    {
-        if (node.IsBoolean())
-        {
-            if (node.AsBoolean())
-            {
-                return false;
-            }
-
-            value.HasValue = false;
-            return true;
-        }
-
-        if (node.IsString())
-        {
-            value.HasValue = true;
-            value.Value = node.AsString();
-            return true;
-        }
-
+    if (!node.IsObject())
         return false;
-    }
-};
+
+    from_json(node["install-directory"], value.InstallDirectory);
+    from_json(node["active-directory"], value.ActiveDirectory);
+    from_json(node["installed"], value.Installed);
+    from_json(node["active"], value.Active);
+
+    return true;
+}
 
 template<>
-struct json::Converter<VersionEntry>
+void to_json(json::Node &node, const Config &value)
 {
-    static bool To(const Node &node, VersionEntry &value)
+    std::map<std::string, json::Node> entries;
+
+    to_json(entries["install-directory"], value.InstallDirectory);
+    to_json(entries["active-directory"], value.ActiveDirectory);
+    to_json(entries["installed"], value.Installed);
+    to_json(entries["active"], value.Active);
+
+    node = { std::move(entries) };
+}
+
+template<>
+bool from_json(const json::Node &node, OptString &value)
+{
+    if (node.IsBoolean())
     {
-        if (!node.IsObject())
-        {
+        if (node.GetBoolean())
             return false;
-        }
 
-        value.Version = node.Get("version").To<std::string>();
-        value.Date = node.Get("date").To<std::string>();
-        value.Files = node.Get("files").To<std::vector<std::string>>();
-        value.Npm = node.GetOrNull("npm").To<std::optional<std::string>>();
-        value.V8 = node.GetOrNull("v8").To<std::string>();
-        value.Uv = node.GetOrNull("uv").To<std::optional<std::string>>();
-        value.ZLib = node.GetOrNull("zlib").To<std::optional<std::string>>();
-        value.OpenSSL = node.GetOrNull("openssl").To<std::optional<std::string>>();
-        value.Modules = node.GetOrNull("modules").To<std::optional<std::string>>();
-        value.Lts = node.Get("lts").To<OptString>();
-        value.Security = node.Get("security").To<bool>();
-
+        value.HasValue = false;
         return true;
     }
-};
+
+    if (node.IsString())
+    {
+        value.HasValue = true;
+        value.Value = node.GetString();
+        return true;
+    }
+
+    return false;
+}
+
+template<>
+bool from_json(const json::Node &node, VersionEntry &value)
+{
+    if (!node.IsObject())
+        return false;
+
+    from_json(node["version"], value.Version);
+    from_json(node["date"], value.Date);
+    from_json(node["files"], value.Files);
+    from_json(node["npm"], value.Npm);
+    from_json(node["v8"], value.V8);
+    from_json(node["uv"], value.Uv);
+    from_json(node["zlib"], value.ZLib);
+    from_json(node["openssl"], value.OpenSSL);
+    from_json(node["modules"], value.Modules);
+    from_json(node["lts"], value.Lts);
+    from_json(node["security"], value.Security);
+
+    return true;
+}
 
 static void print()
 {
@@ -249,8 +236,7 @@ static int load_version_table(http::HttpClient &client, VersionTable &table, boo
 
         json::Node json;
         stream >> json;
-
-        table = json.To<VersionTable>();
+        json >> table;
 
         std::ofstream file(index);
         file << json;
@@ -262,8 +248,8 @@ static int load_version_table(http::HttpClient &client, VersionTable &table, boo
 
     json::Node json;
     stream >> json;
+    json >> table;
 
-    table = json.To<VersionTable>();
     return 0;
 }
 
@@ -758,8 +744,8 @@ static int workspace(Config &config, http::HttpClient &client)
         return 1;
     }
 
-    auto node = json::Parser::Parse(stream);
-    auto maybe_version = node.GetOrNull("engines").GetOrNull("node").To<std::optional<std::string>>();
+    auto node = json::Parser(stream).Parse();
+    auto maybe_version = node["engines"]["node"];
 
     auto version = maybe_version.has_value() ? maybe_version.value() : "*";
     auto set = semver::ParseRangeSet(version);
@@ -835,8 +821,7 @@ static int execute(const std::vector<std::string_view> &args)
     {
         json::Node json;
         stream >> json;
-
-        config = json.To<Config>();
+        json >> config;
     }
     else
     {
@@ -940,7 +925,8 @@ static int execute(const std::vector<std::string_view> &args)
             return 1;
         }
 
-        auto json = json::Node::From(config);
+        json::Node json;
+        json << config;
         stream << json;
     }
 
