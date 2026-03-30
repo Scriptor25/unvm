@@ -43,7 +43,7 @@ inline int socket_close(const platform_socket_t s)
 
 #endif
 
-static int read_until(unvm::http::Transport *transport, std::string &dst, const char *delim)
+static int read_until(unvm::http::HttpTransport *transport, std::string &dst, const char *delim)
 {
     char buf[1024];
 
@@ -62,7 +62,7 @@ static int read_until(unvm::http::Transport *transport, std::string &dst, const 
     return 0;
 }
 
-static void set_header_if_missing(unvm::http::Headers &headers, const std::string &key, const std::string &val)
+static void set_header_if_missing(unvm::http::HttpHeaders &headers, const std::string &key, const std::string &val)
 {
     if (headers.contains(key) || headers.contains(unvm::Lower(key)))
     {
@@ -72,7 +72,7 @@ static void set_header_if_missing(unvm::http::Headers &headers, const std::strin
     headers.emplace(key, val);
 }
 
-int unvm::http::ParseStatus(std::istream &stream, StatusCode &status_code, std::string &status_message)
+int unvm::http::ParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message)
 {
     std::string http_version; // TODO: check if version is supported
     stream >> http_version;
@@ -90,7 +90,7 @@ int unvm::http::ParseStatus(std::istream &stream, StatusCode &status_code, std::
     return 0;
 }
 
-void unvm::http::ParseHeaders(std::istream &stream, Headers &headers)
+void unvm::http::ParseHeaders(std::istream &stream, HttpHeaders &headers)
 {
     headers.clear();
 
@@ -118,7 +118,7 @@ void unvm::http::ParseHeaders(std::istream &stream, Headers &headers)
     }
 }
 
-struct HttpTcpTransport final : unvm::http::Transport
+struct HttpTcpTransport final : unvm::http::HttpTransport
 {
     explicit HttpTcpTransport(const platform_socket_t sock)
         : sock(sock)
@@ -138,7 +138,7 @@ struct HttpTcpTransport final : unvm::http::Transport
     platform_socket_t sock;
 };
 
-struct HttpTlsTransport final : unvm::http::Transport
+struct HttpTlsTransport final : unvm::http::HttpTransport
 {
     explicit HttpTlsTransport(SSL *ssl)
         : ssl(ssl)
@@ -158,7 +158,7 @@ struct HttpTlsTransport final : unvm::http::Transport
     SSL *ssl;
 };
 
-struct unvm::http::Client::State
+struct unvm::http::HttpClient::State
 {
 #ifdef SYSTEM_WINDOWS
     WSADATA WsaData;
@@ -212,7 +212,7 @@ static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, co
     return 0;
 }
 
-unvm::http::Client::Client()
+unvm::http::HttpClient::HttpClient()
 {
     m_State = new State();
 
@@ -236,7 +236,7 @@ unvm::http::Client::Client()
     }
 }
 
-unvm::http::Client::~Client()
+unvm::http::HttpClient::~HttpClient()
 {
     SSL_CTX_free(m_State->SslCtx);
     ERR_free_strings();
@@ -251,7 +251,7 @@ unvm::http::Client::~Client()
     m_State = nullptr;
 }
 
-int unvm::http::Client::Fetch(Request request, Response &response)
+int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
 {
     auto service = std::to_string(request.Location.Port);
 
@@ -294,7 +294,7 @@ int unvm::http::Client::Fetch(Request request, Response &response)
         return 1;
     }
 
-    std::unique_ptr<Transport> transport;
+    std::unique_ptr<HttpTransport> transport;
     SSL *ssl = nullptr;
 
     if (request.Location.UseTLS)
@@ -485,37 +485,37 @@ int unvm::http::Client::Fetch(Request request, Response &response)
     return 0;
 }
 
-std::ostream &operator<<(std::ostream &stream, const unvm::http::Method method)
+std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpMethod method)
 {
-    static const std::map<unvm::http::Method, const char *> map
+    static const std::map<unvm::http::HttpMethod, const char *> map
     {
-        { unvm::http::Method::Get, "GET" },
-        { unvm::http::Method::Head, "HEAD" },
-        { unvm::http::Method::Post, "POST" },
-        { unvm::http::Method::Put, "PUT" },
-        { unvm::http::Method::Delete, "DELETE" },
-        { unvm::http::Method::Connect, "CONNECT" },
-        { unvm::http::Method::Options, "OPTIONS" },
-        { unvm::http::Method::Trace, "TRACE" },
+        { unvm::http::HttpMethod::Get, "GET" },
+        { unvm::http::HttpMethod::Head, "HEAD" },
+        { unvm::http::HttpMethod::Post, "POST" },
+        { unvm::http::HttpMethod::Put, "PUT" },
+        { unvm::http::HttpMethod::Delete, "DELETE" },
+        { unvm::http::HttpMethod::Connect, "CONNECT" },
+        { unvm::http::HttpMethod::Options, "OPTIONS" },
+        { unvm::http::HttpMethod::Trace, "TRACE" },
     };
 
     return stream << map.at(method);
 }
 
-std::ostream &operator<<(std::ostream &stream, unvm::http::StatusCode status_code)
+std::ostream &operator<<(std::ostream &stream, unvm::http::HttpStatusCode status_code)
 {
     return stream << static_cast<int>(status_code);
 }
 
-std::istream &operator>>(std::istream &stream, unvm::http::StatusCode &status_code)
+std::istream &operator>>(std::istream &stream, unvm::http::HttpStatusCode &status_code)
 {
     int status_code_int;
     stream >> status_code_int;
-    status_code = static_cast<unvm::http::StatusCode>(status_code_int);
+    status_code = static_cast<unvm::http::HttpStatusCode>(status_code_int);
     return stream;
 }
 
-std::ostream &operator<<(std::ostream &stream, const unvm::http::Location &location)
+std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpLocation &location)
 {
     return stream
            << (location.UseTLS ? "https" : "http")

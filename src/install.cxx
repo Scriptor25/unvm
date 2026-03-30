@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-static int get_checksum(unvm::http::Client &client, const unvm::VersionEntry &entry, const std::string &filename, const std::string &extension, std::string &checksum)
+static int get_checksum(unvm::http::HttpClient &client, const unvm::VersionEntry &entry, const std::string &filename, const std::string &extension, std::string &checksum)
 {
     auto with_extension = filename + '.' + extension;
 
@@ -13,9 +13,9 @@ static int get_checksum(unvm::http::Client &client, const unvm::VersionEntry &en
 
     std::stringstream stream(std::stringstream::in | std::stringstream::out);
     
-    unvm::http::Request request
+    unvm::http::HttpRequest request
     {
-        .Method = unvm::http::Method::Get,
+        .Method = unvm::http::HttpMethod::Get,
         .Location = {
             .UseTLS = true,
             .Host = "nodejs.org",
@@ -24,7 +24,7 @@ static int get_checksum(unvm::http::Client &client, const unvm::VersionEntry &en
         },
     };
 
-    unvm::http::Response response
+    unvm::http::HttpResponse response
     {
         .Body = &stream,
     };
@@ -88,7 +88,7 @@ static int generate_checksum(std::istream &str, std::string &checksum)
     return 0;
 }
 
-int unvm::Install(Config &config, http::Client &client, std::string_view version, const VersionEntry &entry)
+int unvm::Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
 {
     if (config.Installed.contains(entry.Version))
     {
@@ -143,9 +143,9 @@ int unvm::Install(Config &config, http::Client &client, std::string_view version
 
     std::stringstream stream(std::stringstream::binary | std::stringstream::in | std::stringstream::out);
 
-    http::Request request
+    http::HttpRequest request
     {
-        .Method = http::Method::Get,
+        .Method = http::HttpMethod::Get,
         .Location = {
             .UseTLS = true,
             .Host = "nodejs.org",
@@ -154,7 +154,7 @@ int unvm::Install(Config &config, http::Client &client, std::string_view version
         },
     };
 
-    http::Response response
+    http::HttpResponse response
     {
         .Body = &stream,
     };
@@ -238,7 +238,7 @@ int unvm::Install(Config &config, http::Client &client, std::string_view version
     return 0;
 }
 
-int unvm::Install(Config &config, http::Client &client, std::string_view version)
+int unvm::Install(Config &config, http::HttpClient &client, std::string_view version)
 {
     VersionTable table;
     if (auto error = LoadVersionTable(client, table, true))

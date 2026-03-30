@@ -8,7 +8,7 @@
 #include <fstream>
 #include <iostream>
 
-int unvm::LoadVersionTable(http::Client &client, VersionTable &table, bool online)
+int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online)
 {
     /**
      * {
@@ -32,11 +32,11 @@ int unvm::LoadVersionTable(http::Client &client, VersionTable &table, bool onlin
     {
         std::stringstream stream;
 
-        http::Request request = {
-            .Method = http::Method::Get,
+        http::HttpRequest request = {
+            .Method = http::HttpMethod::Get,
             .Location = http::ParseUrl("https://nodejs.org/dist/index.json"),
         };
-        http::Response response = {
+        http::HttpResponse response = {
             .Body = &stream,
         };
 

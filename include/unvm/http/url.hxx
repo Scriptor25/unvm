@@ -8,7 +8,7 @@
 
 namespace unvm::http
 {
-    constexpr void ParseUrl(Location &dst, std::string_view src)
+    constexpr void ParseUrl(HttpLocation &dst, std::string_view src)
     {
         const auto scheme_end = src.find("://");
         const auto scheme = src.substr(0, scheme_end);
@@ -40,9 +40,9 @@ namespace unvm::http
         }
     }
 
-    constexpr Location ParseUrl(std::string_view src)
+    constexpr HttpLocation ParseUrl(std::string_view src)
     {
-        Location dst;
+        HttpLocation dst;
         ParseUrl(dst, src);
         return dst;
     }

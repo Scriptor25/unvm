@@ -76,7 +76,7 @@ static int execute(const std::vector<std::string_view> &args)
         config.ActiveDirectory = unvm::GetDataDirectory() / "active";
     }
 
-    unvm::http::Client client;
+    unvm::http::HttpClient client;
 
     int code;
     switch (operation & OPERATION_BITS)

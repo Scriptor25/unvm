@@ -6,7 +6,7 @@
 #include <fstream>
 #include <iostream>
 
-int unvm::Workspace(Config &config, http::Client &client)
+int unvm::Workspace(Config &config, http::HttpClient &client)
 {
     auto package_json = std::filesystem::weakly_canonical("./package.json");
 

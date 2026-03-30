@@ -16,7 +16,7 @@ int unvm::Remove(Config &config, std::string_view version, const VersionEntry &e
     return 0;
 }
 
-int unvm::Remove(Config &config, http::Client &client, std::string_view version)
+int unvm::Remove(Config &config, http::HttpClient &client, std::string_view version)
 {
     unvm::VersionTable table;
     if (const auto error = unvm::LoadVersionTable(client, table, false))

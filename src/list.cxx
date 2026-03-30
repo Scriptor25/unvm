@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-int unvm::List(Config &config, http::Client &client, const bool available)
+int unvm::List(Config &config, http::HttpClient &client, const bool available)
 {
     Table out(
         {

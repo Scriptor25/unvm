@@ -36,7 +36,7 @@ int unvm::Use(Config &config, const std::string_view &version, const VersionEntr
     return 0;
 }
 
-int unvm::Use(Config &config, http::Client &client, std::string_view version)
+int unvm::Use(Config &config, http::HttpClient &client, std::string_view version)
 {
     if (version == "none")
     {
