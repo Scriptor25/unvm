@@ -1,11 +1,11 @@
 #ifdef SYSTEM_WINDOWS
 
-#include <util.hxx>
+#include <unvm/util.hxx>
 
 #include <shlobj.h>
 #include <windows.h>
 
-std::filesystem::path GetDataDirectory()
+std::filesystem::path unvm::GetDataDirectory()
 {
     static std::pair<bool, std::filesystem::path> directory{ false, {} };
 

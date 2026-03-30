@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <istream>
-#include <optional>
 #include <set>
 #include <string>
 #include <variant>
@@ -11,7 +10,7 @@
 template<typename T>
 concept StringLike = std::is_convertible_v<T, std::string_view>;
 
-namespace semver
+namespace unvm::semver
 {
     // range-set  ::= range ( logical-or range ) *
     // logical-or ::= ( ' ' ) * '||' ( ' ' ) *
@@ -76,7 +75,7 @@ namespace semver
     using Range = std::variant<Hyphen, PrimitiveSet>;
     using RangeSet = std::vector<Range>;
 
-    class Parser
+    class Parser final
     {
     public:
         Parser(std::istream &stream);

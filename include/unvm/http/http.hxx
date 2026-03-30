@@ -10,7 +10,7 @@ namespace http
     constexpr auto EOL = "\r\n";
     constexpr auto EOL2 = "\r\n\r\n";
 
-    enum class HttpMethod
+    enum class Method
     {
         Get,
         Head,
@@ -22,7 +22,7 @@ namespace http
         Trace,
     };
 
-    enum class HttpStatusCode : int
+    enum class StatusCode : int
     {
         Continue           = 100,
         SwitchingProtocols = 101,
@@ -74,32 +74,32 @@ namespace http
         HTTPVersionNotSupported = 505,
     };
 
-    inline bool is_directive(HttpStatusCode status_code)
+    inline bool IsDirective(StatusCode status_code)
     {
         return 100 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 199;
     }
 
-    inline bool is_success(HttpStatusCode status_code)
+    inline bool IsSuccess(StatusCode status_code)
     {
         return 200 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 299;
     }
 
-    inline bool is_redirect(HttpStatusCode status_code)
+    inline bool IsRedirect(StatusCode status_code)
     {
         return 300 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 399;
     }
 
-    inline bool is_client_fail(HttpStatusCode status_code)
+    inline bool IsClientFail(StatusCode status_code)
     {
         return 400 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 499;
     }
 
-    inline bool is_server_fail(HttpStatusCode status_code)
+    inline bool IsServerFail(StatusCode status_code)
     {
         return 500 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 599;
     }
 
-    struct HttpLocation
+    struct Location
     {
         bool UseTLS;
         std::string Host;
@@ -107,42 +107,42 @@ namespace http
         std::string Pathname;
     };
 
-    using HttpHeaders = std::map<std::string, std::string>;
+    using Headers = std::map<std::string, std::string>;
 
-    struct HttpRequest
+    struct Request
     {
-        HttpMethod Method;
-        HttpLocation Location;
-        HttpHeaders Headers;
+        Method Method;
+        Location Location;
+        Headers Headers;
         std::istream *Body;
     };
 
-    struct HttpResponse
+    struct Response
     {
-        HttpStatusCode StatusCode;
+        StatusCode StatusCode;
         std::string StatusMessage;
-        HttpHeaders Headers;
+        Headers Headers;
         std::ostream *Body;
     };
 
-    int HttpParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
-    void HttpParseHeaders(std::istream &stream, HttpHeaders &headers);
+    int ParseStatus(std::istream &stream, StatusCode &status_code, std::string &status_message);
+    void ParseHeaders(std::istream &stream, Headers &headers);
 
-    struct HttpTransport
+    struct Transport
     {
-        virtual ~HttpTransport() = default;
+        virtual ~Transport() = default;
 
         virtual int write(const char *buf, std::size_t len) = 0;
         virtual int read(char *buf, std::size_t len) = 0;
     };
 
-    class HttpClient
+    class Client
     {
     public:
-        HttpClient();
-        ~HttpClient();
+        Client();
+        ~Client();
 
-        int Request(HttpRequest request, HttpResponse &response);
+        int Fetch(Request request, Response &response);
 
     private:
         struct State;
@@ -150,18 +150,18 @@ namespace http
     };
 }
 
-std::ostream &operator<<(std::ostream &stream, http::HttpMethod method);
+std::ostream &operator<<(std::ostream &stream, http::Method method);
 
-std::ostream &operator<<(std::ostream &stream, http::HttpStatusCode status_code);
-std::istream &operator>>(std::istream &stream, http::HttpStatusCode &status_code);
+std::ostream &operator<<(std::ostream &stream, http::StatusCode status_code);
+std::istream &operator>>(std::istream &stream, http::StatusCode &status_code);
 
-std::ostream &operator<<(std::ostream &stream, const http::HttpLocation &location);
+std::ostream &operator<<(std::ostream &stream, const http::Location &location);
 
 template<>
-struct std::formatter<http::HttpStatusCode> : std::formatter<int>
+struct std::formatter<http::StatusCode> : std::formatter<int>
 {
     template<typename Context>
-    auto format(http::HttpStatusCode status_code, Context &context) const
+    auto format(http::StatusCode status_code, Context &context) const
     {
         return std::formatter<int>::format(static_cast<int>(status_code), context);
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <http.hxx>
+#include <unvm/http/http.hxx>
 
 #include <cstdint>
 #include <string>
@@ -8,7 +8,7 @@
 
 namespace http
 {
-    constexpr void ParseUrl(HttpLocation &dst, std::string_view src)
+    constexpr void ParseUrl(Location &dst, std::string_view src)
     {
         const auto scheme_end = src.find("://");
         const auto scheme = src.substr(0, scheme_end);
@@ -40,9 +40,9 @@ namespace http
         }
     }
 
-    constexpr HttpLocation ParseUrl(std::string_view src)
+    constexpr Location ParseUrl(std::string_view src)
     {
-        HttpLocation dst;
+        Location dst;
         ParseUrl(dst, src);
         return dst;
     }

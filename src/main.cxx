@@ -1,171 +1,16 @@
-#include <http.hxx>
-#include <semver.hxx>
-#include <table.hxx>
-#include <url.hxx>
-#include <util.hxx>
+#include <unvm/config.hxx>
+#include <unvm/json.hxx>
+#include <unvm/unvm.hxx>
+#include <unvm/util.hxx>
+#include <unvm/http/http.hxx>
 
 #include <json/json.hxx>
 #include <json/parser.hxx>
 
-#include <format>
 #include <fstream>
 #include <iostream>
-#include <set>
-#include <sstream>
-
-#include <archive.h>
-#include <archive_entry.h>
 
 #include <version.h>
-
-struct Config
-{
-    std::filesystem::path InstallDirectory;
-    std::filesystem::path ActiveDirectory;
-
-    std::set<std::string> Installed;
-    std::optional<std::string> Active;
-};
-
-struct OptString
-{
-    bool HasValue{};
-    std::string Value;
-};
-
-struct VersionEntry
-{
-    std::string Version;
-    std::string Date;
-    std::vector<std::string> Files;
-    std::optional<std::string> Npm;
-    std::string V8;
-    std::optional<std::string> Uv;
-    std::optional<std::string> ZLib;
-    std::optional<std::string> OpenSSL;
-    std::optional<std::string> Modules;
-    OptString Lts;
-    bool Security{};
-};
-
-using VersionTable = std::vector<VersionEntry>;
-
-template<>
-bool from_json(const json::Node &node, std::filesystem::path &value)
-{
-    if (std::string s; from_json(node, s))
-    {
-        value = std::move(s);
-        return true;
-    }
-    return false;
-}
-
-template<>
-void to_json(json::Node &node, const std::filesystem::path &value)
-{
-    to_json(node, value.string());
-}
-
-template<>
-bool from_json(const json::Node &node, Config &value)
-{
-    if (!node.IsObject())
-        return false;
-
-    auto ok = true;
-
-    ok &= from_json(node["install-directory"], value.InstallDirectory);
-    ok &= from_json(node["active-directory"], value.ActiveDirectory);
-    ok &= from_json(node["installed"], value.Installed);
-    ok &= from_json(node["active"], value.Active);
-
-    return ok;
-}
-
-template<>
-void to_json(json::Node &node, const Config &value)
-{
-    std::map<std::string, json::Node> entries;
-
-    to_json(entries["install-directory"], value.InstallDirectory);
-    to_json(entries["active-directory"], value.ActiveDirectory);
-    to_json(entries["installed"], value.Installed);
-    to_json(entries["active"], value.Active);
-
-    node = { std::move(entries) };
-}
-
-template<>
-bool from_json(const json::Node &node, OptString &value)
-{
-    if (bool val; from_json(node, val))
-    {
-        if (val)
-            return false;
-
-        value.HasValue = false;
-        return true;
-    }
-
-    if (std::string val; from_json(node, val))
-    {
-        value.HasValue = true;
-        value.Value = std::move(val);
-        return true;
-    }
-
-    return false;
-}
-
-template<>
-bool from_json(const json::Node &node, VersionEntry &value)
-{
-    if (!node.IsObject())
-        return false;
-
-    from_json(node["version"], value.Version);
-    from_json(node["date"], value.Date);
-    from_json(node["files"], value.Files);
-    from_json(node["npm"], value.Npm);
-    from_json(node["v8"], value.V8);
-    from_json(node["uv"], value.Uv);
-    from_json(node["zlib"], value.ZLib);
-    from_json(node["openssl"], value.OpenSSL);
-    from_json(node["modules"], value.Modules);
-    from_json(node["lts"], value.Lts);
-    from_json(node["security"], value.Security);
-
-    return true;
-}
-
-static void print()
-{
-    std::cerr
-            << PROJECT_NAME << " - " << PROJECT_TITLE << "\n"
-            << "\n"
-            << "  Version:    " << PROJECT_VERSION << "\n"
-            << "  Build date: " << PROJECT_BUILD_DATE << "\n"
-            << "\n"
-            << "Usage:\n"
-            << "  <version> := latest | lts | v<uint>[.<uint>[.<uint>]] | <lts-name>\n"
-            << "\n"
-            << "Commands:\n"
-            << "  install,   i <version>        Install the specified Node.js version\n"
-            << "  remove,    r <version>        Remove the specified Node.js version\n"
-            << "  use,       u <version>|none   Set active Node.js version, or 'none' to deactivate\n"
-            << "  list,      l [available|a]    List installed or available versions\n"
-            << "             ls                 Alias for `list`\n"
-            << "             la                 Alias for `list available`\n"
-            << "  workspace, w                  Read package.json in current directory and automatically install and use a suitable Node.js version.\n"
-            << "\n"
-            << "Examples:\n"
-            << "  unvm install lts\n"
-            << "  unvm install iron\n"
-            << "  unvm use v20.3.1\n"
-            << "  unvm list available\n"
-            << std::endl;
-}
 
 constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
 constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
@@ -202,631 +47,11 @@ static const std::map<std::string_view, unsigned> operation_map
     { "w", WORKSPACE_BITS },
 };
 
-static int load_version_table(http::HttpClient &client, VersionTable &table, bool online)
-{
-    /**
-     * {
-     *   version:  string
-     *   date:     string
-     *   files:    string[]
-     *   npm?:     string
-     *   v8:       string
-     *   uv?:      string
-     *   zlib?:    string
-     *   openssl?: string
-     *   modules?: string
-     *   lts:      string | false
-     *   security: boolean
-     * }[]
-     */
-
-    auto index = GetDataDirectory() / "index.json";
-
-    if (online || !std::filesystem::exists(index))
-    {
-        std::stringstream stream;
-
-        http::HttpRequest request = {
-            .Method = http::HttpMethod::Get,
-            .Location = http::ParseUrl("https://nodejs.org/dist/index.json"),
-        };
-        http::HttpResponse response = {
-            .Body = &stream,
-        };
-
-        if (auto error = client.Request(request, response))
-        {
-            std::cerr << "failed to get file." << std::endl;
-            return error;
-        }
-
-        if (!http::is_success(response.StatusCode))
-        {
-            std::cerr
-                    << "failed to get file: "
-                    << response.StatusCode
-                    << ", "
-                    << response.StatusMessage
-                    << std::endl
-                    << stream.str()
-                    << std::endl;
-            return 1;
-        }
-
-        json::Node json;
-        stream >> json;
-        json >> table;
-
-        std::ofstream file(index);
-        file << json;
-
-        return 0;
-    }
-
-    std::ifstream stream(index);
-
-    json::Node json;
-    stream >> json;
-    json >> table;
-
-    return 0;
-}
-
-static std::string to_lower(std::string_view str)
-{
-    std::string result;
-    for (auto &c : str)
-    {
-        result += static_cast<char>(std::tolower(c));
-    }
-    return result;
-}
-
-static unsigned count_version_segments(std::string_view str)
-{
-    unsigned segments = 0;
-
-    std::size_t beg = 0, end;
-    while ((end = str.find('.', beg)) != std::string_view::npos)
-    {
-        ++segments;
-        beg = end + 1;
-    }
-
-    if (beg != str.length())
-    {
-        ++segments;
-    }
-
-    return segments;
-}
-
-static const VersionEntry *find_effective_version(const VersionTable &table, std::string_view version)
-{
-    // latest
-    if (version == "latest")
-    {
-        if (!table.empty())
-        {
-            return &table.front();
-        }
-    }
-    // latest lts
-    else if (version == "lts")
-    {
-        for (auto &entry : table)
-        {
-            if (entry.Lts.HasValue)
-            {
-                return &entry;
-            }
-        }
-    }
-    // version by pattern
-    else if (version.starts_with('v'))
-    {
-        // vX     -> vX.L.L
-        // vX.X   -> vX.X.L
-        // vX.X.X -> vX.X.X
-        // vX.X.X -> vX.X.X
-        // (X = some version)
-        // (L = latest version)
-
-        switch (count_version_segments(version))
-        {
-        case 1:
-        case 2:
-        {
-            const auto pattern = std::string(version) + '.';
-            for (auto &entry : table)
-            {
-                if (entry.Version.starts_with(pattern))
-                {
-                    return &entry;
-                }
-            }
-            break;
-        }
-
-        case 3:
-            for (auto &entry : table)
-            {
-                if (entry.Version == version)
-                {
-                    return &entry;
-                }
-            }
-            break;
-
-        default:
-            break;
-        }
-    }
-    // lts by name
-    else
-    {
-        const auto name = to_lower(version);
-        for (auto &entry : table)
-        {
-            if (entry.Lts.HasValue && to_lower(entry.Lts.Value) == name)
-            {
-                return &entry;
-            }
-        }
-    }
-
-    return nullptr;
-}
-
-static la_ssize_t read_callback(archive */*arc*/, void *user_data, const void **buffer)
-{
-    static char buf[0x4000];
-
-    const auto stream = static_cast<std::istream *>(user_data);
-
-    stream->read(buf, sizeof(buf));
-    const auto len = stream->gcount();
-
-    if (len <= 0)
-    {
-        *buffer = nullptr;
-        return 0;
-    }
-
-    *buffer = buf;
-    return len;
-}
-
-static int unpack(std::istream &stream, const std::filesystem::path &directory)
-{
-    const auto arc = archive_read_new();
-    const auto ext = archive_write_disk_new();
-
-    archive_read_support_format_all(arc);
-    archive_read_support_filter_all(arc);
-
-    archive_write_disk_set_options(
-        ext,
-        ARCHIVE_EXTRACT_TIME
-        | ARCHIVE_EXTRACT_PERM
-        | ARCHIVE_EXTRACT_ACL
-        | ARCHIVE_EXTRACT_FFLAGS);
-
-    if (const auto error = archive_read_open(arc, &stream, nullptr, read_callback, nullptr))
-    {
-        std::cerr << "failed to open archive: " << archive_error_string(arc) << std::endl;
-
-        archive_read_free(arc);
-        archive_write_free(ext);
-        return error;
-    }
-
-    archive_entry *entry;
-    const void *buf;
-    std::size_t len;
-    la_int64_t off;
-
-    int err;
-    while (!((err = archive_read_next_header(arc, &entry))))
-    {
-        auto pathname = directory / archive_entry_pathname(entry);
-        auto pathname_string = pathname.string();
-        archive_entry_set_pathname(entry, pathname_string.c_str());
-
-        if (const auto error = archive_write_header(ext, entry))
-        {
-            std::cerr << "failed to write archive header: " << archive_error_string(ext) << std::endl;
-
-            archive_read_free(arc);
-            archive_write_free(ext);
-            return error;
-        }
-
-        while (true)
-        {
-            if (const auto error = archive_read_data_block(arc, &buf, &len, &off))
-            {
-                if (error == ARCHIVE_EOF)
-                {
-                    break;
-                }
-
-                std::cerr << "failed to read archive data block: " << archive_error_string(arc) << std::endl;
-
-                archive_read_free(arc);
-                archive_write_free(ext);
-                return error;
-            }
-
-            if (const auto error = archive_write_data_block(ext, buf, len, off))
-            {
-                std::cerr << "failed to write archive data block: " << archive_error_string(ext) << std::endl;
-
-                archive_read_free(arc);
-                archive_write_free(ext);
-                return static_cast<int>(error);
-            }
-        }
-    }
-
-    if (err != ARCHIVE_EOF)
-    {
-        std::cerr << "failed to read archive header: " << archive_error_string(arc) << std::endl;
-
-        archive_read_free(arc);
-        archive_write_free(ext);
-        return err;
-    }
-
-    archive_read_free(arc);
-    archive_write_free(ext);
-    return 0;
-}
-
-static int install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
-{
-    if (config.Installed.contains(entry.Version))
-    {
-        std::cerr << "version '" << version << "' is already installed." << std::endl;
-        return 0;
-    }
-
-#if defined(SYSTEM_WINDOWS)
-
-#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
-    constexpr auto format = "node-{}-win-x64";
-#endif
-
-#if defined(ARCH_ARM64)
-    constexpr auto format = "node-{}-win-arm64";
-#endif
-
-    constexpr auto ending = "zip";
-
-#endif
-
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID)
-
-#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
-    constexpr auto format = "node-{}-linux-x64";
-#endif
-
-#if defined(ARCH_ARM64) || defined(ARCH_AARCH64)
-    constexpr auto format = "node-{}-linux-arm64";
-#endif
-
-    constexpr auto ending = "tar.xz";
-
-#endif
-
-#if defined(SYSTEM_DARWIN)
-
-#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
-    constexpr auto format = "node-{}-darwin-x64";
-#endif
-
-#if defined(ARCH_ARM64)
-    constexpr auto format = "node-{}-darwin-arm64";
-#endif
-
-    constexpr auto ending = "tar.xz";
-
-#endif
-
-    auto filename = std::format(format, entry.Version);
-    auto pathname = std::format("/dist/{}/{}.{}", entry.Version, filename, ending);
-
-    std::stringstream stream(std::stringstream::binary | std::stringstream::in | std::stringstream::out);
-
-    http::HttpRequest request = {
-        .Method = http::HttpMethod::Get,
-        .Location = {
-            .UseTLS = true,
-            .Host = "nodejs.org",
-            .Port = 443,
-            .Pathname = pathname,
-        },
-    };
-    http::HttpResponse response = {
-        .Body = &stream,
-    };
-
-    if (auto error = client.Request(request, response))
-    {
-        std::cerr << "failed to get file." << std::endl;
-        return error;
-    }
-
-    if (!http::is_success(response.StatusCode))
-    {
-        std::cerr
-                << "failed to get file: "
-                << response.StatusCode
-                << ", "
-                << response.StatusMessage
-                << std::endl
-                << stream.str()
-                << std::endl;
-        return 1;
-    }
-
-    std::filesystem::create_directories(config.InstallDirectory);
-
-    if (const auto error = unpack(stream, config.InstallDirectory))
-    {
-        std::cerr << "failed to unpack archive." << std::endl;
-        return error;
-    }
-
-    std::filesystem::rename(config.InstallDirectory / filename, config.InstallDirectory / entry.Version);
-
-    config.Installed.emplace(entry.Version);
-
-    return 0;
-}
-
-static int install(Config &config, http::HttpClient &client, std::string_view version)
-{
-    VersionTable table;
-    if (auto error = load_version_table(client, table, true))
-    {
-        std::cerr << "failed to load version table." << std::endl;
-        return error;
-    }
-
-    auto entry_ptr = find_effective_version(table, version);
-    if (!entry_ptr)
-    {
-        std::cerr << "no effective version for '" << version << "'." << std::endl;
-        return 1;
-    }
-
-    return install(config, client, version, *entry_ptr);
-}
-
-static int remove(Config &config, http::HttpClient &client, std::string_view version)
-{
-    VersionTable table;
-    if (const auto error = load_version_table(client, table, false))
-    {
-        return error;
-    }
-
-    const auto entry_ptr = find_effective_version(table, version);
-
-    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
-    {
-        std::cerr << "version '" << version << "' is not installed." << std::endl;
-        return 0;
-    }
-
-    auto &entry = *entry_ptr;
-    if (config.Active.has_value() && config.Active.value() == entry.Version)
-    {
-        std::cerr << "version '" << version << "' is still in use." << std::endl;
-        return 1;
-    }
-
-    std::filesystem::remove_all(config.InstallDirectory / entry.Version);
-
-    config.Installed.erase(entry.Version);
-    return 0;
-}
-
-static int use(Config &config, http::HttpClient &client, const std::string_view &version, const VersionEntry &entry)
-{
-    if (config.Active.has_value())
-    {
-        if (config.Active.value() == entry.Version)
-        {
-            std::cerr << "version '" << version << "' is already installed and active." << std::endl;
-            return 0;
-        }
-
-        if (const auto error = RemoveLink(config.ActiveDirectory))
-        {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
-            return error;
-        }
-    }
-
-    if (const auto error = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version))
-    {
-        std::cerr << "failed to link new active version '" << version << "'." << std::endl;
-        return error;
-    }
-
-    if (const auto error = AppendUserPath(config.ActiveDirectory))
-    {
-        std::cerr << "failed to append active directory to user path variable." << std::endl;
-        return error;
-    }
-
-    config.Active = entry.Version;
-    return 0;
-}
-
-static int use(Config &config, http::HttpClient &client, std::string_view version)
-{
-    if (version == "none")
-    {
-        if (!config.Active.has_value())
-        {
-            std::cerr << "node is already inactive." << std::endl;
-            return 0;
-        }
-
-        if (const auto error = RemoveLink(config.ActiveDirectory))
-        {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
-            return error;
-        }
-
-        config.Active = std::nullopt;
-        return 0;
-    }
-
-    VersionTable table;
-    if (const auto error = load_version_table(client, table, false))
-    {
-        return error;
-    }
-
-    const auto entry_ptr = find_effective_version(table, version);
-
-    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
-    {
-        std::cerr << "version '" << version << "' is not installed." << std::endl;
-        return 1;
-    }
-
-    return use(config, client, version, *entry_ptr);
-}
-
-static int list(Config &config, http::HttpClient &client, const bool available)
-{
-    Table out(
-        {
-            { "", true },
-            { "Lts", true },
-            { "Version", true },
-            { "Npm", true },
-            { "Date", true },
-            { "Modules", false }
-        });
-
-    VersionTable table;
-    if (const auto error = load_version_table(client, table, available))
-    {
-        return error;
-    }
-
-    for (auto &entry : table)
-    {
-        if (available || config.Installed.contains(entry.Version))
-        {
-            out
-                    << (config.Active.has_value() && config.Active.value() == entry.Version ? "*" : "")
-                    << (entry.Lts.HasValue ? entry.Lts.Value : "")
-                    << entry.Version
-                    << (entry.Npm.has_value() ? entry.Npm.value() : "")
-                    << entry.Date
-                    << (entry.Modules.has_value() ? entry.Modules.value() : "");
-        }
-    }
-
-    if (out.Empty())
-    {
-        std::cerr << "no elements to list." << std::endl;
-        return 0;
-    }
-
-    std::cerr << out;
-    return 0;
-}
-
-static int workspace(Config &config, http::HttpClient &client)
-{
-    auto package_json = std::filesystem::weakly_canonical("./package.json");
-
-    if (!std::filesystem::exists(package_json))
-    {
-        std::cerr << "no package.json in current directory." << std::endl;
-        return 1;
-    }
-
-    std::ifstream stream(package_json);
-
-    if (!stream)
-    {
-        std::cerr << "failed to open package.json." << std::endl;
-        return 1;
-    }
-
-    json::Node node;
-    stream >> node;
-
-    std::optional<std::string> maybe_version;
-    node["engines"]["node"] >> maybe_version;
-
-    auto version = maybe_version.value_or("*");
-    auto set = semver::ParseRangeSet(version);
-
-    VersionTable table;
-    if (const auto error = load_version_table(client, table, false))
-    {
-        return error;
-    }
-
-    for (auto &entry : table)
-    {
-        if (!config.Installed.contains(entry.Version))
-        {
-            continue;
-        }
-
-        if (!semver::IsInRange(set, entry.Version))
-        {
-            continue;
-        }
-
-        return use(config, client, version, entry);
-    }
-
-    if (const auto error = load_version_table(client, table, true))
-    {
-        return error;
-    }
-
-    for (auto &entry : table)
-    {
-        if (!semver::IsInRange(set, entry.Version))
-        {
-            continue;
-        }
-
-        if (const auto error = install(config, client, version, entry))
-        {
-            return error;
-        }
-
-        if (const auto error = use(config, client, version, entry))
-        {
-            return error;
-        }
-
-        return 0;
-    }
-
-    std::cerr << "no version match for '" << version << "'." << std::endl;
-    return 1;
-}
-
 static int execute(const std::vector<std::string_view> &args)
 {
     if (args.empty())
     {
-        print();
+        unvm::PrintManual();
         return 0;
     }
 
@@ -838,8 +63,8 @@ static int execute(const std::vector<std::string_view> &args)
 
     auto operation = operation_map.at(args[0]);
 
-    Config config;
-    if (std::ifstream stream(GetDataDirectory() / "config.json"); stream)
+    unvm::Config config;
+    if (std::ifstream stream(unvm::GetDataDirectory() / "config.json"); stream)
     {
         json::Node json;
         stream >> json;
@@ -847,11 +72,11 @@ static int execute(const std::vector<std::string_view> &args)
     }
     else
     {
-        config.InstallDirectory = GetDataDirectory() / "version";
-        config.ActiveDirectory = GetDataDirectory() / "active";
+        config.InstallDirectory = unvm::GetDataDirectory() / "version";
+        config.ActiveDirectory = unvm::GetDataDirectory() / "active";
     }
 
-    http::HttpClient client;
+    http::Client client;
 
     int code;
     switch (operation & OPERATION_BITS)
@@ -862,7 +87,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = install(config, client, args[1]);
+        code = unvm::Install(config, client, args[1]);
         break;
 
     case REMOVE_BITS:
@@ -871,7 +96,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = remove(config, client, args[1]);
+        code = unvm::Remove(config, client, args[1]);
         break;
 
     case USE_BITS:
@@ -880,7 +105,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = use(config, client, args[1]);
+        code = unvm::Use(config, client, args[1]);
         break;
 
     case LIST_BITS:
@@ -918,7 +143,7 @@ static int execute(const std::vector<std::string_view> &args)
             }
         }
 
-        code = list(config, client, available);
+        code = unvm::List(config, client, available);
         break;
     }
 
@@ -928,7 +153,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = workspace(config, client);
+        code = unvm::Workspace(config, client);
         break;
 
     default:
@@ -937,7 +162,7 @@ static int execute(const std::vector<std::string_view> &args)
     }
 
     {
-        auto parent = GetDataDirectory();
+        auto parent = unvm::GetDataDirectory();
         std::filesystem::create_directories(parent);
 
         std::ofstream stream(parent / "config.json");

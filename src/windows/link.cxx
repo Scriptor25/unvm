@@ -1,6 +1,6 @@
 #ifdef SYSTEM_WINDOWS
 
-#include <util.hxx>
+#include <unvm/util.hxx>
 
 #include <filesystem>
 #include <iostream>
@@ -51,7 +51,7 @@ static std::wstring GetErrorMessage(DWORD error)
     return result;
 }
 
-int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
+int unvm::CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
     if (!std::filesystem::exists(target) || !std::filesystem::is_directory(target))
     {
@@ -148,7 +148,7 @@ int CreateLink(const std::filesystem::path &link, const std::filesystem::path &t
     return ok ? 0 : 1;
 }
 
-int RemoveLink(const std::filesystem::path &link)
+int unvm::RemoveLink(const std::filesystem::path &link)
 {
     if (std::filesystem::is_symlink(link))
     {

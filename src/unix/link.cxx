@@ -1,10 +1,10 @@
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-#include <util.hxx>
+#include <unvm/util.hxx>
 
 #include <iostream>
 
-int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
+int unvm::CreateLink(const std::filesystem::path &link, const std::filesystem::path &target)
 {
     if (!std::filesystem::exists(target) || !std::filesystem::is_directory(target))
     {
@@ -28,7 +28,7 @@ int CreateLink(const std::filesystem::path &link, const std::filesystem::path &t
     return 0;
 }
 
-int RemoveLink(const std::filesystem::path &link)
+int unvm::RemoveLink(const std::filesystem::path &link)
 {
     if (!std::filesystem::exists(link) || !std::filesystem::is_symlink(link))
     {

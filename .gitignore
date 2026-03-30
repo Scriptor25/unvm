@@ -1,4 +1,5 @@
-/.vscode/
+/.cache/
 /.idea/
+/.vscode/
 /build/
 /install/

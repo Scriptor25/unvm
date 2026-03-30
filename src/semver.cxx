@@ -1,17 +1,17 @@
-#include <semver.hxx>
+#include <unvm/semver.hxx>
 
 #include <iostream>
 #include <map>
 #include <sstream>
 
-semver::Parser::Parser(std::istream &stream)
+unvm::semver::Parser::Parser(std::istream &stream)
     : m_Stream(stream)
 {
     m_Buffer = m_Stream.get();
     m_Token = Next();
 }
 
-semver::RangeSet semver::Parser::Parse()
+unvm::semver::RangeSet unvm::semver::Parser::Parse()
 {
     RangeSet set;
 
@@ -56,9 +56,10 @@ semver::RangeSet semver::Parser::Parse()
     return set;
 }
 
-semver::Primitive semver::Parser::ParsePrimitive()
+unvm::semver::Primitive unvm::semver::Parser::ParsePrimitive()
 {
-    static const std::map<std::string_view, PrimitiveType> map = {
+    static const std::map<std::string_view, PrimitiveType> map
+    {
         { "=", PrimitiveType::Equal },
         { "<", PrimitiveType::LessThan },
         { "<=", PrimitiveType::LessThanOrEqual },
@@ -85,7 +86,7 @@ semver::Primitive semver::Parser::ParsePrimitive()
     };
 }
 
-semver::Partial semver::Parser::ParsePartial()
+unvm::semver::Partial unvm::semver::Parser::ParsePartial()
 {
     Partial partial;
 
@@ -151,7 +152,7 @@ semver::Partial semver::Parser::ParsePartial()
     return partial;
 }
 
-semver::Version semver::Parser::ParseVersion()
+unvm::semver::Version unvm::semver::Parser::ParseVersion()
 {
     Version version;
 
@@ -196,7 +197,7 @@ semver::Version semver::Parser::ParseVersion()
     return version;
 }
 
-bool semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
+bool unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
 {
     if (Skip("x", "X", "*"))
     {
@@ -207,7 +208,7 @@ bool semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
     return false;
 }
 
-void semver::Parser::ParseVersionPart(std::uint32_t &value)
+void unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
 {
     auto token = std::move(m_Token);
     m_Token = Next();
@@ -220,7 +221,7 @@ void semver::Parser::ParseVersionPart(std::uint32_t &value)
     value = std::stoul(token);
 }
 
-bool semver::Parser::At(const std::set<std::string_view> &set) const
+bool unvm::semver::Parser::At(const std::set<std::string_view> &set) const
 {
     for (auto &e : set)
     {
@@ -232,7 +233,7 @@ bool semver::Parser::At(const std::set<std::string_view> &set) const
     return false;
 }
 
-bool semver::Parser::Skip(const std::set<std::string_view> &set)
+bool unvm::semver::Parser::Skip(const std::set<std::string_view> &set)
 {
     if (At(set))
     {
@@ -243,7 +244,7 @@ bool semver::Parser::Skip(const std::set<std::string_view> &set)
     return false;
 }
 
-std::string semver::Parser::Expect(const std::set<std::string_view> &set)
+std::string unvm::semver::Parser::Expect(const std::set<std::string_view> &set)
 {
     if (At(set))
     {
@@ -255,7 +256,7 @@ std::string semver::Parser::Expect(const std::set<std::string_view> &set)
     throw std::runtime_error("expect");
 }
 
-std::string semver::Parser::Next()
+std::string unvm::semver::Parser::Next()
 {
     enum class State
     {
@@ -357,20 +358,20 @@ std::string semver::Parser::Next()
     return value;
 }
 
-semver::RangeSet semver::ParseRangeSet(std::istream &stream)
+unvm::semver::RangeSet unvm::semver::ParseRangeSet(std::istream &stream)
 {
     Parser parser(stream);
     return parser.Parse();
 }
 
-semver::RangeSet semver::ParseRangeSet(const std::string_view string)
+unvm::semver::RangeSet unvm::semver::ParseRangeSet(const std::string_view string)
 {
     const std::string s(string);
     std::istringstream stream(s);
     return ParseRangeSet(stream);
 }
 
-bool semver::IsInRange(const RangeSet &set, const std::string_view version)
+bool unvm::semver::IsInRange(const RangeSet &set, const std::string_view version)
 {
     const std::string s(version);
     std::istringstream stream(s);
@@ -379,7 +380,7 @@ bool semver::IsInRange(const RangeSet &set, const std::string_view version)
     return IsInRange(set, parsed);
 }
 
-static semver::Partial normalize_partial(const semver::Partial &partial)
+static unvm::semver::Partial normalize_partial(const unvm::semver::Partial &partial)
 {
     return {
         .Value = {
@@ -392,7 +393,7 @@ static semver::Partial normalize_partial(const semver::Partial &partial)
     };
 }
 
-bool semver::IsInRange(const RangeSet &set, const Version &version)
+bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
 {
     Partial partial;
     partial.Value = version;
@@ -535,7 +536,7 @@ bool semver::IsInRange(const RangeSet &set, const Version &version)
     return false;
 }
 
-bool semver::operator==(const Partial &a, const Partial &b)
+bool unvm::semver::operator==(const Partial &a, const Partial &b)
 {
     auto precision = std::min(a.Mask, b.Mask);
 
@@ -642,7 +643,7 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
     return 0;
 }
 
-bool semver::operator<(const Partial &a, const Partial &b)
+bool unvm::semver::operator<(const Partial &a, const Partial &b)
 {
     const auto precision = std::min(a.Mask, b.Mask);
 
@@ -709,17 +710,17 @@ bool semver::operator<(const Partial &a, const Partial &b)
     return false;
 }
 
-bool semver::operator<=(const Partial &a, const Partial &b)
+bool unvm::semver::operator<=(const Partial &a, const Partial &b)
 {
     return !(b < a);
 }
 
-bool semver::operator>(const Partial &a, const Partial &b)
+bool unvm::semver::operator>(const Partial &a, const Partial &b)
 {
     return b < a;
 }
 
-bool semver::operator>=(const Partial &a, const Partial &b)
+bool unvm::semver::operator>=(const Partial &a, const Partial &b)
 {
     return !(a < b);
 }

@@ -1,8 +1,8 @@
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-#include <util.hxx>
+#include <unvm/util.hxx>
 
-std::filesystem::path GetDataDirectory()
+std::filesystem::path unvm::GetDataDirectory()
 {
     static std::pair<bool, std::filesystem::path> directory{ false, {} };
 

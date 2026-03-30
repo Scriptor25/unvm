@@ -1,9 +1,9 @@
-#include <table.hxx>
+#include <unvm/table.hxx>
 
 #include <iomanip>
 #include <iostream>
 
-Table &Table::operator<<(std::string &&entry)
+unvm::Table &unvm::Table::operator<<(std::string &&entry)
 {
     const auto index = m_Entries.size() % m_Columns.size();
 
@@ -15,7 +15,7 @@ Table &Table::operator<<(std::string &&entry)
     return *this;
 }
 
-Table &Table::operator<<(const std::string &entry)
+unvm::Table &unvm::Table::operator<<(const std::string &entry)
 {
     const auto index = m_Entries.size() % m_Columns.size();
 
@@ -27,12 +27,12 @@ Table &Table::operator<<(const std::string &entry)
     return *this;
 }
 
-bool Table::Empty() const
+bool unvm::Table::Empty() const
 {
     return m_Entries.empty();
 }
 
-std::ostream &Table::Print(std::ostream &stream) const
+std::ostream &unvm::Table::Print(std::ostream &stream) const
 {
     for (auto &column : m_Columns)
     {

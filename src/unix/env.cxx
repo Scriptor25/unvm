@@ -1,10 +1,10 @@
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-#include <util.hxx>
+#include <unvm/util.hxx>
 
 #include <iostream>
 
-int AppendUserPath(std::filesystem::path directory)
+int unvm::AppendUserPath(std::filesystem::path directory)
 {
     directory = std::filesystem::absolute(directory / "bin");
 

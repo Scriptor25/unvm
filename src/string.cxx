@@ -1,6 +1,6 @@
-#include <util.hxx>
+#include <unvm/util.hxx>
 
-std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim)
+std::istream &unvm::GetLine(std::istream &stream, std::string &string, std::string_view delim)
 {
     string.clear();
 
@@ -18,7 +18,7 @@ std::istream &GetLine(std::istream &stream, std::string &string, std::string_vie
     return stream;
 }
 
-std::string Trim(std::string string)
+std::string unvm::Trim(std::string string)
 {
     if (string.empty())
     {
@@ -48,7 +48,7 @@ std::string Trim(std::string string)
     return string;
 }
 
-std::string Lower(std::string string)
+std::string unvm::Lower(std::string string)
 {
     for (auto &it : string)
     {

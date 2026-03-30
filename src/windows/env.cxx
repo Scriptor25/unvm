@@ -1,10 +1,10 @@
 #ifdef SYSTEM_WINDOWS
 
-#include <util.hxx>
+#include <unvm/util.hxx>
 
 #include <windows.h>
 
-int AppendUserPath(std::filesystem::path directory)
+int unvm::AppendUserPath(std::filesystem::path directory)
 {
     directory = std::filesystem::absolute(directory);
 

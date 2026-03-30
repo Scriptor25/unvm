@@ -34,7 +34,7 @@ add_subdirectory(deps/json)
 
 ### Targets ###
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
@@ -55,7 +55,7 @@ add_executable(unvm ${SRC})
 
 add_dependencies(unvm ca_bundle_h)
 
-target_include_directories(unvm PRIVATE ${CMAKE_CURRENT_BINARY_DIR} "include")
+target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
 target_link_libraries(unvm PRIVATE
         json
