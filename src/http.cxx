@@ -2,6 +2,7 @@
 #include <unvm/http/http.hxx>
 #include <unvm/http/url.hxx>
 
+#include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
@@ -167,36 +168,46 @@ struct unvm::http::Client::State
 
 static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, const int len)
 {
+    if (!context || !buf || len <= 0)
+    {
+        return 1;
+    }
+
     const auto bio = BIO_new_mem_buf(buf, len);
     if (!bio)
     {
         return 1;
     }
 
-    const auto x509 = PEM_X509_INFO_read_bio(bio, nullptr, nullptr, nullptr);
-    if (!x509)
+    const auto infos = PEM_X509_INFO_read_bio(bio, nullptr, nullptr, nullptr);
+    if (!infos)
     {
         BIO_free(bio);
         return 1;
     }
 
     const auto store = SSL_CTX_get_cert_store(context);
-    for (unsigned i = 0; i < sk_X509_INFO_num(x509); ++i)
+    if (!store)
     {
-        if (const auto info = sk_X509_INFO_value(x509, i); info->x509)
+        sk_X509_INFO_pop_free(infos, X509_INFO_free);
+        BIO_free(bio);
+        return 1;
+    }
+
+    for (int i = 0; i < sk_X509_INFO_num(infos); ++i)
+    {
+        if (const auto info = sk_X509_INFO_value(infos, i); info && info->x509)
         {
             if (!X509_STORE_add_cert(store, info->x509))
             {
-                sk_X509_INFO_pop_free(x509, X509_INFO_free);
+                sk_X509_INFO_pop_free(infos, X509_INFO_free);
                 BIO_free(bio);
                 return 1;
             }
-
-            info->x509 = nullptr;
         }
     }
 
-    sk_X509_INFO_pop_free(x509, X509_INFO_free);
+    sk_X509_INFO_pop_free(infos, X509_INFO_free);
     BIO_free(bio);
     return 0;
 }
@@ -228,7 +239,9 @@ unvm::http::Client::Client()
 unvm::http::Client::~Client()
 {
     SSL_CTX_free(m_State->SslCtx);
+    ERR_free_strings();
     EVP_cleanup();
+    CRYPTO_cleanup_all_ex_data();
 
 #ifdef SYSTEM_WINDOWS
     WSACleanup();

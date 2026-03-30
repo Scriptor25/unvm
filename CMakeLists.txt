@@ -58,6 +58,7 @@ add_dependencies(unvm ca_bundle_h)
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
 target_link_libraries(unvm PRIVATE
+        $<$<CONFIG:Debug>:asan>
         json
         OpenSSL::SSL
         OpenSSL::Crypto
@@ -68,6 +69,10 @@ target_link_libraries(unvm PRIVATE
 target_compile_definitions(unvm PRIVATE
         "SYSTEM_${PLATFORM_SYSTEM_NAME}"
         "ARCH_${PLATFORM_SYSTEM_PROCESSOR}"
+)
+
+target_compile_options(unvm PRIVATE
+        $<$<CONFIG:Debug>:-fsanitize=address>
 )
 
 ### Platform Config ###

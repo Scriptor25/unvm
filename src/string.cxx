@@ -4,9 +4,15 @@ std::istream &unvm::GetLine(std::istream &stream, std::string &string, std::stri
 {
     string.clear();
 
-    while (stream.good() && string.find(delim) == std::string::npos)
+    while (stream.good() && !stream.eof() && string.find(delim) == std::string::npos)
     {
-        string += static_cast<char>(stream.get());
+        auto c = stream.get();
+        if (c < 0)
+        {
+            break;
+        }
+
+        string += static_cast<char>(c);
     }
 
     if (string.find(delim) == std::string::npos)
@@ -25,27 +31,27 @@ std::string unvm::Trim(std::string string)
         return string;
     }
 
+    std::string::iterator begin, end;
+
     for (auto it = string.begin(); it != string.end(); ++it)
     {
-        if (!std::isspace(*it))
+        if (*it > 0x20)
         {
+            begin = it;
             break;
         }
-
-        string.erase(it);
     }
 
     for (auto it = string.rbegin(); it != string.rend(); ++it)
     {
-        if (!std::isspace(*it))
+        if (*it > 0x20)
         {
+            end = it.base();
             break;
         }
-
-        string.erase(it.base());
     }
 
-    return string;
+    return { std::make_move_iterator(begin), std::make_move_iterator(end) };
 }
 
 std::string unvm::Lower(std::string string)
