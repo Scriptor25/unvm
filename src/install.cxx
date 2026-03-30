@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-int unvm::Install(unvm::Config &config, http::Client &client, std::string_view version, const unvm::VersionEntry &entry)
+int unvm::Install(Config &config, http::Client &client, std::string_view version, const VersionEntry &entry)
 {
     if (config.Installed.contains(entry.Version))
     {
@@ -106,7 +106,7 @@ int unvm::Install(unvm::Config &config, http::Client &client, std::string_view v
         return ec.value();
     }
 
-    if (const auto error = unvm::UnpackArchive(stream, config.InstallDirectory))
+    if (const auto error = UnpackArchive(stream, config.InstallDirectory))
     {
         std::cerr << "failed to unpack archive." << std::endl;
         return error;
@@ -132,16 +132,16 @@ int unvm::Install(unvm::Config &config, http::Client &client, std::string_view v
     return 0;
 }
 
-int unvm::Install(unvm::Config &config, http::Client &client, std::string_view version)
+int unvm::Install(Config &config, http::Client &client, std::string_view version)
 {
-    unvm::VersionTable table;
-    if (auto error = unvm::LoadVersionTable(client, table, true))
+    VersionTable table;
+    if (auto error = LoadVersionTable(client, table, true))
     {
         std::cerr << "failed to load version table." << std::endl;
         return error;
     }
 
-    auto entry_ptr = unvm::FindEffectiveVersion(table, version);
+    auto entry_ptr = FindEffectiveVersion(table, version);
     if (!entry_ptr)
     {
         std::cerr << "no effective version for '" << version << "'." << std::endl;

@@ -8,7 +8,7 @@
 #include <fstream>
 #include <iostream>
 
-int unvm::LoadVersionTable(http::Client &client, unvm::VersionTable &table, bool online)
+int unvm::LoadVersionTable(http::Client &client, VersionTable &table, bool online)
 {
     /**
      * {
@@ -26,7 +26,7 @@ int unvm::LoadVersionTable(http::Client &client, unvm::VersionTable &table, bool
      * }[]
      */
 
-    auto index = unvm::GetDataDirectory() / "index.json";
+    auto index = GetDataDirectory() / "index.json";
 
     if (online || !std::filesystem::exists(index))
     {

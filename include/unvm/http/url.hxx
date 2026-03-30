@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-namespace http
+namespace unvm::http
 {
     constexpr void ParseUrl(Location &dst, std::string_view src)
     {

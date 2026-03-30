@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 
-namespace http
+namespace unvm::http
 {
     constexpr auto EOL = "\r\n";
     constexpr auto EOL2 = "\r\n\r\n";
@@ -150,18 +150,18 @@ namespace http
     };
 }
 
-std::ostream &operator<<(std::ostream &stream, http::Method method);
+std::ostream &operator<<(std::ostream &stream, unvm::http::Method method);
 
-std::ostream &operator<<(std::ostream &stream, http::StatusCode status_code);
-std::istream &operator>>(std::istream &stream, http::StatusCode &status_code);
+std::ostream &operator<<(std::ostream &stream, unvm::http::StatusCode status_code);
+std::istream &operator>>(std::istream &stream, unvm::http::StatusCode &status_code);
 
-std::ostream &operator<<(std::ostream &stream, const http::Location &location);
+std::ostream &operator<<(std::ostream &stream, const unvm::http::Location &location);
 
 template<>
-struct std::formatter<http::StatusCode> : std::formatter<int>
+struct std::formatter<unvm::http::StatusCode> : std::formatter<int>
 {
     template<typename Context>
-    auto format(http::StatusCode status_code, Context &context) const
+    auto format(unvm::http::StatusCode status_code, Context &context) const
     {
         return std::formatter<int>::format(static_cast<int>(status_code), context);
     }

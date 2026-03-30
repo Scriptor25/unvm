@@ -20,7 +20,7 @@ static unsigned count_version_segments(std::string_view str)
     return segments;
 }
 
-const unvm::VersionEntry *unvm::FindEffectiveVersion(const unvm::VersionTable &table, std::string_view version)
+const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, std::string_view version)
 {
     // latest
     if (version == "latest")
@@ -84,10 +84,10 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const unvm::VersionTable &t
     // lts by name
     else
     {
-        const auto name = unvm::Lower(std::string(version));
+        const auto name = Lower(std::string(version));
         for (auto &entry : table)
         {
-            if (entry.Lts.HasValue && unvm::Lower(entry.Lts.Value) == name)
+            if (entry.Lts.HasValue && Lower(entry.Lts.Value) == name)
             {
                 return &entry;
             }
