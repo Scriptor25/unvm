@@ -3,8 +3,6 @@
 #include <unvm/util.hxx>
 #include <unvm/http/url.hxx>
 
-#include <json/json.hxx>
-
 #include <fstream>
 #include <iostream>
 
@@ -59,21 +57,31 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
             return 1;
         }
 
-        json::Node json;
-        stream >> json;
-        json >> table;
+        json::Node node;
+        stream >> node;
+
+        if (!(node >> table))
+        {
+            std::cerr << "failed to parse table json." << std::endl;
+            return 1;
+        }
 
         std::ofstream file(index);
-        file << json;
+        file << node;
 
         return 0;
     }
 
     std::ifstream stream(index);
 
-    json::Node json;
-    stream >> json;
-    json >> table;
+    json::Node node;
+    stream >> node;
+
+    if (!(node >> table))
+    {
+        std::cerr << "failed to parse table json." << std::endl;
+        return 1;
+    }
 
     return 0;
 }

@@ -1,55 +1,50 @@
 #include <unvm/json.hxx>
 
-template<>
-bool from_json(const json::Node &node, std::filesystem::path &value)
+bool json::serializer<std::filesystem::path>::from_json(const Node &node, std::filesystem::path &value)
 {
-    if (std::string s; from_json(node, s))
+    if (String s; node >> s)
     {
         value = std::move(s);
         return true;
     }
+
     return false;
 }
 
-template<>
-void to_json(json::Node &node, const std::filesystem::path &value)
+void json::serializer<std::filesystem::path>::to_json(Node &node, const std::filesystem::path &value)
 {
-    to_json(node, value.string());
+    node = value.string();
 }
 
-template<>
-bool from_json(const json::Node &node, unvm::Config &value)
+bool json::serializer<unvm::Config>::from_json(const Node &node, unvm::Config &value)
 {
-    if (!node.IsObject())
+    if (!node.Is<Object>())
         return false;
 
     auto ok = true;
 
-    ok &= from_json(node["install-directory"], value.InstallDirectory);
-    ok &= from_json(node["active-directory"], value.ActiveDirectory);
-    ok &= from_json(node["installed"], value.Installed);
-    ok &= from_json(node["active"], value.Active);
+    ok &= node["install-directory"] >> value.InstallDirectory;
+    ok &= node["active-directory"] >> value.ActiveDirectory;
+    ok &= node["installed"] >> value.Installed;
+    ok &= node["active"] >> value.Active;
 
     return ok;
 }
 
-template<>
-void to_json(json::Node &node, const unvm::Config &value)
+void json::serializer<unvm::Config>::to_json(Node &node, const unvm::Config &value)
 {
-    std::map<std::string, json::Node> entries;
-
-    to_json(entries["install-directory"], value.InstallDirectory);
-    to_json(entries["active-directory"], value.ActiveDirectory);
-    to_json(entries["installed"], value.Installed);
-    to_json(entries["active"], value.Active);
-
-    node = { std::move(entries) };
+    node = Object
+    {
+        { "install-directory", value.InstallDirectory },
+        { "active-directory", value.ActiveDirectory },
+        { "installed", value.Installed },
+        { "active", value.Active },
+    };
 }
 
-template<>
-bool from_json(const json::Node &node, unvm::StringOrFalse &value)
+bool json::serializer<unvm::StringOrFalse>::from_json(const Node &node, unvm::StringOrFalse &value)
 {
-    if (bool val; from_json(node, val))
+    if (Boolean val; node >> val)
     {
         if (val)
             return false;
@@ -58,7 +53,7 @@ bool from_json(const json::Node &node, unvm::StringOrFalse &value)
         return true;
     }
 
-    if (std::string val; from_json(node, val))
+    if (String val; node >> val)
     {
         value.HasValue = true;
         value.Value = std::move(val);
@@ -68,23 +63,24 @@ bool from_json(const json::Node &node, unvm::StringOrFalse &value)
     return false;
 }
 
-template<>
-bool from_json(const json::Node &node, unvm::VersionEntry &value)
+bool json::serializer<unvm::VersionEntry>::from_json(const Node &node, unvm::VersionEntry &value)
 {
-    if (!node.IsObject())
+    if (!node.Is<Object>())
         return false;
 
-    from_json(node["version"], value.Version);
-    from_json(node["date"], value.Date);
-    from_json(node["files"], value.Files);
-    from_json(node["npm"], value.Npm);
-    from_json(node["v8"], value.V8);
-    from_json(node["uv"], value.Uv);
-    from_json(node["zlib"], value.ZLib);
-    from_json(node["openssl"], value.OpenSSL);
-    from_json(node["modules"], value.Modules);
-    from_json(node["lts"], value.Lts);
-    from_json(node["security"], value.Security);
+    auto ok = true;
 
-    return true;
+    ok &= node["version"] >> value.Version;
+    ok &= node["date"] >> value.Date;
+    ok &= node["files"] >> value.Files;
+    ok &= node["npm"] >> value.Npm;
+    ok &= node["v8"] >> value.V8;
+    ok &= node["uv"] >> value.Uv;
+    ok &= node["zlib"] >> value.ZLib;
+    ok &= node["openssl"] >> value.OpenSSL;
+    ok &= node["modules"] >> value.Modules;
+    ok &= node["lts"] >> value.Lts;
+    ok &= node["security"] >> value.Security;
+
+    return ok;
 }

@@ -6,19 +6,35 @@
 #include <json/json.hxx>
 
 template<>
-bool from_json(const json::Node &node, std::filesystem::path &value);
+struct json::serializer<std::filesystem::path>
+{
+    static constexpr auto enable = true;
+
+    static bool from_json(const Node &node, std::filesystem::path &value);
+    static void to_json(Node &node, const std::filesystem::path &value);
+};
 
 template<>
-void to_json(json::Node &node, const std::filesystem::path &value);
+struct json::serializer<unvm::Config>
+{
+    static constexpr auto enable = true;
+
+    static bool from_json(const Node &node, unvm::Config &value);
+    static void to_json(Node &node, const unvm::Config &value);
+};
 
 template<>
-bool from_json(const json::Node &node, unvm::Config &value);
+struct json::serializer<unvm::StringOrFalse>
+{
+    static constexpr auto enable = true;
+
+    static bool from_json(const Node &node, unvm::StringOrFalse &value);
+};
 
 template<>
-void to_json(json::Node &node, const unvm::Config &value);
+struct json::serializer<unvm::VersionEntry>
+{
+    static constexpr auto enable = true;
 
-template<>
-bool from_json(const json::Node &node, unvm::StringOrFalse &value);
-
-template<>
-bool from_json(const json::Node &node, unvm::VersionEntry &value);
+    static bool from_json(const Node &node, unvm::VersionEntry &value);
+};

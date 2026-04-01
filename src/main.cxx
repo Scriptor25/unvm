@@ -4,13 +4,8 @@
 #include <unvm/util.hxx>
 #include <unvm/http/http.hxx>
 
-#include <json/json.hxx>
-#include <json/parser.hxx>
-
 #include <fstream>
 #include <iostream>
-
-#include <version.h>
 
 constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
 constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
@@ -68,7 +63,12 @@ static int execute(const std::vector<std::string_view> &args)
     {
         json::Node json;
         stream >> json;
-        json >> config;
+
+        if (!(json >> config))
+        {
+            std::cerr << "failed to parse config json." << std::endl;
+            return 1;
+        }
     }
     else
     {
@@ -87,7 +87,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = unvm::Install(config, client, args[1]);
+        code = Install(config, client, args[1]);
         break;
 
     case REMOVE_BITS:
@@ -96,7 +96,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = unvm::Remove(config, client, args[1]);
+        code = Remove(config, client, args[1]);
         break;
 
     case USE_BITS:
@@ -105,7 +105,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = unvm::Use(config, client, args[1]);
+        code = Use(config, client, args[1]);
         break;
 
     case LIST_BITS:
@@ -143,7 +143,7 @@ static int execute(const std::vector<std::string_view> &args)
             }
         }
 
-        code = unvm::List(config, client, available);
+        code = List(config, client, available);
         break;
     }
 
@@ -153,7 +153,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = unvm::Workspace(config, client);
+        code = Workspace(config, client);
         break;
 
     default:
@@ -172,9 +172,7 @@ static int execute(const std::vector<std::string_view> &args)
             return 1;
         }
 
-        json::Node json;
-        json << config;
-        stream << json;
+        stream << json::Node(config);
     }
 
     return code;
