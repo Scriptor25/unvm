@@ -5,6 +5,8 @@
 
 #include <json/json.hxx>
 
+#include <filesystem>
+
 template<>
 struct json::serializer<std::filesystem::path>
 {

@@ -4,11 +4,13 @@
 #include <istream>
 #include <set>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
 template<typename T>
-concept StringLike = std::is_convertible_v<T, std::string_view>;
+concept string_type = std::is_convertible_v<T, std::string_view>;
 
 namespace unvm::semver
 {
@@ -91,7 +93,7 @@ namespace unvm::semver
 
         [[nodiscard]] bool At(const std::set<std::string_view> &set) const;
 
-        template<StringLike... S>
+        template<string_type... S>
         bool At(S... s) const
         {
             return At(std::set<std::string_view>{ s... });
@@ -99,7 +101,7 @@ namespace unvm::semver
 
         bool Skip(const std::set<std::string_view> &set);
 
-        template<StringLike... S>
+        template<string_type... S>
         bool Skip(S... s)
         {
             return Skip(std::set<std::string_view>{ s... });
@@ -107,7 +109,7 @@ namespace unvm::semver
 
         std::string Expect(const std::set<std::string_view> &set);
 
-        template<StringLike... S>
+        template<string_type... S>
         std::string Expect(S... s)
         {
             return Expect(std::set<std::string_view>{ s... });
