@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online)
 {

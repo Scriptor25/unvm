@@ -1,5 +1,7 @@
 #include <unvm/util.hxx>
 
+#include <iterator>
+
 std::istream &unvm::GetLine(std::istream &stream, std::string &string, std::string_view delim)
 {
     string.clear();

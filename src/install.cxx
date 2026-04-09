@@ -4,6 +4,7 @@
 #include <openssl/sha.h>
 
 #include <iostream>
+#include <sstream>
 
 static int get_checksum(unvm::http::HttpClient &client, const unvm::VersionEntry &entry, const std::string &filename, const std::string &extension, std::string &checksum)
 {
