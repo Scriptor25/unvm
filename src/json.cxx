@@ -1,8 +1,8 @@
 #include <unvm/json.hxx>
 
-bool json::serializer<std::filesystem::path>::from_json(const Node &node, std::filesystem::path &value)
+bool data::serializer<std::filesystem::path>::from_data(const json::Node &node, std::filesystem::path &value)
 {
-    if (String s; node >> s)
+    if (json::String s; node >> s)
     {
         value = std::move(s);
         return true;
@@ -11,14 +11,14 @@ bool json::serializer<std::filesystem::path>::from_json(const Node &node, std::f
     return false;
 }
 
-void json::serializer<std::filesystem::path>::to_json(Node &node, const std::filesystem::path &value)
+void data::serializer<std::filesystem::path>::to_data(json::Node &node, const std::filesystem::path &value)
 {
     node = value.string();
 }
 
-bool json::serializer<unvm::Config>::from_json(const Node &node, unvm::Config &value)
+bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Config &value)
 {
-    if (!node.Is<Object>())
+    if (!node.Is<json::Node::Map>())
         return false;
 
     auto ok = true;
@@ -31,9 +31,9 @@ bool json::serializer<unvm::Config>::from_json(const Node &node, unvm::Config &v
     return ok;
 }
 
-void json::serializer<unvm::Config>::to_json(Node &node, const unvm::Config &value)
+void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Config &value)
 {
-    node = Object
+    node = json::Node::Map
     {
         { "install-directory", value.InstallDirectory },
         { "active-directory", value.ActiveDirectory },
@@ -42,9 +42,9 @@ void json::serializer<unvm::Config>::to_json(Node &node, const unvm::Config &val
     };
 }
 
-bool json::serializer<unvm::StringOrFalse>::from_json(const Node &node, unvm::StringOrFalse &value)
+bool data::serializer<unvm::StringOrFalse>::from_data(const json::Node &node, unvm::StringOrFalse &value)
 {
-    if (Boolean val; node >> val)
+    if (json::Boolean val; node >> val)
     {
         if (val)
             return false;
@@ -53,7 +53,7 @@ bool json::serializer<unvm::StringOrFalse>::from_json(const Node &node, unvm::St
         return true;
     }
 
-    if (String val; node >> val)
+    if (json::String val; node >> val)
     {
         value.HasValue = true;
         value.Value = std::move(val);
@@ -63,9 +63,9 @@ bool json::serializer<unvm::StringOrFalse>::from_json(const Node &node, unvm::St
     return false;
 }
 
-bool json::serializer<unvm::VersionEntry>::from_json(const Node &node, unvm::VersionEntry &value)
+bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unvm::VersionEntry &value)
 {
-    if (!node.Is<Object>())
+    if (!node.Is<json::Node::Map>())
         return false;
 
     auto ok = true;

@@ -8,27 +8,27 @@
 #include <filesystem>
 
 template<>
-struct json::serializer<std::filesystem::path>
+struct data::serializer<std::filesystem::path>
 {
-    static bool from_json(const Node &node, std::filesystem::path &value);
-    static void to_json(Node &node, const std::filesystem::path &value);
+    static bool from_data(const json::Node &node, std::filesystem::path &value);
+    static void to_data(json::Node &node, const std::filesystem::path &value);
 };
 
 template<>
-struct json::serializer<unvm::Config>
+struct data::serializer<unvm::Config>
 {
-    static bool from_json(const Node &node, unvm::Config &value);
-    static void to_json(Node &node, const unvm::Config &value);
+    static bool from_data(const json::Node &node, unvm::Config &value);
+    static void to_data(json::Node &node, const unvm::Config &value);
 };
 
 template<>
-struct json::serializer<unvm::StringOrFalse>
+struct data::serializer<unvm::StringOrFalse>
 {
-    static bool from_json(const Node &node, unvm::StringOrFalse &value);
+    static bool from_data(const json::Node &node, unvm::StringOrFalse &value);
 };
 
 template<>
-struct json::serializer<unvm::VersionEntry>
+struct data::serializer<unvm::VersionEntry>
 {
-    static bool from_json(const Node &node, unvm::VersionEntry &value);
+    static bool from_data(const json::Node &node, unvm::VersionEntry &value);
 };
