@@ -23,10 +23,7 @@ bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Con
 
     auto ok = true;
 
-    ok &= node["install-directory"] >> value.InstallDirectory;
-    ok &= node["active-directory"] >> value.ActiveDirectory;
     ok &= node["installed"] >> value.Installed;
-    ok &= node["active"] >> value.Active;
 
     return ok;
 }
@@ -35,32 +32,8 @@ void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Confi
 {
     node = json::Node::Map
     {
-        { "install-directory", value.InstallDirectory },
-        { "active-directory", value.ActiveDirectory },
         { "installed", value.Installed },
-        { "active", value.Active },
     };
-}
-
-bool data::serializer<unvm::StringOrFalse>::from_data(const json::Node &node, unvm::StringOrFalse &value)
-{
-    if (json::Boolean val; node >> val)
-    {
-        if (val)
-            return false;
-
-        value.HasValue = false;
-        return true;
-    }
-
-    if (json::String val; node >> val)
-    {
-        value.HasValue = true;
-        value.Value = std::move(val);
-        return true;
-    }
-
-    return false;
 }
 
 bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unvm::VersionEntry &value)
@@ -79,8 +52,13 @@ bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unv
     ok &= node["zlib"] >> value.ZLib;
     ok &= node["openssl"] >> value.OpenSSL;
     ok &= node["modules"] >> value.Modules;
-    ok &= node["lts"] >> value.Lts;
     ok &= node["security"] >> value.Security;
+
+    auto &lts = node["lts"];
+    if (bool val; lts >> val && !val)
+        value.Lts = std::nullopt;
+    else
+        ok &= lts >> value.Lts;
 
     return ok;
 }

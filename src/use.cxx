@@ -3,72 +3,57 @@
 
 #include <iostream>
 
-int unvm::Use(Config &config, const std::string_view &version, const VersionEntry &entry)
+int unvm::Use(Config &config, const std::string_view &version, const VersionEntry &entry, bool local)
 {
-    if (config.Active.has_value())
+    if (active == entry.Version)
     {
-        if (config.Active.value() == entry.Version)
-        {
-            std::cerr << "version '" << version << "' is already installed and active." << std::endl;
-            return 0;
-        }
-
-        if (const auto error = RemoveLink(config.ActiveDirectory))
-        {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
-            return error;
-        }
+        std::cerr << "version '" << version << "' is already active." << std::endl;
+        return 0;
     }
 
-    if (const auto error = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version))
+    // TODO: write version to global or local storage
+    if (local)
     {
-        std::cerr << "failed to link new active version '" << version << "'." << std::endl;
-        return error;
     }
-
-    if (const auto error = AppendUserPath(config.ActiveDirectory))
-    {
-        std::cerr << "failed to append active directory to user path variable." << std::endl;
-        return error;
-    }
-
-    config.Active = entry.Version;
+    
+    ++config.Active[entry.Version];
     return 0;
 }
 
-int unvm::Use(Config &config, http::HttpClient &client, std::string_view version)
+int unvm::Use(Config &config, http::HttpClient &client, std::string_view version, bool local)
 {
     if (version == "none")
     {
-        if (!config.Active.has_value())
+        if (!active)
         {
             std::cerr << "node is already inactive." << std::endl;
             return 0;
         }
 
-        if (const auto error = RemoveLink(config.ActiveDirectory))
-        {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
-            return error;
-        }
+        // TODO: write version to global or local storage
 
-        config.Active = std::nullopt;
+        --config.Active[active];
         return 0;
     }
 
     VersionTable table;
     if (const auto error = LoadVersionTable(client, table, false))
-    {
         return error;
+
+    for (auto it = table.begin(); it != table.end(); )
+    {
+        if (!config.Installed.contains(it->Version))
+            it = table.erase(it);
+        else
+            ++it;
     }
 
     const auto entry_ptr = FindEffectiveVersion(table, version);
-
-    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
+    if (!entry_ptr)
     {
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 1;
     }
 
-    return Use(config, version, *entry_ptr);
+    return Use(config, version, *entry_ptr, local);
 }

@@ -24,8 +24,8 @@ namespace unvm
     int Remove(Config &config, std::string_view version, const VersionEntry &entry);
     int Remove(Config &config, http::HttpClient &client, std::string_view version);
     
-    int Use(Config &config, const std::string_view &version, const VersionEntry &entry);
-    int Use(Config &config, http::HttpClient &client, std::string_view version);
+    int Use(Config &config, const std::string_view &version, const VersionEntry &entry, bool local);
+    int Use(Config &config, http::HttpClient &client, std::string_view version, bool local);
 
     int List(Config &config, http::HttpClient &client, const bool available);
 

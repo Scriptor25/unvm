@@ -5,23 +5,22 @@
 #include <shlobj.h>
 #include <windows.h>
 
-std::filesystem::path unvm::GetDataDirectory()
+static std::filesystem::path get_data_directory()
 {
-    static std::pair<bool, std::filesystem::path> directory{ false, {} };
-
-    if (directory.first)
-    {
-        return directory.second;
-    }
-
     PWSTR path = nullptr;
     SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &path);
 
-    directory = { true, std::filesystem::path(path) / "unvm" };
+    std::filesystem::path directory(path);
 
     CoTaskMemFree(path);
 
-    return directory.second;
+    return directory / "unvm";
+}
+
+std::filesystem::path unvm::GetDataDirectory()
+{
+    static const auto data_directory = std::filesystem::weakly_canonical(get_data_directory());
+    return data_directory;
 }
 
 #endif

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <filesystem>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -9,10 +9,8 @@ namespace unvm
 {
     struct Config
     {
-        std::filesystem::path InstallDirectory;
-        std::filesystem::path ActiveDirectory;
-
         std::set<std::string> Installed;
-        std::optional<std::string> Active;
+        std::map<std::string, unsigned> Active;
+        std::optional<std::string> Default;
     };
 }

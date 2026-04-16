@@ -49,16 +49,16 @@ unvm
 
 ### Version names
 
-* `latest` — latest version
-* `lts` — latest long-term-support version
-* `v<X>[.<Y>[.<Z>]]` — specific version
-* LTS by name, e.g., `Krypton` (case-insensitive)
+- `latest` — latest version
+- `lts` — latest long-term-support version
+- `<major>[.<minor>[.<patch>]]` — specific version
+- LTS by name, e.g., `Krypton` (case-insensitive)
 
 ### Commands
 
 | Command                 | Description                                                                                          |
-|-------------------------|------------------------------------------------------------------------------------------------------|
-| `list [available]`      | List installed or available versions. `*` marks the one currently active.                            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| `list [available]`      | List installed or available versions. `*` marks the default version.                                 |
 | `install <version>`     | Install the specified Node.js version.                                                               |
 | `remove <version>`      | Remove the specified Node.js version.                                                                |
 | `use <version> \| none` | Set active Node.js version, or `none` to deactivate.                                                 |
@@ -69,15 +69,14 @@ unvm
 By default, UNVM generates a configuration file to track installed versions and active instance:
 
 | Platform     | Path                                                                                               |
-|--------------|----------------------------------------------------------------------------------------------------|
+| ------------ | -------------------------------------------------------------------------------------------------- |
 | Windows      | `%APPDATA%\unvm\config.json`                                                                       |
-| Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$CWD/.unvm/config.json` |
+| Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$PWD/.unvm/config.json` |
 
-This file controls:
+This file stores:
 
-* Installation paths for Node.js versions
-* Active instance linking
-* Current installed versions and active version
+- default version
+- installed versions
 
 ## License
 

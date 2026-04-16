@@ -25,7 +25,8 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
      * }[]
      */
 
-    auto index = GetDataDirectory() / "index.json";
+    auto data_directory = GetDataDirectory();
+    auto index = data_directory / "index.json";
 
     if (online || !std::filesystem::exists(index))
     {

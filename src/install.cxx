@@ -199,11 +199,13 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
         return 1;
     }
 
-    if (std::error_code ec; std::filesystem::create_directories(config.InstallDirectory, ec), ec)
+    auto data_directory = GetDataDirectory();
+
+    if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
     {
         std::cerr
-                << "failed to create install directory '"
-                << config.InstallDirectory.string()
+                << "failed to create directory '"
+                << data_directory.string()
                 << "': "
                 << ec.message()
                 << " ("
@@ -213,19 +215,21 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
         return ec.value();
     }
 
-    if (const auto error = UnpackArchive(stream, config.InstallDirectory))
+    if (const auto error = UnpackArchive(stream, data_directory))
     {
         std::cerr << "failed to unpack archive." << std::endl;
         return error;
     }
 
-    if (std::error_code ec; std::filesystem::rename(config.InstallDirectory / filename, config.InstallDirectory / entry.Version, ec), ec)
+    auto from_path = data_directory / filename;
+    auto to_path = data_directory / entry.Version;
+    if (std::error_code ec; std::filesystem::rename(from_path, to_path, ec), ec)
     {
         std::cerr
                 << "failed to rename '"
-                << (config.InstallDirectory / filename).string()
+                << from_path.string()
                 << "' to '"
-                << (config.InstallDirectory / entry.Version).string()
+                << to_path.string()
                 << "': "
                 << ec.message()
                 << " ("
@@ -248,7 +252,7 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
         return error;
     }
 
-    auto entry_ptr = FindEffectiveVersion(table, version);
+    const auto entry_ptr = FindEffectiveVersion(table, version);
     if (!entry_ptr)
     {
         std::cerr << "no effective version for '" << version << "'." << std::endl;

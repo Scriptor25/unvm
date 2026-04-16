@@ -7,7 +7,6 @@ int unvm::List(Config &config, http::HttpClient &client, const bool available)
 {
     Table out(
         {
-            { "", true },
             { "Lts", true },
             { "Version", true },
             { "Npm", true },
@@ -17,23 +16,16 @@ int unvm::List(Config &config, http::HttpClient &client, const bool available)
 
     VersionTable table;
     if (const auto error = LoadVersionTable(client, table, available))
-    {
         return error;
-    }
 
     for (auto &entry : table)
-    {
         if (available || config.Installed.contains(entry.Version))
-        {
             out
-                    << (config.Active.has_value() && config.Active.value() == entry.Version ? "*" : "")
-                    << (entry.Lts.HasValue ? entry.Lts.Value : "")
-                    << entry.Version
-                    << (entry.Npm.has_value() ? entry.Npm.value() : "")
-                    << entry.Date
-                    << (entry.Modules.has_value() ? entry.Modules.value() : "");
-        }
-    }
+                << entry.Lts.value_or({})
+                << entry.Version
+                << entry.Npm.value_or({})
+                << entry.Date
+                << entry.Modules.value_or({});
 
     if (out.Empty())
     {

@@ -6,12 +6,6 @@
 
 namespace unvm
 {
-    struct StringOrFalse
-    {
-        bool HasValue{};
-        std::string Value;
-    };
-
     struct VersionEntry
     {
         std::string Version;
@@ -23,7 +17,7 @@ namespace unvm
         std::optional<std::string> ZLib;
         std::optional<std::string> OpenSSL;
         std::optional<std::string> Modules;
-        StringOrFalse Lts;
+        std::optional<std::string> Lts;
         bool Security{};
     };
 

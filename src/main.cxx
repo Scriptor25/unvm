@@ -4,8 +4,17 @@
 #include <unvm/util.hxx>
 #include <unvm/http/http.hxx>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+#include <unistd.h>
+#endif
+
+#if defined(SYSTEM_WINDOWS)
+#include <windows.h>
+#endif
 
 constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
 constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
@@ -58,8 +67,10 @@ static int execute(const std::vector<std::string_view> &args)
 
     auto operation = operation_map.at(args[0]);
 
+    auto data_directory = unvm::GetDataDirectory();
+
     unvm::Config config;
-    if (std::ifstream stream(unvm::GetDataDirectory() / "config.json"); stream)
+    if (std::ifstream stream(data_directory / "config.json"); stream)
     {
         json::Node json;
         stream >> json;
@@ -69,11 +80,6 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "failed to parse config json." << std::endl;
             return 1;
         }
-    }
-    else
-    {
-        config.InstallDirectory = unvm::GetDataDirectory() / "version";
-        config.ActiveDirectory = unvm::GetDataDirectory() / "active";
     }
 
     unvm::http::HttpClient client;
@@ -100,12 +106,23 @@ static int execute(const std::vector<std::string_view> &args)
         break;
 
     case USE_BITS:
-        if (args.size() != 2)
+        switch (args.size())
         {
+        case 2:
+            code = Use(config, client, args[1], false);
+            break;
+        case 3:
+            if (args[2] != "local")
+            {
+                std::cerr << "invalid use modifier '" << args[2] << "'." << std::endl;
+                return 1;
+            }
+            code = Use(config, client, args[1], false);
+            break;
+        default:
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Use(config, client, args[1]);
         break;
 
     case LIST_BITS:
@@ -162,10 +179,9 @@ static int execute(const std::vector<std::string_view> &args)
     }
 
     {
-        auto parent = unvm::GetDataDirectory();
-        std::filesystem::create_directories(parent);
+        std::filesystem::create_directories(data_directory);
 
-        std::ofstream stream(parent / "config.json");
+        std::ofstream stream(data_directory / "config.json");
         if (!stream)
         {
             std::cerr << "failed to open config." << std::endl;
@@ -178,7 +194,52 @@ static int execute(const std::vector<std::string_view> &args)
     return code;
 }
 
-int main(const int argc, const char *const *argv)
+int main(const int argc, char **argv)
 {
-    return execute({ argv + 1, argv + argc });
+    auto basename = std::filesystem::path(argv[0]).filename();
+    if (basename.string() == "unvm" || basename.string() == "unvm.exe")
+        return execute({ argv + 1, argv + argc });
+
+    auto parent_path = std::filesystem::current_path();
+    auto version_path = parent_path / "unvm.conf";
+    while (!std::filesystem::exists(version_path) && parent_path.has_parent_path())
+    {
+        parent_path = parent_path.parent_path();
+        version_path = parent_path / "unvm.conf";
+    }
+
+    std::optional<std::string> version;
+    if (std::filesystem::exists(version_path))
+    {
+        std::ifstream stream(version_path, std::ios::ate);
+        if (!stream)
+        {
+            std::cerr << "failed to open version file path '" << version_path.string() << "'." << std::endl;
+            return 1;
+        }
+
+        std::vector<char> buffer(stream.tellg());
+        stream.seekg(std::ios::beg);
+        stream.read(buffer.data(), buffer.size());
+
+        version = std::string(buffer.begin(), buffer.end());
+    }
+    
+    auto data_directory = unvm::GetDataDirectory();
+
+    auto file_path = data_directory / *version / "bin" / basename;
+    auto path = file_path.string();
+
+    std::vector<char *> args{ argv, argv + argc };
+    args[0] = path.data();
+
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+    execv(file_path.c_str(), args.data());
+#endif
+
+#if defined(SYSTEM_WINDOWS)
+    #error not supported yet
+#endif
+
+    return 1;
 }

@@ -1,16 +1,18 @@
 #include <unvm/unvm.hxx>
+#include <unvm/util.hxx>
 
 #include <iostream>
 
 int unvm::Remove(Config &config, std::string_view version, const VersionEntry &entry)
 {
-    if (config.Active.has_value() && config.Active.value() == entry.Version)
+    if (config.Active[entry.Version])
     {
-        std::cerr << "version '" << version << "' is still in use." << std::endl;
+        std::cerr << "version '" << version << "' is still active." << std::endl;
         return 1;
     }
 
-    std::filesystem::remove_all(config.InstallDirectory / entry.Version);
+    auto data_directory = GetDataDirectory();
+    std::filesystem::remove_all(data_directory / entry.Version);
 
     config.Installed.erase(entry.Version);
     return 0;
@@ -20,13 +22,18 @@ int unvm::Remove(Config &config, http::HttpClient &client, std::string_view vers
 {
     unvm::VersionTable table;
     if (const auto error = unvm::LoadVersionTable(client, table, false))
-    {
         return error;
+    
+    for (auto it = table.begin(); it != table.end(); )
+    {
+        if (!config.Installed.contains(it->Version))
+            it = table.erase(it);
+        else
+            ++it;
     }
 
     const auto entry_ptr = unvm::FindEffectiveVersion(table, version);
-
-    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
+    if (!entry_ptr)
     {
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 0;
