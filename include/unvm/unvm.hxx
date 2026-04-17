@@ -27,7 +27,7 @@ namespace unvm
     int Use(Config &config, const std::string_view &version, const VersionEntry &entry, bool local);
     int Use(Config &config, http::HttpClient &client, std::string_view version, bool local);
 
-    int List(Config &config, http::HttpClient &client, const bool available);
+    int List(const Config &config, http::HttpClient &client, const bool available);
 
     int Workspace(Config &config, http::HttpClient &client);
 }

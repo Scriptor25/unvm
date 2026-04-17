@@ -16,7 +16,7 @@ int unvm::Use(Config &config, const std::string_view &version, const VersionEntr
 
     if (active && *active == entry.Version)
     {
-        std::cerr << "version '" << version << "' is already active." << std::endl;
+        std::cerr << "version '" << version << "' is already active in the current context." << std::endl;
         return 0;
     }
 
@@ -47,7 +47,7 @@ int unvm::Use(Config &config, http::HttpClient &client, std::string_view version
     {
         if (!active)
         {
-            std::cerr << "node is already inactive." << std::endl;
+            std::cerr << "node is already not active in the current context." << std::endl;
             return 0;
         }
 

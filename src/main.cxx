@@ -227,7 +227,7 @@ int main(const int argc, char **argv)
 
     if (!version)
     {
-        std::cerr << "node is not active." << std::endl;
+        std::cerr << "node is not active in the current context." << std::endl;
         return 1;
     }
 
@@ -237,8 +237,6 @@ int main(const int argc, char **argv)
     std::vector<char *> args{ argv, argv + argc };
     args[0] = file_path_str.data();
     args.push_back(nullptr);
-
-    std::cerr << "node version " << *version << ", path '" << file_path_str << "'." << std::endl;
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
     execvp(file_path.c_str(), args.data());
