@@ -22,7 +22,7 @@ int unvm::List(const Config &config, http::HttpClient &client, const bool availa
     for (auto &entry : table)
         if (available || config.Installed.contains(entry.Version))
             out
-                << (config.Active.contains(entry.Version) ? std::to_string(config.Active.at(entry.Version)) : "")
+                << (config.Active.contains(entry.Version) ? std::to_string(config.Active.at(entry.Version).size()) : "")
                 << entry.Lts.value_or({})
                 << entry.Version
                 << entry.Npm.value_or({})

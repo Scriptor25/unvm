@@ -7,7 +7,9 @@ int unvm::Remove(Config &config, std::string_view version, const VersionEntry &e
 {
     if (auto it = config.Active.find(entry.Version); it != config.Active.end())
     {
-        std::cerr << "version '" << version << "' is still active in " << it->second << " contexts." << std::endl;
+        std::cerr << "version '" << version << "' is still active in " << it->second.size() << " contexts:" << std::endl;
+        for (auto &context : it->second)
+            std::cerr << " - " << context << std::endl;
         return 1;
     }
 

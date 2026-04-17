@@ -14,7 +14,6 @@ void unvm::PrintManual()
             << "\n"
             << "Usage:\n"
             << "  <version> := latest | lts | <uint>[.<uint>[.<uint>]] | <lts-name>\n"
-            << "  <shell>   := sh | bash | zsh | cmd | pwsh\n"
             << "\n"
             << "Commands:\n"
             << "  install,   i <version>               Install the specified Node.js version.\n"
@@ -28,7 +27,7 @@ void unvm::PrintManual()
             << "Examples:\n"
             << "  unvm install lts\n"
             << "  unvm install iron\n"
-            << "  unvm use v20.3.1\n"
+            << "  unvm use 20.3.1\n"
             << "  unvm list available\n"
             << std::endl;
 }

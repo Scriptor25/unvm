@@ -28,7 +28,7 @@ int unvm::Use(Config &config, const std::string_view &version, const VersionEntr
     else
         config.Default = entry.Version;
     
-    ++config.Active[entry.Version];
+    config.Active[entry.Version].insert(local ? std::filesystem::weakly_canonical(std::filesystem::current_path()).string() : "default");
     return 0;
 }
 
@@ -59,7 +59,8 @@ int unvm::Use(Config &config, http::HttpClient &client, std::string_view version
         else
             config.Default = std::nullopt;
 
-        if (!--config.Active[*active])
+        config.Active[*active].erase(local ? std::filesystem::weakly_canonical(std::filesystem::current_path()).string() : "default");
+        if (config.Active[*active].empty())
             config.Active.erase(*active);
         return 0;
     }

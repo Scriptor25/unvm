@@ -5,7 +5,7 @@
 
 bool unvm::FindLocalVersion(std::filesystem::path &path)
 {
-    for (auto parent_path = std::filesystem::canonical(std::filesystem::current_path());;)
+    for (auto parent_path = std::filesystem::weakly_canonical(std::filesystem::current_path());;)
     {
         if (std::filesystem::exists(parent_path / ".unvm"))
         {
