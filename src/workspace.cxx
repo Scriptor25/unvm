@@ -34,32 +34,46 @@ int unvm::Workspace(Config &config, http::HttpClient &client)
 
     VersionTable table;
     if (const auto error = LoadVersionTable(client, table, false))
+    {
         return error;
+    }
 
     for (auto &entry : table)
     {
         if (!config.Installed.contains(entry.Version))
+        {
             continue;
+        }
 
         if (!semver::IsInRange(set, entry.Version))
+        {
             continue;
+        }
 
         return Use(config, version, entry, true);
     }
 
     if (const auto error = LoadVersionTable(client, table, true))
+    {
         return error;
+    }
 
     for (auto &entry : table)
     {
         if (!semver::IsInRange(set, entry.Version))
+        {
             continue;
+        }
 
         if (const auto error = Install(config, client, version, entry))
+        {
             return error;
+        }
 
         if (const auto error = Use(config, version, entry, true))
+        {
             return error;
+        }
 
         return 0;
     }

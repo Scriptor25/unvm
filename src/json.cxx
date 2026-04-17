@@ -19,7 +19,9 @@ void data::serializer<std::filesystem::path>::to_data(json::Node &node, const st
 bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Config &value)
 {
     if (!node.Is<json::Node::Map>())
+    {
         return false;
+    }
 
     auto ok = true;
 
@@ -43,7 +45,9 @@ void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Confi
 bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unvm::VersionEntry &value)
 {
     if (!node.Is<json::Node::Map>())
+    {
         return false;
+    }
 
     auto ok = true;
 
@@ -60,9 +64,13 @@ bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unv
 
     auto &lts = node["lts"];
     if (bool val; lts >> val && !val)
+    {
         value.Lts = std::nullopt;
+    }
     else
+    {
         ok &= lts >> value.Lts;
+    }
 
     return ok;
 }

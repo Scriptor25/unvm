@@ -6,14 +6,19 @@
 #include <iostream>
 #include <sstream>
 
-static int get_checksum(unvm::http::HttpClient &client, const unvm::VersionEntry &entry, const std::string &filename, const std::string &extension, std::string &checksum)
+static int get_checksum(
+    unvm::http::HttpClient &client,
+    const unvm::VersionEntry &entry,
+    const std::string &filename,
+    const std::string &extension,
+    std::string &checksum)
 {
     auto with_extension = filename + '.' + extension;
 
     auto pathname = std::format("/dist/{}/SHASUMS256.txt", entry.Version);
 
     std::stringstream stream(std::stringstream::in | std::stringstream::out);
-    
+
     unvm::http::HttpRequest request
     {
         .Method = unvm::http::HttpMethod::Get,
@@ -49,7 +54,7 @@ static int get_checksum(unvm::http::HttpClient &client, const unvm::VersionEntry
         return 1;
     }
 
-    for (std::string line; std::getline(stream, line); )
+    for (std::string line; std::getline(stream, line);)
     {
         line = unvm::Trim(std::move(line));
         if (line.empty())
@@ -195,7 +200,8 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
 
     if (archive_checksum != checksum)
     {
-        std::cerr << "checksum mismatch, archive checksum '" << archive_checksum << "' does not match '" << checksum << "'." << std::endl;
+        std::cerr << "checksum mismatch, archive checksum '" << archive_checksum << "' does not match '" << checksum <<
+                "'." << std::endl;
         return 1;
     }
 
@@ -243,10 +249,10 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
     return 0;
 }
 
-int unvm::Install(Config &config, http::HttpClient &client, std::string_view version)
+int unvm::Install(Config &config, http::HttpClient &client, const std::string_view version)
 {
     VersionTable table;
-    if (auto error = LoadVersionTable(client, table, true))
+    if (const auto error = LoadVersionTable(client, table, true))
     {
         std::cerr << "failed to load version table." << std::endl;
         return error;

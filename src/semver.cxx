@@ -30,7 +30,8 @@ unvm::semver::RangeSet unvm::semver::Parser::Parse()
             auto end = ParsePartial();
 
             set.emplace_back(
-                Hyphen{
+                Hyphen
+                {
                     .Begin = std::move(begin.Value),
                     .End = std::move(end),
                 });
@@ -72,7 +73,7 @@ unvm::semver::Primitive unvm::semver::Parser::ParsePrimitive()
     PrimitiveType type{};
     if (At("=", "<", "<=", ">", ">=", "~", "^"))
     {
-        auto op = m_Token;
+        const auto op = std::move(m_Token);
         m_Token = Next();
 
         type = map.at(op);
@@ -364,17 +365,31 @@ unvm::semver::RangeSet unvm::semver::ParseRangeSet(std::istream &stream)
     return parser.Parse();
 }
 
-unvm::semver::RangeSet unvm::semver::ParseRangeSet(const std::string_view string)
+unvm::semver::RangeSet unvm::semver::ParseRangeSet(const std::string_view str)
 {
-    const std::string s(string);
+    const std::string s(str);
     std::istringstream stream(s);
+    return ParseRangeSet(stream);
+}
+
+unvm::semver::RangeSet unvm::semver::ParseRangeSet(const std::string &str)
+{
+    std::istringstream stream(str);
     return ParseRangeSet(stream);
 }
 
 bool unvm::semver::IsInRange(const RangeSet &set, const std::string_view version)
 {
-    const std::string s(version);
-    std::istringstream stream(s);
+    const std::string str(version);
+    std::istringstream stream(str);
+    Parser parser(stream);
+    const auto parsed = parser.ParseVersion();
+    return IsInRange(set, parsed);
+}
+
+bool unvm::semver::IsInRange(const RangeSet &set, const std::string &version)
+{
+    std::istringstream stream(version);
     Parser parser(stream);
     const auto parsed = parser.ParseVersion();
     return IsInRange(set, parsed);
@@ -418,33 +433,33 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
         if (const auto primitive_set = std::get_if<PrimitiveSet>(&range))
         {
             auto match = true;
-            for (auto &primitive : *primitive_set)
+            for (const auto &[type_, value_] : *primitive_set)
             {
-                switch (primitive.Type)
+                switch (type_)
                 {
                 case PrimitiveType::Equal:
-                    match &= (partial == primitive.Value);
+                    match &= (partial == value_);
                     break;
 
                 case PrimitiveType::LessThan:
-                    match &= (partial < primitive.Value);
+                    match &= (partial < value_);
                     break;
 
                 case PrimitiveType::LessThanOrEqual:
-                    match &= (partial <= primitive.Value);
+                    match &= (partial <= value_);
                     break;
 
                 case PrimitiveType::GreaterThan:
-                    match &= (partial > primitive.Value);
+                    match &= (partial > value_);
                     break;
 
                 case PrimitiveType::GreaterThanOrEqual:
-                    match &= (partial >= primitive.Value);
+                    match &= (partial >= value_);
                     break;
 
                 case PrimitiveType::Tilde:
                 {
-                    auto &lower = primitive.Value;
+                    auto &lower = value_;
 
                     if (partial < lower)
                     {
@@ -476,7 +491,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
 
                 case PrimitiveType::Caret:
                 {
-                    auto &lower = primitive.Value;
+                    auto &lower = value_;
 
                     if (partial < lower)
                     {
@@ -538,7 +553,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
 
 bool unvm::semver::operator==(const Partial &a, const Partial &b)
 {
-    auto precision = std::min(a.Mask, b.Mask);
+    const auto precision = std::min(a.Mask, b.Mask);
 
     if (!(a.Mod & 0b001) && !(b.Mod & 0b001) && a.Value.Major != b.Value.Major)
     {

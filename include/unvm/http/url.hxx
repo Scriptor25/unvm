@@ -40,7 +40,7 @@ namespace unvm::http
         }
     }
 
-    constexpr HttpLocation ParseUrl(std::string_view src)
+    constexpr HttpLocation ParseUrl(const std::string_view src)
     {
         HttpLocation dst;
         ParseUrl(dst, src);

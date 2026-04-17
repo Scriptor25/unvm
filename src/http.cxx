@@ -194,7 +194,7 @@ static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, co
         return 1;
     }
 
-    for (int i = 0; i < sk_X509_INFO_num(infos); ++i)
+    for (auto i = 0; i < sk_X509_INFO_num(infos); ++i)
     {
         if (const auto info = sk_X509_INFO_value(infos, i); info && info->x509)
         {

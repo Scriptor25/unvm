@@ -7,14 +7,20 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
     if (version == "latest")
     {
         if (!table.empty())
+        {
             return &table.front();
+        }
     }
     // latest lts
     else if (version == "lts")
     {
         for (auto &entry : table)
+        {
             if (entry.Lts)
+            {
                 return &entry;
+            }
+        }
     }
     // version by pattern
     else if (isdigit(version.front()))
@@ -27,8 +33,12 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
         {
             const auto pattern = 'v' + std::string(version) + '.';
             for (auto &entry : table)
+            {
                 if (entry.Version.starts_with(pattern))
+                {
                     return &entry;
+                }
+            }
             break;
         }
 
@@ -36,8 +46,12 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
         {
             const auto pattern = 'v' + std::string(version);
             for (auto &entry : table)
+            {
                 if (entry.Version == pattern)
+                {
                     return &entry;
+                }
+            }
             break;
         }
 
@@ -50,8 +64,12 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
     {
         const auto name = Lower(std::string(version));
         for (auto &entry : table)
+        {
             if (entry.Lts && Lower(*entry.Lts) == name)
+            {
                 return &entry;
+            }
+        }
     }
 
     return nullptr;

@@ -32,15 +32,17 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
     {
         std::stringstream stream;
 
-        http::HttpRequest request = {
+        http::HttpRequest request
+        {
             .Method = http::HttpMethod::Get,
             .Location = http::ParseUrl("https://nodejs.org/dist/index.json"),
         };
-        http::HttpResponse response = {
+        http::HttpResponse response
+        {
             .Body = &stream,
         };
 
-        if (auto error = client.Fetch(request, response))
+        if (auto error = client.Fetch(std::move(request), response))
         {
             std::cerr << "failed to get file." << std::endl;
             return error;

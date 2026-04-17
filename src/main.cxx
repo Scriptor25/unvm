@@ -198,11 +198,15 @@ int main(const int argc, char **argv)
 {
     auto arg0 = std::filesystem::path(argv[0]);
     if (arg0.stem() == "unvm" || arg0.stem() == "unvm.exe")
+    {
         return execute({ argv + 1, argv + argc });
+    }
 
     std::optional<std::string> version;
-    if (auto error = unvm::LoadLocalVersion(version))
+    if (auto error = unvm::ReadVersionFile(version))
+    {
         return error;
+    }
 
     auto data_directory = unvm::GetDataDirectory();
 
@@ -222,7 +226,9 @@ int main(const int argc, char **argv)
         }
 
         if (config.Default)
+        {
             version = *config.Default;
+        }
     }
 
     if (!version)
@@ -243,7 +249,7 @@ int main(const int argc, char **argv)
 #endif
 
 #if defined(SYSTEM_WINDOWS)
-    #error not supported yet
+#error not supported yet
 #endif
 
     return 1;
