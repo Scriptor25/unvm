@@ -117,7 +117,7 @@ static int execute(const std::vector<std::string_view> &args)
                 std::cerr << "invalid use modifier '" << args[2] << "'." << std::endl;
                 return 1;
             }
-            code = Use(config, client, args[1], false);
+            code = Use(config, client, args[1], true);
             break;
         default:
             std::cerr << "invalid argument count." << std::endl;
@@ -196,45 +196,52 @@ static int execute(const std::vector<std::string_view> &args)
 
 int main(const int argc, char **argv)
 {
-    auto basename = std::filesystem::path(argv[0]).filename();
-    if (basename.string() == "unvm" || basename.string() == "unvm.exe")
+    auto arg0 = std::filesystem::path(argv[0]);
+    if (arg0.stem() == "unvm" || arg0.stem() == "unvm.exe")
         return execute({ argv + 1, argv + argc });
 
-    auto parent_path = std::filesystem::current_path();
-    auto version_path = parent_path / "unvm.conf";
-    while (!std::filesystem::exists(version_path) && parent_path.has_parent_path())
-    {
-        parent_path = parent_path.parent_path();
-        version_path = parent_path / "unvm.conf";
-    }
-
     std::optional<std::string> version;
-    if (std::filesystem::exists(version_path))
-    {
-        std::ifstream stream(version_path, std::ios::ate);
-        if (!stream)
-        {
-            std::cerr << "failed to open version file path '" << version_path.string() << "'." << std::endl;
-            return 1;
-        }
+    if (auto error = unvm::LoadLocalVersion(version))
+        return error;
 
-        std::vector<char> buffer(stream.tellg());
-        stream.seekg(std::ios::beg);
-        stream.read(buffer.data(), buffer.size());
-
-        version = std::string(buffer.begin(), buffer.end());
-    }
-    
     auto data_directory = unvm::GetDataDirectory();
 
-    auto file_path = data_directory / *version / "bin" / basename;
-    auto path = file_path.string();
+    if (!version)
+    {
+        unvm::Config config;
+        if (std::ifstream stream(data_directory / "config.json"); stream)
+        {
+            json::Node json;
+            stream >> json;
+
+            if (!(json >> config))
+            {
+                std::cerr << "failed to parse config json." << std::endl;
+                return 1;
+            }
+        }
+
+        if (config.Default)
+            version = *config.Default;
+    }
+
+    if (!version)
+    {
+        std::cerr << "node is not active." << std::endl;
+        return 1;
+    }
+
+    auto file_path = data_directory / *version / "bin" / arg0.filename();
+    auto file_path_str = file_path.string();
 
     std::vector<char *> args{ argv, argv + argc };
-    args[0] = path.data();
+    args[0] = file_path_str.data();
+    args.push_back(nullptr);
+
+    std::cerr << "node version " << *version << ", path '" << file_path_str << "'." << std::endl;
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
-    execv(file_path.c_str(), args.data());
+    execvp(file_path.c_str(), args.data());
 #endif
 
 #if defined(SYSTEM_WINDOWS)

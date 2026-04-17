@@ -5,7 +5,7 @@
 
 int unvm::Remove(Config &config, std::string_view version, const VersionEntry &entry)
 {
-    if (config.Active[entry.Version])
+    if (config.Active.contains(entry.Version))
     {
         std::cerr << "version '" << version << "' is still active." << std::endl;
         return 1;

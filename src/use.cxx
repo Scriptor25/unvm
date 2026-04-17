@@ -5,16 +5,28 @@
 
 int unvm::Use(Config &config, const std::string_view &version, const VersionEntry &entry, bool local)
 {
-    if (active == entry.Version)
+    std::optional<std::string> active;
+    if (local)
+    {
+        if (auto error = LoadLocalVersion(active))
+            return error;
+    }
+    else if (config.Default)
+        active = *config.Default;
+
+    if (active && *active == entry.Version)
     {
         std::cerr << "version '" << version << "' is already active." << std::endl;
         return 0;
     }
 
-    // TODO: write version to global or local storage
     if (local)
     {
+        if (auto error = StoreLocalVersion(entry.Version))
+            return error;
     }
+    else
+        config.Default = entry.Version;
     
     ++config.Active[entry.Version];
     return 0;
@@ -22,6 +34,15 @@ int unvm::Use(Config &config, const std::string_view &version, const VersionEntr
 
 int unvm::Use(Config &config, http::HttpClient &client, std::string_view version, bool local)
 {
+    std::optional<std::string> active;
+    if (local)
+    {
+        if (auto error = LoadLocalVersion(active))
+            return error;
+    }
+    else if (config.Default)
+        active = *config.Default;
+
     if (version == "none")
     {
         if (!active)
@@ -30,9 +51,16 @@ int unvm::Use(Config &config, http::HttpClient &client, std::string_view version
             return 0;
         }
 
-        // TODO: write version to global or local storage
+        if (local)
+        {
+            if (auto error = DeleteLocalVersion())
+                return error;
+        }
+        else
+            config.Default = std::nullopt;
 
-        --config.Active[active];
+        if (!--config.Active[*active])
+            config.Active.erase(*active);
         return 0;
     }
 

@@ -154,6 +154,20 @@ else ()
     install(FILES ${COMMON_LICENSE_FILES} DESTINATION "share/doc/unvm/licenses")
 endif ()
 
+if (UNIX)
+    install(CODE "
+        execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink \${CMAKE_INSTALL_PREFIX}/bin/unvm \${CMAKE_INSTALL_PREFIX}/bin/node)
+        execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink \${CMAKE_INSTALL_PREFIX}/bin/unvm \${CMAKE_INSTALL_PREFIX}/bin/npm)
+        execute_process(COMMAND \${CMAKE_COMMAND} -E create_symlink \${CMAKE_INSTALL_PREFIX}/bin/unvm \${CMAKE_INSTALL_PREFIX}/bin/npx)
+    ")
+elseif (WIN32)
+    install(CODE "
+        execute_process(COMMAND \${CMAKE_COMMAND} -E create_hardlink \${CMAKE_INSTALL_PREFIX}/bin/unvm.exe \${CMAKE_INSTALL_PREFIX}/bin/node.exe)
+        execute_process(COMMAND \${CMAKE_COMMAND} -E create_hardlink \${CMAKE_INSTALL_PREFIX}/bin/unvm.exe \${CMAKE_INSTALL_PREFIX}/bin/npm.exe)
+        execute_process(COMMAND \${CMAKE_COMMAND} -E create_hardlink \${CMAKE_INSTALL_PREFIX}/bin/unvm.exe \${CMAKE_INSTALL_PREFIX}/bin/npx.exe)
+    ")
+endif ()
+
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh
             DESTINATION share/bash-completion/completions

@@ -24,6 +24,8 @@ bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Con
     auto ok = true;
 
     ok &= node["installed"] >> value.Installed;
+    ok &= node["active"] >> value.Active;
+    ok &= node["default"] >> value.Default;
 
     return ok;
 }
@@ -33,6 +35,8 @@ void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Confi
     node = json::Node::Map
     {
         { "installed", value.Installed },
+        { "active", value.Active },
+        { "default", value.Default },
     };
 }
 

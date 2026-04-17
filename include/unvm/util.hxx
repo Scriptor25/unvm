@@ -19,6 +19,12 @@ namespace unvm
 
     std::vector<std::string> Split(const std::string &str, char delim);
     std::string Join(const std::vector<std::string> &vec, char delim);
+
+    bool FindLocalVersion(std::filesystem::path &path);
+
+    int LoadLocalVersion(std::optional<std::string> &version);
+    int StoreLocalVersion(const std::string &version);
+    int DeleteLocalVersion();
 }
 
 template<typename K, typename V>
