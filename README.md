@@ -8,8 +8,7 @@
 
 ## About
 
-UNVM is a user-mode Node.js version manager. It does **not require administrative/root permissions**, which is useful
-for:
+UNVM is a user-mode Node.js version manager. It does **not require administrative/root permissions**, which is useful for:
 
 - Work devices with restricted access
 - Non-rooted mobile environments (e.g., Android with Termux)
@@ -73,19 +72,16 @@ By default, UNVM generates a configuration file to track installed versions and 
 | Windows      | `%APPDATA%\unvm\config.json`                                                                       |
 | Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$PWD/.unvm/config.json` |
 
-This file stores:
-
-- default version
-- installed versions
+This file stores information about active and installed versions.
 
 ## License
 
-UNVM is released under the **MIT License**.  
+UNVM is released under the **MIT License**.
 See the installed [`LICENSE`](./LICENSE.txt) file for the full license text.
 
 ## Third-Party Software
 
-This project includes third-party software.  
+This project includes third-party software.
 See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file for full details and attributions.
 
 Included libraries:
