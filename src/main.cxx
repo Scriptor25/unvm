@@ -5,7 +5,6 @@
 #include <unvm/http/http.hxx>
 
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
@@ -51,7 +50,7 @@ static const std::map<std::string_view, unsigned> operation_map
     { "w", WORKSPACE_BITS },
 };
 
-static int execute(const std::vector<std::string_view> &args)
+static int execute(unvm::Config &config, const std::vector<std::string_view> &args)
 {
     if (args.empty())
     {
@@ -67,24 +66,8 @@ static int execute(const std::vector<std::string_view> &args)
 
     auto operation = operation_map.at(args[0]);
 
-    auto data_directory = unvm::GetDataDirectory();
-
-    unvm::Config config;
-    if (std::ifstream stream(data_directory / "config.json"); stream)
-    {
-        json::Node json;
-        stream >> json;
-
-        if (!(json >> config))
-        {
-            std::cerr << "failed to parse config json." << std::endl;
-            return 1;
-        }
-    }
-
     unvm::http::HttpClient client;
 
-    int code;
     switch (operation & OPERATION_BITS)
     {
     case INSTALL_BITS:
@@ -93,8 +76,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Install(config, client, args[1]);
-        break;
+        return Install(config, client, args[1]);
 
     case REMOVE_BITS:
         if (args.size() != 2)
@@ -102,23 +84,20 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Remove(config, client, args[1]);
-        break;
+        return Remove(config, client, args[1]);
 
     case USE_BITS:
         switch (args.size())
         {
         case 2:
-            code = Use(config, client, args[1], false);
-            break;
+            return Use(config, client, args[1], false);
         case 3:
             if (args[2] != "local")
             {
                 std::cerr << "invalid use modifier '" << args[2] << "'." << std::endl;
                 return 1;
             }
-            code = Use(config, client, args[1], true);
-            break;
+            return Use(config, client, args[1], true);
         default:
             std::cerr << "invalid argument count." << std::endl;
             return 1;
@@ -160,8 +139,7 @@ static int execute(const std::vector<std::string_view> &args)
             }
         }
 
-        code = List(config, client, available);
-        break;
+        return List(config, client, available);
     }
 
     case WORKSPACE_BITS:
@@ -170,65 +148,42 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Workspace(config, client);
-        break;
+        return Workspace(config, client);
 
     default:
-        code = 1;
-        break;
+        return 1;
     }
-
-    {
-        std::filesystem::create_directories(data_directory);
-
-        std::ofstream stream(data_directory / "config.json");
-        if (!stream)
-        {
-            std::cerr << "failed to open config." << std::endl;
-            return 1;
-        }
-
-        stream << json::Node(config);
-    }
-
-    return code;
 }
 
 int main(const int argc, char **argv)
 {
-    auto arg0 = std::filesystem::path(argv[0]);
-    if (arg0.stem() == "unvm" || arg0.stem() == "unvm.exe")
-    {
-        return execute({ argv + 1, argv + argc });
-    }
+    auto exec = std::filesystem::path(argv[0]);
 
-    std::optional<std::string> version;
-    if (auto error = unvm::ReadVersionFile(version))
+    unvm::Config config;
+    if (const auto error = unvm::ReadConfigFile(config))
     {
         return error;
     }
 
-    auto data_directory = unvm::GetDataDirectory();
-
-    if (!version)
+    if (exec.stem() == "unvm" || exec.stem() == "unvm.exe")
     {
-        unvm::Config config;
-        if (std::ifstream stream(data_directory / "config.json"); stream)
+        if (const auto error = execute(config, { argv + 1, argv + argc }))
         {
-            json::Node json;
-            stream >> json;
-
-            if (!(json >> config))
-            {
-                std::cerr << "failed to parse config json." << std::endl;
-                return 1;
-            }
+            return error;
         }
 
-        if (config.Default)
-        {
-            version = *config.Default;
-        }
+        return unvm::WriteConfigFile(config);
+    }
+
+    std::optional<std::string> version;
+    if (const auto error = unvm::ReadVersionFile(version))
+    {
+        return error;
+    }
+
+    if (!version && config.Default)
+    {
+        version = *config.Default;
     }
 
     if (!version)
@@ -237,15 +192,16 @@ int main(const int argc, char **argv)
         return 1;
     }
 
-    auto file_path = data_directory / *version / "bin" / arg0.filename();
-    auto file_path_str = file_path.string();
+    auto data_directory = unvm::GetDataDirectory();
+    auto exec_path = data_directory / *version / "bin" / exec.filename();
+    auto exec_path_str = exec_path.string();
 
     std::vector<char *> args{ argv, argv + argc };
-    args[0] = file_path_str.data();
+    args[0] = exec_path_str.data();
     args.push_back(nullptr);
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
-    execvp(file_path.c_str(), args.data());
+    execvp(exec_path.c_str(), args.data());
 #endif
 
 #if defined(SYSTEM_WINDOWS)

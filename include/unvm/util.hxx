@@ -9,6 +9,8 @@
 
 namespace unvm
 {
+    struct Config;
+
     std::filesystem::path GetDataDirectory();
 
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
@@ -18,6 +20,9 @@ namespace unvm
 
     std::vector<std::string> Split(const std::string &str, char delim);
     std::string Join(const std::vector<std::string> &vec, char delim);
+
+    int ReadConfigFile(Config &config);
+    int WriteConfigFile(const Config &config);
 
     bool FindVersionFile(std::filesystem::path &path);
 
