@@ -18,7 +18,7 @@ int unvm::ReadConfigFile(Config &config)
         return 0;
     }
 
-    std::ifstream stream(data_directory);
+    std::ifstream stream(path);
     if (!stream)
     {
         std::cerr << "failed to open config file." << std::endl;
