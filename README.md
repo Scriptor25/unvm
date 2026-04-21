@@ -65,14 +65,12 @@ unvm
 
 ## Configuration
 
-By default, UNVM generates a configuration file to track installed versions and active instance:
+UNVM generates a configuration file to track installed and active versions:
 
 | Platform     | Path                                                                                               |
 | ------------ | -------------------------------------------------------------------------------------------------- |
 | Windows      | `%APPDATA%\unvm\config.json`                                                                       |
 | Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$PWD/.unvm/config.json` |
-
-This file stores information about active and installed versions.
 
 ## License
 
