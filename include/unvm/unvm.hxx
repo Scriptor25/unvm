@@ -20,13 +20,9 @@ namespace unvm
     int Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry);
     int Install(Config &config, http::HttpClient &client, std::string_view version);
 
-    int Remove(Config &config, std::string_view version, const VersionEntry &entry);
     int Remove(Config &config, http::HttpClient &client, std::string_view version);
 
-    int Use(Config &config, const std::string_view &version, const VersionEntry &entry, bool local);
     int Use(Config &config, http::HttpClient &client, std::string_view version, bool local);
 
     int List(const Config &config, http::HttpClient &client, bool available);
-
-    int Workspace(Config &config, http::HttpClient &client);
 }

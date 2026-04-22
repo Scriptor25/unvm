@@ -13,7 +13,7 @@ int unvm::ReadConfigFile(Config &config)
     auto data_directory = GetDataDirectory();
     auto path = data_directory / "config.json";
 
-    if (!exists(path))
+    if (!std::filesystem::exists(path))
     {
         return 0;
     }
@@ -42,7 +42,7 @@ int unvm::WriteConfigFile(const Config &config)
     auto data_directory = GetDataDirectory();
     auto path = data_directory / "config.json";
 
-    if (std::error_code ec; create_directories(data_directory, ec), ec)
+    if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
     {
         std::cerr << "failed to create data directory: " << ec.message() << " (" << ec.value() << ")." << std::endl;
         return 1;
@@ -56,119 +56,97 @@ int unvm::WriteConfigFile(const Config &config)
     }
 
     stream << json::Node(config);
-    
     return 0;
 }
 
-unvm::FileType unvm::FindVersion(const Config &config, http::HttpClient &client, std::optional<std::string> &version)
+static bool read_exact_version(
+    const std::filesystem::path &path,
+    unvm::VersionType &type,
+    std::optional<std::string> &version)
 {
-    auto current_path = weakly_canonical(std::filesystem::current_path());
-
-    for (auto parent_path = current_path;;)
+    std::ifstream stream(path);
+    if (!stream)
     {
-        if (auto entry = parent_path / "package.json"; exists(entry))
-        {
-            std::ifstream stream(entry);
-            if (!stream)
-            {
-                std::cerr << "warning: failed to open '" << entry.string() << "'." << std::endl;
-                continue;
-            }
-
-            json::Node node;
-            stream >> node;
-
-            if (!node)
-            {
-                std::cerr << "warning: failed to parse '" << entry.string() << "'." << std::endl;
-                continue;
-            }
-
-            std::optional<std::string> semver;
-            if (!(node["engines"]["node"] >> semver))
-            {
-                std::cerr << "warning: failed to convert engines.node to string." << std::endl;
-                continue;
-            }
-
-            if (!semver)
-            {
-                continue;
-            }
-
-            auto set = semver::ParseRangeSet(*semver);
-
-            VersionTable table;
-            if (const auto error = LoadVersionTable(client, table, false))
-            {
-            }
-
-            return FileType::Package;
-        }
-        
-        if (auto entry = parent_path / ".unvm"; exists(entry))
-        {
-            std::ifstream stream(entry);
-            if (!stream)
-            {
-                std::cerr << "warning: failed to open '" << entry.string() << "'." << std::endl;
-                continue;
-            }
-
-            std::string line;
-            std::getline(stream, line);
-
-            version = std::move(line);
-            return FileType::Version;
-        }
-
-        auto next = parent_path.parent_path();
-        if (next == parent_path)
-        {
-            if (config.Default)
-            {
-                version = *config.Default;
-            }
-
-            return FileType::Default;
-        }
-
-        parent_path = next;
+        std::cerr << "failed to open '" << path.string() << "'." << std::endl;
+        return false;
     }
+
+    std::string line;
+    std::getline(stream, line);
+
+    type = unvm::VersionType::Exact;
+    version = std::move(line);
+    return true;
 }
 
-bool unvm::FindPackageFile(std::filesystem::path &path)
+static bool read_package_version(
+    const std::filesystem::path &path,
+    unvm::VersionType &type,
+    std::optional<std::string> &version)
 {
-    auto current_path = weakly_canonical(std::filesystem::current_path());
+    std::ifstream stream(path);
+    if (!stream)
+    {
+        std::cerr << "failed to open '" << path.string() << "'." << std::endl;
+        return false;
+    }
+
+    json::Node node;
+    stream >> node;
+
+    if (!node)
+    {
+        std::cerr << "failed to parse '" << path.string() << "'." << std::endl;
+        return false;
+    }
+
+    std::optional<std::string> maybe;
+    if (!(node["engines"]["node"] >> maybe))
+    {
+        std::cerr << "failed to convert engines.node to string." << std::endl;
+        return false;
+    }
+
+    if (!maybe)
+    {
+        std::cerr << "no engines.node in package." << std::endl;
+        return false;
+    }
+
+    type = unvm::VersionType::Package;
+    version = *std::move(maybe);
+    return true;
+}
+
+unvm::VersionType unvm::FindActiveVersion(std::optional<std::string> &version)
+{
+    const auto current_path = std::filesystem::weakly_canonical(std::filesystem::current_path());
 
     for (auto parent_path = current_path;;)
     {
-        if (auto entry = parent_path / "package.json"; exists(entry))
+        if (auto entry = parent_path / ".unvm"; std::filesystem::exists(entry))
         {
-            std::ifstream stream(entry);
-            if (!stream)
+            if (VersionType type; read_exact_version(entry, type, version))
             {
-                continue;
+                return type;
             }
-            json::Node node;
-            stream >> node;
+        }
 
-            std::optional<std::string> maybe_version;
-            node["engines"]["node"] >> maybe_version;
+        if (auto entry = parent_path / "package.json"; std::filesystem::exists(entry))
+        {
+            // TODO: if package has no version, continue upwards, until either other config file or package is found.
+            // TODO: if parent package is found, and workspaces entry contains current path file tree, if that package has a version, return that, or else return default
 
-            if (!maybe_version)
+            if (VersionType type; read_package_version(entry, type, version))
             {
-                continue;
+                return type;
             }
-
-            path = std::move(entry);
-            return true;
         }
 
         auto next = parent_path.parent_path();
         if (next == parent_path)
         {
-            return false;
+            return VersionType::Default;
         }
 
         parent_path = next;
@@ -177,7 +155,7 @@ bool unvm::FindPackageFile(std::filesystem::path &path)
 
 bool unvm::FindVersionFile(std::filesystem::path &path)
 {
-    for (auto parent_path = weakly_canonical(std::filesystem::current_path());;)
+    for (auto parent_path = std::filesystem::weakly_canonical(std::filesystem::current_path());;)
     {
         if (auto entry = parent_path / ".unvm"; exists(entry))
         {
@@ -207,7 +185,7 @@ int unvm::ReadVersionFile(std::optional<std::string> &version)
     std::ifstream stream(path);
     if (!stream)
     {
-        std::cerr << "failed to open local version file '" << path.string() << "'." << std::endl;
+        std::cerr << "failed to open file '" << path.string() << "'." << std::endl;
         return 1;
     }
 
@@ -223,7 +201,7 @@ int unvm::WriteVersionFile(const std::string &version)
     std::ofstream stream(".unvm");
     if (!stream)
     {
-        std::cerr << "failed to open local version file '.unvm'." << std::endl;
+        std::cerr << "failed to open file '.unvm'." << std::endl;
         return 1;
     }
 
@@ -239,10 +217,10 @@ int unvm::RemoveVersionFile()
         return 0;
     }
 
-    if (std::error_code ec; remove(path, ec), ec)
+    if (std::error_code ec; std::filesystem::remove(path, ec), ec)
     {
         std::cerr
-                << "failed to delete local version file '"
+                << "failed to delete file '"
                 << path.string()
                 << "': "
                 << ec.message()

@@ -3,32 +3,7 @@
 
 #include <iostream>
 
-int unvm::Remove(Config &config, std::string_view version, const VersionEntry &entry)
-{
-    if (const auto it = config.Active.find(entry.Version); it != config.Active.end())
-    {
-        std::cerr
-                << "version '"
-                << version
-                << "' is still active in "
-                << it->second.size()
-                << " contexts:"
-                << std::endl;
-        for (auto &context : it->second)
-        {
-            std::cerr << " - " << context << std::endl;
-        }
-        return 1;
-    }
-
-    const auto data_directory = GetDataDirectory();
-    std::filesystem::remove_all(data_directory / entry.Version);
-
-    config.Installed.erase(entry.Version);
-    return 0;
-}
-
-int unvm::Remove(Config &config, http::HttpClient &client, std::string_view version)
+int unvm::Remove(Config &config, http::HttpClient &client, const std::string_view version)
 {
     VersionTable table;
     if (const auto error = LoadVersionTable(client, table, false))
@@ -36,24 +11,16 @@ int unvm::Remove(Config &config, http::HttpClient &client, std::string_view vers
         return error;
     }
 
-    for (auto it = table.begin(); it != table.end();)
-    {
-        if (!config.Installed.contains(it->Version))
-        {
-            it = table.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-
-    const auto entry_ptr = FindEffectiveVersion(table, version);
-    if (!entry_ptr)
+    const auto entry = FindEffectiveVersion(table, version);
+    if (!entry || !config.Installed.contains(entry->Version))
     {
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 0;
     }
 
-    return Remove(config, version, *entry_ptr);
+    const auto data_directory = GetDataDirectory();
+    std::filesystem::remove_all(data_directory / entry->Version);
+
+    config.Installed.erase(entry->Version);
+    return 0;
 }

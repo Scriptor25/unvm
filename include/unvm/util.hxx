@@ -16,11 +16,11 @@ namespace unvm
         class HttpClient;
     }
 
-    enum class FileType
+    enum class VersionType
     {
         Default,
         Package,
-        Version,
+        Exact,
     };
 
     std::filesystem::path GetDataDirectory();
@@ -36,9 +36,8 @@ namespace unvm
     int ReadConfigFile(Config &config);
     int WriteConfigFile(const Config &config);
 
-    FileType FindVersion(const Config &config, http::HttpClient &client, std::optional<std::string> &version);
+    VersionType FindActiveVersion(std::optional<std::string> &version);
 
-    bool FindPackageFile(std::filesystem::path &path);
     bool FindVersionFile(std::filesystem::path &path);
 
     int ReadVersionFile(std::optional<std::string> &version);

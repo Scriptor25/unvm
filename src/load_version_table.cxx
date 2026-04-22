@@ -28,7 +28,7 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
     auto data_directory = GetDataDirectory();
     auto index = data_directory / "index.json";
 
-    if (online || !std::filesystem::exists(index))
+    if (online || !exists(index))
     {
         std::stringstream stream;
 
@@ -48,7 +48,7 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
             return error;
         }
 
-        if (!http::IsSuccess(response.StatusCode))
+        if (!IsSuccess(response.StatusCode))
         {
             std::cerr
                     << "failed to get file: "
