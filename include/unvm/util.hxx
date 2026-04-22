@@ -11,6 +11,18 @@ namespace unvm
 {
     struct Config;
 
+    namespace http
+    {
+        class HttpClient;
+    }
+
+    enum class FileType
+    {
+        Default,
+        Package,
+        Version,
+    };
+
     std::filesystem::path GetDataDirectory();
 
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
@@ -24,6 +36,9 @@ namespace unvm
     int ReadConfigFile(Config &config);
     int WriteConfigFile(const Config &config);
 
+    FileType FindVersion(const Config &config, http::HttpClient &client, std::optional<std::string> &version);
+
+    bool FindPackageFile(std::filesystem::path &path);
     bool FindVersionFile(std::filesystem::path &path);
 
     int ReadVersionFile(std::optional<std::string> &version);

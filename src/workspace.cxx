@@ -10,7 +10,7 @@ int unvm::Workspace(Config &config, http::HttpClient &client)
 {
     auto package_json = std::filesystem::weakly_canonical("./package.json");
 
-    if (!std::filesystem::exists(package_json))
+    if (!exists(package_json))
     {
         std::cerr << "no package.json in current directory." << std::endl;
         return 1;
