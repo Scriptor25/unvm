@@ -39,6 +39,11 @@ int unvm::ReadConfigFile(Config &config)
 
 int unvm::WriteConfigFile(const Config &config)
 {
+    if (!config.Dirty)
+    {
+        return 0;
+    }
+
     auto data_directory = GetDataDirectory();
     auto path = data_directory / "config.json";
 
@@ -59,36 +64,33 @@ int unvm::WriteConfigFile(const Config &config)
     return 0;
 }
 
-static bool read_exact_version(
+static int read_exact_version(
     const std::filesystem::path &path,
-    unvm::VersionType &type,
     std::optional<std::string> &version)
 {
     std::ifstream stream(path);
     if (!stream)
     {
         std::cerr << "failed to open '" << path.string() << "'." << std::endl;
-        return false;
+        return 1;
     }
 
     std::string line;
     std::getline(stream, line);
 
-    type = unvm::VersionType::Exact;
     version = std::move(line);
-    return true;
+    return 0;
 }
 
-static bool read_package_version(
+static int read_package_version(
     const std::filesystem::path &path,
-    unvm::VersionType &type,
     std::optional<std::string> &version)
 {
     std::ifstream stream(path);
     if (!stream)
     {
         std::cerr << "failed to open '" << path.string() << "'." << std::endl;
-        return false;
+        return 1;
     }
 
     json::Node node;
@@ -97,28 +99,25 @@ static bool read_package_version(
     if (!node)
     {
         std::cerr << "failed to parse '" << path.string() << "'." << std::endl;
-        return false;
+        return 1;
     }
 
     std::optional<std::string> maybe;
     if (!(node["engines"]["node"] >> maybe))
     {
-        std::cerr << "failed to convert engines.node to string." << std::endl;
-        return false;
+        std::cerr << "failed to convert key 'engines.node' in '" << path.string() << "' to string." << std::endl;
+        return 1;
     }
 
-    if (!maybe)
+    if (maybe)
     {
-        std::cerr << "no engines.node in package." << std::endl;
-        return false;
+        version = *std::move(maybe);
     }
 
-    type = unvm::VersionType::Package;
-    version = *std::move(maybe);
-    return true;
+    return 0;
 }
 
-unvm::VersionType unvm::FindActiveVersion(std::optional<std::string> &version)
+int unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *type)
 {
     const auto current_path = std::filesystem::weakly_canonical(std::filesystem::current_path());
 
@@ -126,9 +125,18 @@ unvm::VersionType unvm::FindActiveVersion(std::optional<std::string> &version)
     {
         if (auto entry = parent_path / ".unvm"; std::filesystem::exists(entry))
         {
-            if (VersionType type; read_exact_version(entry, type, version))
+            if (const auto error = read_exact_version(entry, version))
             {
-                return type;
+                return error;
+            }
+
+            if (version)
+            {
+                if (type)
+                {
+                    *type = VersionType::Exact;
+                }
+                return 0;
             }
         }
 
@@ -137,16 +145,29 @@ unvm::VersionType unvm::FindActiveVersion(std::optional<std::string> &version)
             // TODO: if package has no version, continue upwards, until either other config file or package is found.
             // TODO: if parent package is found, and workspaces entry contains current path file tree, if that package has a version, return that, or else return default
 
-            if (VersionType type; read_package_version(entry, type, version))
+            if (const auto error = read_package_version(entry, version))
             {
-                return type;
+                return error;
+            }
+
+            if (version)
+            {
+                if (type)
+                {
+                    *type = VersionType::Package;
+                }
+                return 0;
             }
         }
 
         auto next = parent_path.parent_path();
         if (next == parent_path)
         {
-            return VersionType::Default;
+            if (type)
+            {
+                *type = VersionType::Default;
+            }
+            return 0;
         }
 
         parent_path = next;

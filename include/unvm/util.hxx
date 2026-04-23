@@ -36,7 +36,7 @@ namespace unvm
     int ReadConfigFile(Config &config);
     int WriteConfigFile(const Config &config);
 
-    VersionType FindActiveVersion(std::optional<std::string> &version);
+    int FindActiveVersion(std::optional<std::string> &version, VersionType *type = {});
 
     bool FindVersionFile(std::filesystem::path &path);
 

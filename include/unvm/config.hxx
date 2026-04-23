@@ -12,5 +12,6 @@ namespace unvm
         std::optional<std::string> Default;
 
         std::optional<std::string> Active;
+        bool Dirty{};
     };
 }

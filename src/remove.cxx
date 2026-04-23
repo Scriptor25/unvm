@@ -22,5 +22,6 @@ int unvm::Remove(Config &config, http::HttpClient &client, const std::string_vie
     std::filesystem::remove_all(data_directory / entry->Version);
 
     config.Installed.erase(entry->Version);
+    config.Dirty = true;
     return 0;
 }

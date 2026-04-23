@@ -168,14 +168,28 @@ struct unvm::http::HttpClient::State
 
 static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, const int len)
 {
-    if (!context || !buf || len <= 0)
+    if (!context)
     {
+        std::cerr << "ssl context is null." << std::endl;
+        return 1;
+    }
+
+    if (!buf)
+    {
+        std::cerr << "buffer is null." << std::endl;
+        return 1;
+    }
+
+    if (len <= 0)
+    {
+        std::cerr << "length is not greater than 0." << std::endl;
         return 1;
     }
 
     const auto bio = BIO_new_mem_buf(buf, len);
     if (!bio)
     {
+        std::cerr << "failed to create bio." << std::endl;
         return 1;
     }
 
@@ -183,6 +197,8 @@ static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, co
     if (!infos)
     {
         BIO_free(bio);
+
+        std::cerr << "failed to read bio." << std::endl;
         return 1;
     }
 
@@ -191,6 +207,8 @@ static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, co
     {
         sk_X509_INFO_pop_free(infos, X509_INFO_free);
         BIO_free(bio);
+
+        std::cerr << "failed to get certificate store for ssl context." << std::endl;
         return 1;
     }
 
@@ -202,6 +220,8 @@ static int load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, co
             {
                 sk_X509_INFO_pop_free(infos, X509_INFO_free);
                 BIO_free(bio);
+
+                std::cerr << "failed to add certificate to store." << std::endl;
                 return 1;
             }
         }
@@ -229,7 +249,7 @@ unvm::http::HttpClient::HttpClient()
 
     SSL_CTX_set_verify(m_State->SslCtx, SSL_VERIFY_PEER, nullptr);
 
-    if (load_cert_chain_from_shared_mem(m_State->SslCtx, ca_bundle_data, static_cast<int>(ca_bundle_data_len)))
+    if (const auto error = load_cert_chain_from_shared_mem(m_State->SslCtx, ca_bundle_data, static_cast<int>(ca_bundle_data_len)))
     {
         std::cerr << "failed to load vendor certificates." << std::endl;
         return;
@@ -311,6 +331,7 @@ int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
             SSL_free(ssl);
 
             socket_close(sock);
+            
             std::cerr << "TLS handshake failed." << std::endl;
             return 1;
         }
@@ -320,6 +341,7 @@ int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
             SSL_free(ssl);
 
             socket_close(sock);
+
             std::cerr << "TLS certificate verification failed." << std::endl;
             return 1;
         }
@@ -352,6 +374,7 @@ int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
         }
 
         socket_close(sock);
+
         std::cerr << "failed to send header." << std::endl;
         return 1;
     }
@@ -380,6 +403,7 @@ int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
                 }
 
                 socket_close(sock);
+
                 std::cerr << "failed to send chunk." << std::endl;
                 return 1;
             }
@@ -459,6 +483,7 @@ int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
         if (!response.Headers.contains("location"))
         {
             std::cerr << response.Headers << std::endl;
+
             std::cerr << "missing location header in redirect response." << std::endl;
             return 1;
         }

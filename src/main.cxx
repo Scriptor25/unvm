@@ -137,6 +137,7 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
     }
 
     default:
+        std::cerr << "operation not implemented." << std::endl;
         return 1;
     }
 }
@@ -152,13 +153,14 @@ static int execute(const std::string &version, const std::filesystem::path &exec
     args.push_back(nullptr);
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
-    execvp(exec_path.c_str(), args.data());
+    execvp(exec_path_str.data(), args.data());
 #endif
 
 #if defined(SYSTEM_WINDOWS)
 #error not supported yet
 #endif
 
+    std::cerr << "failed to execute '" << exec_path.string() << "'." << std::endl;
     return 1;
 }
 
@@ -174,17 +176,20 @@ int main(const int argc, char **argv)
         return error;
     }
 
-    std::optional<std::string> maybe_version;
-    unvm::FindActiveVersion(maybe_version);
-
-    if (!maybe_version && config.Default)
+    std::optional<std::string> maybe_active;
+    if (const auto error = unvm::FindActiveVersion(maybe_active))
     {
-        maybe_version = *config.Default;
+        return error;
     }
 
-    if (maybe_version)
+    if (!maybe_active && config.Default)
     {
-        const auto set = unvm::semver::ParseRangeSet(*maybe_version);
+        maybe_active = *config.Default;
+    }
+
+    if (maybe_active)
+    {
+        const auto set = unvm::semver::ParseRangeSet(*maybe_active);
 
         unvm::VersionTable table;
         if (const auto error = unvm::LoadVersionTable(client, table, false))
@@ -219,7 +224,7 @@ int main(const int argc, char **argv)
         return unvm::WriteConfigFile(config);
     }
 
-    if (!maybe_version)
+    if (!maybe_active)
     {
         std::cerr << "node is not active in the current context." << std::endl;
         return 1;
@@ -227,7 +232,7 @@ int main(const int argc, char **argv)
 
     if (!config.Active)
     {
-        const auto set = unvm::semver::ParseRangeSet(*maybe_version);
+        const auto set = unvm::semver::ParseRangeSet(*maybe_active);
 
         unvm::VersionTable table;
         if (const auto error = unvm::LoadVersionTable(client, table, true))
@@ -242,7 +247,7 @@ int main(const int argc, char **argv)
                 continue;
             }
 
-            if (const auto error = unvm::Install(config, client, *maybe_version, entry))
+            if (const auto error = unvm::Install(config, client, *maybe_active, entry))
             {
                 return error;
             }

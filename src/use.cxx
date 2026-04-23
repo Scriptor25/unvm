@@ -5,12 +5,15 @@
 
 int unvm::Use(Config &config, http::HttpClient &client, const std::string_view version, const bool local)
 {
-    VersionType type{};
     std::optional<std::string> active;
+    VersionType type;
 
     if (local)
     {
-        type = FindActiveVersion(active);
+        if (const auto error = FindActiveVersion(active, &type))
+        {
+            return error;
+        }
     }
     else if (config.Default)
     {
@@ -28,6 +31,7 @@ int unvm::Use(Config &config, http::HttpClient &client, const std::string_view v
         if (!local)
         {
             config.Default = std::nullopt;
+            config.Dirty = true;
             return 0;
         }
 
@@ -72,6 +76,7 @@ int unvm::Use(Config &config, http::HttpClient &client, const std::string_view v
     if (!local)
     {
         config.Default = entry->Version;
+        config.Dirty = true;
         return 0;
     }
 

@@ -200,8 +200,13 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
 
     if (archive_checksum != checksum)
     {
-        std::cerr << "checksum mismatch, archive checksum '" << archive_checksum << "' does not match '" << checksum <<
-                "'." << std::endl;
+        std::cerr
+                    << "checksum mismatch, archive checksum '"
+                    << archive_checksum
+                    << "' does not match '"
+                    << checksum
+                    << "'."
+                    << std::endl;
         return 1;
     }
 
@@ -246,6 +251,7 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
     }
 
     config.Installed.emplace(entry.Version);
+    config.Dirty = true;
     return 0;
 }
 
