@@ -157,7 +157,7 @@ static int execute(const std::string &version, const std::filesystem::path &exec
 #endif
 
 #if defined(SYSTEM_WINDOWS)
-#error not supported yet
+    _execvp(exec_path_str.data(), args.data());
 #endif
 
     std::cerr << "failed to execute '" << exec_path.string() << "'." << std::endl;

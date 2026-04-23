@@ -27,11 +27,11 @@ int unvm::List(const Config &config, http::HttpClient &client, const bool availa
         {
             out
                     << (config.Active == entry.Version ? "*" : "")
-                    << entry.Lts.value_or({})
+                    << entry.Lts.value_or(std::string())
                     << entry.Version
-                    << entry.Npm.value_or({})
+                    << entry.Npm.value_or(std::string())
                     << entry.Date
-                    << entry.Modules.value_or({});
+                    << entry.Modules.value_or(std::string());
         }
     }
 
