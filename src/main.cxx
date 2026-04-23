@@ -13,6 +13,7 @@
 #endif
 
 #if defined(SYSTEM_WINDOWS)
+#include <process.h>
 #include <windows.h>
 #endif
 
