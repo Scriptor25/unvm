@@ -143,6 +143,15 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
     }
 }
 
+static void print_file_tree(const std::filesystem::path &path, const unsigned depth = {})
+{
+    std::cerr << std::string(depth * 2, ' ') << "+- " << path.filename().string() << std::endl;
+
+    if (is_directory(path))
+        for (auto &entry : std::filesystem::directory_iterator(path))
+            print_file_tree(entry.path(), depth + 1);
+}
+
 static int execute(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
 {
     const auto data_directory = unvm::GetDataDirectory();
@@ -165,7 +174,14 @@ static int execute(const std::string &version, const std::filesystem::path &exec
 
 #if defined(SYSTEM_WINDOWS)
 
-    std::cerr << "debug: exists=" << (std::filesystem::exists(exec_path) ? "true" : "false") << ", absolute=" << std::filesystem::absolute(exec_path) << std::endl;
+    std::cerr
+            << "debug: exists="
+            << (std::filesystem::exists(exec_path) ? "true" : "false")
+            << ", absolute="
+            << std::filesystem::absolute(exec_path)
+            << std::endl;
+
+    print_file_tree(data_directory);
 
     auto cmdline = '"' + exec_path_str + '"';
     for (auto i = 1; i < argc; ++i)
