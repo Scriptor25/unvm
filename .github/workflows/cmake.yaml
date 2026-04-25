@@ -8,10 +8,6 @@ on:
     tags:
       - "release/*"
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   build:
     name: "${{ matrix.os }} | ${{ matrix.toolchain }}"
@@ -95,6 +91,7 @@ jobs:
           else
             echo "version=0.0.0" >> "$GITHUB_OUTPUT"
           fi
+        shell: bash
 
       - name: Setup vcpkg
         id: vcpkg
@@ -120,14 +117,16 @@ jobs:
 
       - name: Build
         run: cmake --build build --config Release --parallel
+        shell: bash
 
       - name: Install
-        run: |
-          cmake --install build --config Release --prefix build/install
+        run: cmake --install build --config Release --prefix build/install
+        shell: bash
 
       - name: Test (help)
         run: |
           ./build/install/bin/unvm
+        shell: bash
 
       - name: Test (list)
         run: |
@@ -137,6 +136,7 @@ jobs:
           ./build/install/bin/unvm l available
           ./build/install/bin/unvm ls
           ./build/install/bin/unvm la
+        shell: bash
 
       - name: Test (integration, global)
         run: |
@@ -145,6 +145,7 @@ jobs:
           ./build/install/bin/node --version
           ./build/install/bin/unvm use none
           ./build/install/bin/unvm remove latest
+        shell: bash
 
       - name: Test (integration, local)
         run: |
@@ -153,6 +154,7 @@ jobs:
           ./build/install/bin/node --version
           ./build/install/bin/unvm use none local
           ./build/install/bin/unvm remove latest
+        shell: bash
 
       - name: Test (integration, package)
         run: |
@@ -163,12 +165,14 @@ jobs:
           rm package.json
           cd ..
           rmdir test
+        shell: bash
 
       - name: Package
         run: |
           mkdir dist
           cd dist
           cpack --config ../build/CPackConfig.cmake -D CPACK_PACKAGE_FILE_NAME=dist
+        shell: bash
 
       - name: Upload Packages
         if: github.ref_type == 'tag'
@@ -186,5 +190,6 @@ jobs:
             echo "Upload $target to ${{ github.ref_name }}"
             gh release upload ${{ github.ref_name }} "$target" --clobber
           done
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
