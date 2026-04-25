@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.28)
 
 project(unvm
-    LANGUAGES C CXX
-    VERSION "${UNVM_PROJECT_VERSION}"
+        LANGUAGES C CXX
+        VERSION "${UNVM_PROJECT_VERSION}"
 )
 
 set(PROJECT_NAME "UNVM")
@@ -42,14 +42,14 @@ set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
 set(CA_BUNDLE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/ca-bundle.h)
 
 add_custom_command(
-    OUTPUT ${CA_BUNDLE_OUTPUT}
-    COMMAND xxd -i -n ca_bundle_data ${CA_BUNDLE_INPUT} ${CA_BUNDLE_OUTPUT}
-    DEPENDS ${CA_BUNDLE_INPUT}
-    COMMENT "embedding ca-bundle.crt with xxd"
+        OUTPUT ${CA_BUNDLE_OUTPUT}
+        COMMAND xxd -i -n ca_bundle_data ${CA_BUNDLE_INPUT} ${CA_BUNDLE_OUTPUT}
+        DEPENDS ${CA_BUNDLE_INPUT}
+        COMMENT "embedding ca-bundle.crt with xxd"
 )
 add_custom_target(ca_bundle_h DEPENDS ${CA_BUNDLE_OUTPUT})
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY) 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
@@ -59,16 +59,16 @@ add_dependencies(unvm ca_bundle_h)
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
 target_link_libraries(unvm PRIVATE
-    json
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    LibArchive::LibArchive
-    ZLIB::ZLIB
+        json
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        LibArchive::LibArchive
+        ZLIB::ZLIB
 )
 
 target_compile_definitions(unvm PRIVATE
-    "SYSTEM_${PLATFORM_SYSTEM_NAME}"
-    "ARCH_${PLATFORM_SYSTEM_PROCESSOR}"
+        "SYSTEM_${PLATFORM_SYSTEM_NAME}"
+        "ARCH_${PLATFORM_SYSTEM_PROCESSOR}"
 )
 
 ### Platform Config ###
@@ -85,70 +85,70 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 if (WIN32)
     target_link_libraries(unvm PRIVATE
-        ws2_32
-        bcrypt
-        xmllite
-        uuid
-        kernel32
-        user32
-        gdi32
-        winspool
-        shell32
-        ole32
-        oleaut32
-        comdlg32
-        advapi32
-        crypt32
+            ws2_32
+            bcrypt
+            xmllite
+            uuid
+            kernel32
+            user32
+            gdi32
+            winspool
+            shell32
+            ole32
+            oleaut32
+            comdlg32
+            advapi32
+            crypt32
     )
 endif ()
 
 if (MINGW)
     target_link_options(unvm PRIVATE
-        -static-libgcc
-        -static-libstdc++
+            -static-libgcc
+            -static-libstdc++
     )
 endif ()
 
 ### Install Config ###
 
-set(COMMON_LICENSE_FILES 
-    "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
-    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt"
-    "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.txt"
+set(COMMON_LICENSE_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt"
+        "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.txt"
 )
 
 if (WIN32)
     install(TARGETS unvm
-        RUNTIME_DEPENDENCIES
+            RUNTIME_DEPENDENCIES
             PRE_EXCLUDE_REGEXES
-                "api-ms-win-.*"
-                "ext-ms-.*"
-                "kernel32\\.dll"
-                "user32\\.dll"
-                "gdi32\\.dll"
-                "advapi32\\.dll"
-                "shell32\\.dll"
-                "ole32\\.dll"
-                "oleaut32\\.dll"
-                "ws2_32\\.dll"
-                "ntdll\\.dll"
+            "api-ms-win-.*"
+            "ext-ms-.*"
+            "kernel32\\.dll"
+            "user32\\.dll"
+            "gdi32\\.dll"
+            "advapi32\\.dll"
+            "shell32\\.dll"
+            "ole32\\.dll"
+            "oleaut32\\.dll"
+            "ws2_32\\.dll"
+            "ntdll\\.dll"
             POST_EXCLUDE_REGEXES
-                ".*system32/.*"
-                ".*System32/.*"
-        RUNTIME DESTINATION bin
+            ".*system32/.*"
+            ".*System32/.*"
+            RUNTIME DESTINATION bin
     )
-    
+
     install(FILES ${COMMON_LICENSE_FILES} DESTINATION "licenses")
 elseif (APPLE)
     install(TARGETS unvm
-        RUNTIME_DEPENDENCIES
-        FRAMEWORK DESTINATION lib
+            RUNTIME_DEPENDENCIES
+            FRAMEWORK DESTINATION lib
     )
 
     install(FILES ${COMMON_LICENSE_FILES} DESTINATION "unvm.app/Contents/Resources")
 elseif (UNIX)
     install(TARGETS unvm)
-    
+
     install(FILES ${COMMON_LICENSE_FILES} DESTINATION "share/doc/unvm/licenses")
 endif ()
 
@@ -156,12 +156,14 @@ install(SCRIPT "cmake/create_links.cmake")
 
 if (ENABLE_COMPLETIONS)
     install(FILES completions/unvm-completion.sh
-        DESTINATION share/bash-completion/completions
-        RENAME unvm
+            DESTINATION share/bash-completion/completions
+            RENAME unvm
     )
 endif ()
 
 ### CPack Config ###
+
+include(CPack)
 
 set(CPACK_PACKAGE_VENDOR "Scriptor25")
 set(CPACK_PACKAGE_DESCRIPTION_FILE)
@@ -180,5 +182,3 @@ elseif (UNIX)
 
     string(APPEND CPACK_GENERATOR ";STGZ;RPM")
 endif ()
-
-include(CPack)

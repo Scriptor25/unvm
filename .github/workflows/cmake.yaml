@@ -116,7 +116,51 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
 
-      - name: Install and Package
+      - name: Install
+        run: |
+          cmake --install build --config Release --prefix build/install
+
+      - name: Test (help)
+        run: |
+          ./build/install/unvm
+
+      - name: Test (list)
+        run: |
+          ./build/install/unvm list
+          ./build/install/unvm list available
+          ./build/install/unvm l
+          ./build/install/unvm l available
+          ./build/install/unvm ls
+          ./build/install/unvm la
+
+      - name: Test (integration, global)
+        run: |
+          ./build/install/unvm install latest
+          ./build/install/unvm use latest
+          ./build/install/node --version
+          ./build/install/unvm use none
+          ./build/install/unvm remove latest
+
+      - name: Test (integration, local)
+        run: |
+          ./build/install/unvm install latest
+          ./build/install/unvm use latest local
+          ./build/install/node --version
+          ./build/install/unvm use none local
+          ./build/install/unvm remove latest
+
+      - name: Test (integration, package)
+        run: |
+          mkdir test
+          cd test
+          cat '{"name":"test","version":"1.0.0","engines":{"node":">=18 <21"}}' > package.json
+          ../build/install/node --version
+          rm package.json
+          cd ..
+          rmdir test
+        shell: bash
+
+      - name: Package
         run: |
           mkdir dist
           cd dist
