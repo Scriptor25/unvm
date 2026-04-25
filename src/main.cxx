@@ -156,78 +156,38 @@ static int execute(const std::string &version, const std::filesystem::path &exec
 {
     const auto data_directory = unvm::GetDataDirectory();
 
-    const auto exec_path = data_directory / version / "bin" / exec.filename();
-    const auto exec_path_str = exec_path.string();
-
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-    std::vector<char *> args{ argv, argv + argc };
-    args[0] = const_cast<char *>(exec_path_str.c_str());
-    args.push_back(nullptr);
-
-    execvp(exec_path_str.c_str(), args.data());
-
-    std::cerr << "failed to execute '" << exec_path_str << "': " << std::strerror(errno) << "." << std::endl;
-    return 1;
+    const auto exec_path = data_directory / version / "bin" / exec.filename();
 
 #endif
 
 #if defined(SYSTEM_WINDOWS)
 
-    std::cerr
-            << "debug: exists="
-            << (std::filesystem::exists(exec_path) ? "true" : "false")
-            << ", absolute="
-            << std::filesystem::absolute(exec_path)
-            << std::endl;
-
-    print_file_tree(data_directory);
-
-    auto cmdline = '"' + exec_path_str + '"';
-    for (auto i = 1; i < argc; ++i)
-    {
-        cmdline += " \"";
-        cmdline += argv[i];
-        cmdline += "\"";
-    }
-
-    STARTUPINFOA si{};
-    si.cb = sizeof(si);
-
-    PROCESS_INFORMATION pi{};
-
-    auto pwd = exec_path.parent_path().string();
-
-    auto success = CreateProcessA(
-        nullptr,
-        &cmdline[0],
-        nullptr,
-        nullptr,
-        false,
-        0,
-        nullptr,
-        nullptr,
-        &si,
-        &pi);
-
-    if (!success)
-    {
-        auto err = GetLastError();
-        std::cerr << "failed to execute '" << exec_path_str << "': " << err << std::endl;
-        return 1;
-    }
-
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    DWORD code{};
-    GetExitCodeProcess(pi.hProcess, &code);
-
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-
-    return static_cast<int>(code);
+    const auto exec_path = data_directory / version / exec.filename();
 
 #endif
+
+    const auto exec_path_str = exec_path.string();
+
+    std::vector<char *> args{ argv, argv + argc };
+    args[0] = const_cast<char *>(exec_path_str.c_str());
+    args.push_back(nullptr);
+
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+
+    execvp(exec_path_str.c_str(), args.data());
+
+#endif
+
+#if defined(SYSTEM_WINDOWS)
+
+    _execvp(exec_path_str.c_str(), args.data());
+
+#endif
+
+    std::cerr << "failed to execute '" << exec_path_str << "': " << std::strerror(errno) << "." << std::endl;
+    return 1;
 }
 
 int main(const int argc, char **argv)
