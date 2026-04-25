@@ -168,7 +168,9 @@ static int execute(const std::string &version, const std::filesystem::path &exec
     auto cmdline = '"' + exec_path_str + '"';
     for (auto i = 1; i < argc; ++i)
     {
-        cmdline += " \"" + argv[i] + '"';
+        cmdline += " \"";
+        cmdline += argv[i];
+        cmdline += "\"";
     }
 
     STARTUPINFOA si{};
