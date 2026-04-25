@@ -182,7 +182,7 @@ static int execute(const std::string &version, const std::filesystem::path &exec
 
     auto success = CreateProcessA(
         exec_path_str.c_str(),
-        cmdline.c_str(),
+        const_cast<char *>(cmdline.c_str()),
         nullptr,
         nullptr,
         false,
