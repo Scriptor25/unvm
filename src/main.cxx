@@ -145,32 +145,69 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
 
 static int execute(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
 {
-    auto exec_name = exec.filename().string();
-#if defined(SYSTEM_WINDOWS)
-    if (!exec_name.ends_with(".exe"))
-    {
-        exec_name += ".exe";
-    }
-#endif
-
     const auto data_directory = unvm::GetDataDirectory();
-    const auto exec_path = data_directory / version / "bin" / exec_name;
-    auto exec_path_str = exec_path.string();
 
-    std::vector<char *> args{ argv, argv + argc };
-    args[0] = exec_path_str.data();
-    args.push_back(nullptr);
+    const auto exec_path = data_directory / version / "bin" / exec.filename();
+    const auto exec_path_str = exec_path.string();
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
-    execvp(exec_path_str.data(), args.data());
+
+    std::vector<char *> args{ argv, argv + argc };
+    args[0] = const_cast<char *>(exec_path_str.c_str());
+    args.push_back(nullptr);
+
+    execvp(exec_path_str.c_str(), args.data());
+
+    std::cerr << "failed to execute '" << exec_path_str << "': " << std::strerror(errno) << "." << std::endl;
+    return 1;
+
 #endif
 
 #if defined(SYSTEM_WINDOWS)
-    _execvp(exec_path_str.data(), args.data());
-#endif
 
-    std::cerr << "failed to execute '" << exec_path.string() << "': " << std::strerror(errno) << "." << std::endl;
-    return 1;
+    auto cmdline = '"' + exec_path_str + '"';
+    for (auto i = 1; i < argc; ++i)
+    {
+        cmdline += " \"" + argv[i] + '"';
+    }
+
+    STARTUPINFOA si{};
+    si.cb = sizeof(si);
+
+    PROCESS_INFORMATION pi{};
+
+    auto pwd = exec_path.parent_path().string();
+
+    auto success = CreateProcessA(
+        exec_path_str.c_str(),
+        cmdline.c_str(),
+        nullptr,
+        nullptr,
+        false,
+        0,
+        nullptr,
+        nullptr,
+        &si,
+        &pi);
+
+    if (!success)
+    {
+        auto err = GetLastError();
+        std::cerr << "failed to execute '" << exec_path_str << "': " << err << std::endl;
+        return 1;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD code{};
+    GetExitCodeProcess(pi.hProcess, &code);
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return static_cast<int>(code);
+
+#endif
 }
 
 int main(const int argc, char **argv)
