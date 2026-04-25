@@ -1,12 +1,12 @@
 #include <unvm/config.hxx>
-#include <unvm/json.hxx>
+#include <unvm/semver.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 #include <unvm/http/http.hxx>
 
+#include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <unvm/semver.hxx>
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 #include <unistd.h>
@@ -145,8 +145,16 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
 
 static int execute(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
 {
+    auto exec_name = exec.filename().string();
+#if defined(SYSTEM_WINDOWS)
+    if (!exec_name.ends_with(".exe"))
+    {
+        exec_name += ".exe";
+    }
+#endif
+
     const auto data_directory = unvm::GetDataDirectory();
-    const auto exec_path = data_directory / version / "bin" / exec.filename();
+    const auto exec_path = data_directory / version / "bin" / exec_name;
     auto exec_path_str = exec_path.string();
 
     std::vector<char *> args{ argv, argv + argc };
@@ -161,7 +169,7 @@ static int execute(const std::string &version, const std::filesystem::path &exec
     _execvp(exec_path_str.data(), args.data());
 #endif
 
-    std::cerr << "failed to execute '" << exec_path.string() << "'." << std::endl;
+    std::cerr << "failed to execute '" << exec_path.string() << "': " << std::strerror(errno) << "." << std::endl;
     return 1;
 }
 
