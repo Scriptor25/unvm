@@ -8,6 +8,10 @@ on:
     tags:
       - "release/*"
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: "${{ matrix.os }} | ${{ matrix.toolchain }}"
@@ -91,7 +95,6 @@ jobs:
           else
             echo "version=0.0.0" >> "$GITHUB_OUTPUT"
           fi
-        shell: bash
 
       - name: Setup vcpkg
         id: vcpkg
@@ -160,7 +163,6 @@ jobs:
           rm package.json
           cd ..
           rmdir test
-        shell: bash
 
       - name: Package
         run: |
@@ -184,6 +186,5 @@ jobs:
             echo "Upload $target to ${{ github.ref_name }}"
             gh release upload ${{ github.ref_name }} "$target" --clobber
           done
-        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
