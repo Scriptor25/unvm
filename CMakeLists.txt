@@ -163,8 +163,6 @@ endif ()
 
 ### CPack Config ###
 
-include(CPack)
-
 set(CPACK_PACKAGE_VENDOR "Scriptor25")
 set(CPACK_PACKAGE_DESCRIPTION_FILE)
 set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
@@ -182,3 +180,5 @@ elseif (UNIX)
 
     string(APPEND CPACK_GENERATOR ";STGZ;RPM")
 endif ()
+
+include(CPack)
