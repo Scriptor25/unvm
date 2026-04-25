@@ -1,18 +1,28 @@
 #pragma once
 
 #include <filesystem>
-#include <istream>
 #include <map>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace unvm
 {
-    int AppendUserPath(std::filesystem::path directory);
+    struct Config;
 
-    int CreateLink(const std::filesystem::path &link, const std::filesystem::path &target);
-    int RemoveLink(const std::filesystem::path &link);
+    namespace http
+    {
+        class HttpClient;
+    }
+
+    enum class VersionType
+    {
+        Default,
+        Package,
+        Exact,
+    };
 
     std::filesystem::path GetDataDirectory();
 
@@ -20,6 +30,20 @@ namespace unvm
 
     std::string Trim(std::string string);
     std::string Lower(std::string string);
+
+    std::vector<std::string> Split(const std::string &str, char delim);
+    std::string Join(const std::vector<std::string> &vec, char delim);
+
+    int ReadConfigFile(Config &config);
+    int WriteConfigFile(const Config &config);
+
+    int FindActiveVersion(std::optional<std::string> &version, VersionType *type = {});
+
+    bool FindVersionFile(std::filesystem::path &path);
+
+    int ReadVersionFile(std::optional<std::string> &version);
+    int WriteVersionFile(const std::string &version);
+    int RemoveVersionFile();
 }
 
 template<typename K, typename V>

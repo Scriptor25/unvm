@@ -5,7 +5,6 @@
 #include <unvm/http/http.hxx>
 
 #include <filesystem>
-#include <istream>
 #include <string_view>
 
 namespace unvm
@@ -21,13 +20,9 @@ namespace unvm
     int Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry);
     int Install(Config &config, http::HttpClient &client, std::string_view version);
 
-    int Remove(Config &config, std::string_view version, const VersionEntry &entry);
     int Remove(Config &config, http::HttpClient &client, std::string_view version);
-    
-    int Use(Config &config, const std::string_view &version, const VersionEntry &entry);
-    int Use(Config &config, http::HttpClient &client, std::string_view version);
 
-    int List(Config &config, http::HttpClient &client, const bool available);
+    int Use(Config &config, http::HttpClient &client, std::string_view version, bool local);
 
-    int Workspace(Config &config, http::HttpClient &client);
+    int List(const Config &config, http::HttpClient &client, bool available);
 }

@@ -22,12 +22,6 @@ struct data::serializer<unvm::Config>
 };
 
 template<>
-struct data::serializer<unvm::StringOrFalse>
-{
-    static bool from_data(const json::Node &node, unvm::StringOrFalse &value);
-};
-
-template<>
 struct data::serializer<unvm::VersionEntry>
 {
     static bool from_data(const json::Node &node, unvm::VersionEntry &value);

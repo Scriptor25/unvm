@@ -3,11 +3,11 @@
 
 #include <iostream>
 
-int unvm::List(Config &config, http::HttpClient &client, const bool available)
+int unvm::List(const Config &config, http::HttpClient &client, const bool available)
 {
     Table out(
         {
-            { "", true },
+            { {}, false },
             { "Lts", true },
             { "Version", true },
             { "Npm", true },
@@ -26,12 +26,12 @@ int unvm::List(Config &config, http::HttpClient &client, const bool available)
         if (available || config.Installed.contains(entry.Version))
         {
             out
-                    << (config.Active.has_value() && config.Active.value() == entry.Version ? "*" : "")
-                    << (entry.Lts.HasValue ? entry.Lts.Value : "")
+                    << (config.Active == entry.Version ? "*" : "")
+                    << entry.Lts.value_or(std::string())
                     << entry.Version
-                    << (entry.Npm.has_value() ? entry.Npm.value() : "")
+                    << entry.Npm.value_or(std::string())
                     << entry.Date
-                    << (entry.Modules.has_value() ? entry.Modules.value() : "");
+                    << entry.Modules.value_or(std::string());
         }
     }
 

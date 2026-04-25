@@ -1,11 +1,21 @@
 #include <unvm/config.hxx>
-#include <unvm/json.hxx>
+#include <unvm/semver.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 #include <unvm/http/http.hxx>
 
-#include <fstream>
+#include <cstring>
+#include <filesystem>
 #include <iostream>
+
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+#include <unistd.h>
+#endif
+
+#if defined(SYSTEM_WINDOWS)
+#include <process.h>
+#include <windows.h>
+#endif
 
 constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
 constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
@@ -15,7 +25,6 @@ constexpr auto INSTALL_BITS = 0b00000001u;
 constexpr auto REMOVE_BITS = 0b00000010u;
 constexpr auto USE_BITS = 0b00000100u;
 constexpr auto LIST_BITS = 0b00001000u;
-constexpr auto WORKSPACE_BITS = 0b00010000u;
 
 constexpr auto LIST_MOD_INSTALLED_BITS = 0b0000000000000000u;
 constexpr auto LIST_MOD_AVAILABLE_BITS = 0b0001000000000000u;
@@ -38,11 +47,9 @@ static const std::map<std::string_view, unsigned> operation_map
     { "l", LIST_BITS },
     { "ls", MOD_PRESENT_BITS | LIST_MOD_INSTALLED_BITS | LIST_BITS },
     { "la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS },
-    { "workspace", WORKSPACE_BITS },
-    { "w", WORKSPACE_BITS },
 };
 
-static int execute(const std::vector<std::string_view> &args)
+static int execute(unvm::Config &config, unvm::http::HttpClient &client, const std::vector<std::string_view> &args)
 {
     if (args.empty())
     {
@@ -50,36 +57,14 @@ static int execute(const std::vector<std::string_view> &args)
         return 0;
     }
 
-    if (!operation_map.contains(args[0]))
+    const auto it = operation_map.find(args[0]);
+    if (it == operation_map.end())
     {
         std::cerr << "undefined operation '" << args[0] << "'." << std::endl;
         return 1;
     }
 
-    auto operation = operation_map.at(args[0]);
-
-    unvm::Config config;
-    if (std::ifstream stream(unvm::GetDataDirectory() / "config.json"); stream)
-    {
-        json::Node json;
-        stream >> json;
-
-        if (!(json >> config))
-        {
-            std::cerr << "failed to parse config json." << std::endl;
-            return 1;
-        }
-    }
-    else
-    {
-        config.InstallDirectory = unvm::GetDataDirectory() / "version";
-        config.ActiveDirectory = unvm::GetDataDirectory() / "active";
-    }
-
-    unvm::http::HttpClient client;
-
-    int code;
-    switch (operation & OPERATION_BITS)
+    switch (const auto operation = it->second; operation & OPERATION_BITS)
     {
     case INSTALL_BITS:
         if (args.size() != 2)
@@ -87,8 +72,7 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Install(config, client, args[1]);
-        break;
+        return Install(config, client, args[1]);
 
     case REMOVE_BITS:
         if (args.size() != 2)
@@ -96,17 +80,24 @@ static int execute(const std::vector<std::string_view> &args)
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Remove(config, client, args[1]);
-        break;
+        return Remove(config, client, args[1]);
 
     case USE_BITS:
-        if (args.size() != 2)
+        switch (args.size())
         {
+        case 2:
+            return Use(config, client, args[1], false);
+        case 3:
+            if (args[2] != "local")
+            {
+                std::cerr << "invalid use modifier '" << args[2] << "'." << std::endl;
+                return 1;
+            }
+            return Use(config, client, args[1], true);
+        default:
             std::cerr << "invalid argument count." << std::endl;
             return 1;
         }
-        code = Use(config, client, args[1]);
-        break;
 
     case LIST_BITS:
     {
@@ -143,42 +134,165 @@ static int execute(const std::vector<std::string_view> &args)
             }
         }
 
-        code = List(config, client, available);
-        break;
+        return List(config, client, available);
     }
-
-    case WORKSPACE_BITS:
-        if (args.size() != 1)
-        {
-            std::cerr << "invalid argument count." << std::endl;
-            return 1;
-        }
-        code = Workspace(config, client);
-        break;
 
     default:
-        code = 1;
-        break;
+        std::cerr << "operation not implemented." << std::endl;
+        return 1;
     }
-
-    {
-        auto parent = unvm::GetDataDirectory();
-        std::filesystem::create_directories(parent);
-
-        std::ofstream stream(parent / "config.json");
-        if (!stream)
-        {
-            std::cerr << "failed to open config." << std::endl;
-            return 1;
-        }
-
-        stream << json::Node(config);
-    }
-
-    return code;
 }
 
-int main(const int argc, const char *const *argv)
+static void print_file_tree(const std::filesystem::path &path, const unsigned depth = {})
 {
-    return execute({ argv + 1, argv + argc });
+    std::cerr << std::string(depth * 2, ' ') << "+- " << path.filename().string() << std::endl;
+
+    if (is_directory(path))
+        for (auto &entry : std::filesystem::directory_iterator(path))
+            print_file_tree(entry.path(), depth + 1);
+}
+
+static int execute(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
+{
+    const auto data_directory = unvm::GetDataDirectory();
+
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+
+    const auto exec_path = data_directory / version / "bin" / exec.filename();
+
+#endif
+
+#if defined(SYSTEM_WINDOWS)
+
+    const auto exec_path = data_directory / version / exec.filename();
+
+#endif
+
+    const auto exec_path_str = exec_path.string();
+
+    std::vector<char *> args{ argv, argv + argc };
+    args[0] = const_cast<char *>(exec_path_str.c_str());
+    args.push_back(nullptr);
+
+#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+
+    execvp(exec_path_str.c_str(), args.data());
+
+#endif
+
+#if defined(SYSTEM_WINDOWS)
+
+    _execvp(exec_path_str.c_str(), args.data());
+
+#endif
+
+    std::cerr << "failed to execute '" << exec_path_str << "': " << std::strerror(errno) << "." << std::endl;
+    return 1;
+}
+
+int main(const int argc, char **argv)
+{
+    const auto exec = std::filesystem::path(argv[0]);
+
+    unvm::Config config;
+    unvm::http::HttpClient client;
+
+    if (const auto error = unvm::ReadConfigFile(config))
+    {
+        return error;
+    }
+
+    std::optional<std::string> maybe_active;
+    if (const auto error = unvm::FindActiveVersion(maybe_active))
+    {
+        return error;
+    }
+
+    if (!maybe_active && config.Default)
+    {
+        maybe_active = *config.Default;
+    }
+
+    if (maybe_active)
+    {
+        const auto set = unvm::semver::ParseRangeSet(*maybe_active);
+
+        unvm::VersionTable table;
+        if (const auto error = unvm::LoadVersionTable(client, table, false))
+        {
+            return error;
+        }
+
+        for (auto &entry : table)
+        {
+            if (!config.Installed.contains(entry.Version))
+            {
+                continue;
+            }
+
+            if (!unvm::semver::IsInRange(set, entry.Version))
+            {
+                continue;
+            }
+
+            config.Active = entry.Version;
+            break;
+        }
+    }
+
+    if (exec.stem() == "unvm" || exec.stem() == "unvm.exe")
+    {
+        if (const auto error = execute(config, client, { argv + 1, argv + argc }))
+        {
+            return error;
+        }
+
+        return unvm::WriteConfigFile(config);
+    }
+
+    if (!maybe_active)
+    {
+        std::cerr << "node is not active in the current context." << std::endl;
+        return 1;
+    }
+
+    if (!config.Active)
+    {
+        const auto set = unvm::semver::ParseRangeSet(*maybe_active);
+
+        unvm::VersionTable table;
+        if (const auto error = unvm::LoadVersionTable(client, table, true))
+        {
+            return error;
+        }
+
+        for (auto &entry : table)
+        {
+            if (!unvm::semver::IsInRange(set, entry.Version))
+            {
+                continue;
+            }
+
+            if (const auto error = unvm::Install(config, client, *maybe_active, entry))
+            {
+                return error;
+            }
+
+            config.Active = entry.Version;
+            break;
+        }
+
+        if (!config.Active)
+        {
+            std::cerr << "no version matching '" << *config.Active << "'." << std::endl;
+            return 1;
+        }
+    }
+
+    if (const auto error = unvm::WriteConfigFile(config))
+    {
+        return error;
+    }
+
+    return execute(*config.Active, exec, argc, argv);
 }

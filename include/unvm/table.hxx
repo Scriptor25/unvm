@@ -13,8 +13,8 @@ namespace unvm
         {
             Column(std::string label, const bool left)
                 : Label(std::move(label)),
-                Width(Label.length()),
-                Left(left)
+                  Width(Label.length()),
+                  Left(left)
             {
             }
 

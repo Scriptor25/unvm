@@ -5,8 +5,9 @@ _unvm_completions() {
 
   word="${COMP_WORDS[COMP_CWORD]}"
 
-  commands="install i remove r use u list l ls la workspace w"
+  commands="install i remove r use u list l ls la workspace w export x"
   versions="latest lts none"
+  shells="sh bash zsh fish"
 
   if [[ ${COMP_CWORD} -eq 1 ]]; then
     COMPREPLY=( $(compgen -W "${commands}" -- ${word}) )
@@ -19,7 +20,12 @@ _unvm_completions() {
       ;;
     list|l)
       if [[ ${COMP_CWORD} -eq 2 ]]; then
-      COMPREPLY=( $(compgen -W "available" -- ${word}) )
+        COMPREPLY=( $(compgen -W "available" -- ${word}) )
+      fi
+      ;;
+    export|x)
+      if [[ ${COMP_CWORD} -eq 2 ]]; then
+        COMPREPLY=( $(compgen -W "${shells}" -- ${word}) )
       fi
       ;;
     *)

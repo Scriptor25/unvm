@@ -80,7 +80,7 @@ namespace unvm::semver
     class Parser final
     {
     public:
-        Parser(std::istream &stream);
+        explicit Parser(std::istream &stream);
 
         RangeSet Parse();
 
@@ -124,9 +124,11 @@ namespace unvm::semver
     };
 
     RangeSet ParseRangeSet(std::istream &stream);
-    RangeSet ParseRangeSet(std::string_view string);
+    RangeSet ParseRangeSet(std::string_view str);
+    RangeSet ParseRangeSet(const std::string &str);
 
     bool IsInRange(const RangeSet &set, std::string_view version);
+    bool IsInRange(const RangeSet &set, const std::string &version);
     bool IsInRange(const RangeSet &set, const Version &version);
 
     bool operator==(const Partial &a, const Partial &b);

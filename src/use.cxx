@@ -3,56 +3,54 @@
 
 #include <iostream>
 
-int unvm::Use(Config &config, const std::string_view &version, const VersionEntry &entry)
+int unvm::Use(Config &config, http::HttpClient &client, const std::string_view version, const bool local)
 {
-    if (config.Active.has_value())
-    {
-        if (config.Active.value() == entry.Version)
-        {
-            std::cerr << "version '" << version << "' is already installed and active." << std::endl;
-            return 0;
-        }
+    std::optional<std::string> active;
+    VersionType type;
 
-        if (const auto error = RemoveLink(config.ActiveDirectory))
+    if (local)
+    {
+        if (const auto error = FindActiveVersion(active, &type))
         {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
             return error;
         }
     }
-
-    if (const auto error = CreateLink(config.ActiveDirectory, config.InstallDirectory / entry.Version))
+    else if (config.Default)
     {
-        std::cerr << "failed to link new active version '" << version << "'." << std::endl;
-        return error;
+        active = *config.Default;
     }
 
-    if (const auto error = AppendUserPath(config.ActiveDirectory))
-    {
-        std::cerr << "failed to append active directory to user path variable." << std::endl;
-        return error;
-    }
-
-    config.Active = entry.Version;
-    return 0;
-}
-
-int unvm::Use(Config &config, http::HttpClient &client, std::string_view version)
-{
     if (version == "none")
     {
-        if (!config.Active.has_value())
+        if (!active)
         {
-            std::cerr << "node is already inactive." << std::endl;
+            std::cerr << "node is already not active in the current context." << std::endl;
             return 0;
         }
 
-        if (const auto error = RemoveLink(config.ActiveDirectory))
+        if (!local)
         {
-            std::cerr << "failed to un-link current active version '" << config.Active.value() << "'." << std::endl;
+            config.Default = std::nullopt;
+            config.Dirty = true;
+            return 0;
+        }
+
+        if (type == VersionType::Package)
+        {
+            std::cerr << "cannot use no version in the current context." << std::endl;
+            return 1;
+        }
+
+        if (type != VersionType::Exact)
+        {
+            return 0;
+        }
+
+        if (const auto error = RemoveVersionFile())
+        {
             return error;
         }
 
-        config.Active = std::nullopt;
         return 0;
     }
 
@@ -62,13 +60,25 @@ int unvm::Use(Config &config, http::HttpClient &client, std::string_view version
         return error;
     }
 
-    const auto entry_ptr = FindEffectiveVersion(table, version);
-
-    if (!entry_ptr || !config.Installed.contains(entry_ptr->Version))
+    const auto entry = FindEffectiveVersion(table, version);
+    if (!entry || !config.Installed.contains(entry->Version))
     {
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return 1;
     }
 
-    return Use(config, version, *entry_ptr);
+    if (active && *active == entry->Version)
+    {
+        std::cerr << "version '" << version << "' is already active in the current context." << std::endl;
+        return 0;
+    }
+
+    if (!local)
+    {
+        config.Default = entry->Version;
+        config.Dirty = true;
+        return 0;
+    }
+
+    return WriteVersionFile(entry->Version);
 }

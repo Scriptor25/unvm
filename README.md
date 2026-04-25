@@ -8,8 +8,7 @@
 
 ## About
 
-UNVM is a user-mode Node.js version manager. It does **not require administrative/root permissions**, which is useful
-for:
+UNVM is a user-mode Node.js version manager. It does **not require administrative/root permissions**, which is useful for:
 
 - Work devices with restricted access
 - Non-rooted mobile environments (e.g., Android with Termux)
@@ -47,46 +46,56 @@ Run without arguments to see available commands:
 unvm
 ```
 
-### Version names
+### Version Names
 
-* `latest` — latest version
-* `lts` — latest long-term-support version
-* `v<X>[.<Y>[.<Z>]]` — specific version
-* LTS by name, e.g., `Krypton` (case-insensitive)
+- `latest` — latest version
+- `lts` — latest long-term-support version
+- `<major>[.<minor>[.<patch>]]` — specific version
+- LTS by name, e.g., `Krypton` (case-insensitive)
 
 ### Commands
 
-| Command                 | Description                                                                                          |
-|-------------------------|------------------------------------------------------------------------------------------------------|
-| `list [available]`      | List installed or available versions. `*` marks the one currently active.                            |
-| `install <version>`     | Install the specified Node.js version.                                                               |
-| `remove <version>`      | Remove the specified Node.js version.                                                                |
-| `use <version> \| none` | Set active Node.js version, or `none` to deactivate.                                                 |
-| `workspace`             | Read package.json in current directory and automatically install and use a suitable Node.js version. |
+| Command                         | Description                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `list [available]`              | List installed or available versions. `*` marks the active version in the current context.                    |
+| `install <version>`             | Install the specified Node.js version.                                                                        |
+| `remove <version>`              | Remove the specified Node.js version.                                                                         |
+| `use <version> \| none [local]` | Set active Node.js version, or `none` to deactivate. Use `local` to only apply to the current directory tree. |
 
-## Configuration
+### Active Version
 
-By default, UNVM generates a configuration file to track installed versions and active instance:
+UNVM determines the active version for the current context using following steps:
+
+1.  if the current directory contains a file named `.unvm`, read it and use the exact version specified.
+2.  if the current directory contains a file named `package.json`, read it, parse the semver version specification from `engines.node`, and use the latest matching version.
+3.  if the current directory has a parent directory, move up one level and continue with step `1`
+4.  otherwise we have reached the file system root, so the global default version is used.
+
+> The `.unvm` file will only be created if you call `unvm use ... local` to manually use a specific version for a directory tree.
+
+## Files
+
+UNVM generates a configuration file to track installed and active versions:
 
 | Platform     | Path                                                                                               |
-|--------------|----------------------------------------------------------------------------------------------------|
+| ------------ | -------------------------------------------------------------------------------------------------- |
 | Windows      | `%APPDATA%\unvm\config.json`                                                                       |
-| Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$CWD/.unvm/config.json` |
+| Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$PWD/.unvm/config.json` |
 
-This file controls:
+In the same directory, a local copy of the file at https://nodejs.org/dist/index.json is stored to avoid having to stream it every time a version check happens. Also, the data directory contains a directory with the files for each installed version.
 
-* Installation paths for Node.js versions
-* Active instance linking
-* Current installed versions and active version
+## How does UNVM work
+
+The core mechanic used by UNVM are shims. It installs with symlinks or hardlinks for `node`, `npm` and `npx`, pointing to the `unvm` executable. Then, when they are executed, UNVM determines the active version for the current context and executes the real executable for that version. Also, the version will be installed automatically if it is not yet installed.
 
 ## License
 
-UNVM is released under the **MIT License**.  
+UNVM is released under the **MIT License**.
 See the installed [`LICENSE`](./LICENSE.txt) file for the full license text.
 
 ## Third-Party Software
 
-This project includes third-party software.  
+This project includes third-party software.
 See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file for full details and attributions.
 
 Included libraries:

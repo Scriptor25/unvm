@@ -2,6 +2,8 @@ name: CMake Multi-Platform Build
 
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
   push:
     tags:
       - "release/*"
@@ -115,8 +117,57 @@ jobs:
 
       - name: Build
         run: cmake --build build --config Release --parallel
+        shell: bash
 
-      - name: Install and Package
+      - name: Install
+        run: cmake --install build --config Release --prefix build/install
+        shell: bash
+
+      - name: Test (help)
+        run: |
+          ./build/install/bin/unvm
+        shell: bash
+
+      - name: Test (list)
+        run: |
+          ./build/install/bin/unvm list
+          ./build/install/bin/unvm list available
+          ./build/install/bin/unvm l
+          ./build/install/bin/unvm l available
+          ./build/install/bin/unvm ls
+          ./build/install/bin/unvm la
+        shell: bash
+
+      - name: Test (integration, global)
+        run: |
+          ./build/install/bin/unvm install latest
+          ./build/install/bin/unvm use latest
+          ./build/install/bin/node --version
+          ./build/install/bin/unvm use none
+          ./build/install/bin/unvm remove latest
+        shell: bash
+
+      - name: Test (integration, local)
+        run: |
+          ./build/install/bin/unvm install latest
+          ./build/install/bin/unvm use latest local
+          ./build/install/bin/node --version
+          ./build/install/bin/unvm use none local
+          ./build/install/bin/unvm remove latest
+        shell: bash
+
+      - name: Test (integration, package)
+        run: |
+          mkdir test
+          cd test
+          echo '{"name":"test","version":"1.0.0","engines":{"node":">=18 <21"}}' > package.json
+          ../build/install/bin/node --version
+          rm package.json
+          cd ..
+          rmdir test
+        shell: bash
+
+      - name: Package
         run: |
           mkdir dist
           cd dist

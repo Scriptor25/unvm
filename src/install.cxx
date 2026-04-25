@@ -6,14 +6,19 @@
 #include <iostream>
 #include <sstream>
 
-static int get_checksum(unvm::http::HttpClient &client, const unvm::VersionEntry &entry, const std::string &filename, const std::string &extension, std::string &checksum)
+static int get_checksum(
+    unvm::http::HttpClient &client,
+    const unvm::VersionEntry &entry,
+    const std::string &filename,
+    const std::string &extension,
+    std::string &checksum)
 {
     auto with_extension = filename + '.' + extension;
 
     auto pathname = std::format("/dist/{}/SHASUMS256.txt", entry.Version);
 
     std::stringstream stream(std::stringstream::in | std::stringstream::out);
-    
+
     unvm::http::HttpRequest request
     {
         .Method = unvm::http::HttpMethod::Get,
@@ -49,7 +54,7 @@ static int get_checksum(unvm::http::HttpClient &client, const unvm::VersionEntry
         return 1;
     }
 
-    for (std::string line; std::getline(stream, line); )
+    for (std::string line; std::getline(stream, line);)
     {
         line = unvm::Trim(std::move(line));
         if (line.empty())
@@ -195,15 +200,23 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
 
     if (archive_checksum != checksum)
     {
-        std::cerr << "checksum mismatch, archive checksum '" << archive_checksum << "' does not match '" << checksum << "'." << std::endl;
+        std::cerr
+                    << "checksum mismatch, archive checksum '"
+                    << archive_checksum
+                    << "' does not match '"
+                    << checksum
+                    << "'."
+                    << std::endl;
         return 1;
     }
 
-    if (std::error_code ec; std::filesystem::create_directories(config.InstallDirectory, ec), ec)
+    auto data_directory = GetDataDirectory();
+
+    if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
     {
         std::cerr
-                << "failed to create install directory '"
-                << config.InstallDirectory.string()
+                << "failed to create directory '"
+                << data_directory.string()
                 << "': "
                 << ec.message()
                 << " ("
@@ -213,19 +226,21 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
         return ec.value();
     }
 
-    if (const auto error = UnpackArchive(stream, config.InstallDirectory))
+    if (const auto error = UnpackArchive(stream, data_directory))
     {
         std::cerr << "failed to unpack archive." << std::endl;
         return error;
     }
 
-    if (std::error_code ec; std::filesystem::rename(config.InstallDirectory / filename, config.InstallDirectory / entry.Version, ec), ec)
+    auto from_path = data_directory / filename;
+    auto to_path = data_directory / entry.Version;
+    if (std::error_code ec; std::filesystem::rename(from_path, to_path, ec), ec)
     {
         std::cerr
                 << "failed to rename '"
-                << (config.InstallDirectory / filename).string()
+                << from_path.string()
                 << "' to '"
-                << (config.InstallDirectory / entry.Version).string()
+                << to_path.string()
                 << "': "
                 << ec.message()
                 << " ("
@@ -236,19 +251,20 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
     }
 
     config.Installed.emplace(entry.Version);
+    config.Dirty = true;
     return 0;
 }
 
-int unvm::Install(Config &config, http::HttpClient &client, std::string_view version)
+int unvm::Install(Config &config, http::HttpClient &client, const std::string_view version)
 {
     VersionTable table;
-    if (auto error = LoadVersionTable(client, table, true))
+    if (const auto error = LoadVersionTable(client, table, true))
     {
         std::cerr << "failed to load version table." << std::endl;
         return error;
     }
 
-    auto entry_ptr = FindEffectiveVersion(table, version);
+    const auto entry_ptr = FindEffectiveVersion(table, version);
     if (!entry_ptr)
     {
         std::cerr << "no effective version for '" << version << "'." << std::endl;
