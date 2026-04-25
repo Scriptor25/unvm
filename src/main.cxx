@@ -165,6 +165,8 @@ static int execute(const std::string &version, const std::filesystem::path &exec
 
 #if defined(SYSTEM_WINDOWS)
 
+    std::cerr << "debug: exists=" << (std::filesystem::exists(exec_path) ? "true" : "false") << ", absolute=" << std::filesystem::absolute(exec_path) << std::endl;
+
     auto cmdline = '"' + exec_path_str + '"';
     for (auto i = 1; i < argc; ++i)
     {
@@ -181,8 +183,8 @@ static int execute(const std::string &version, const std::filesystem::path &exec
     auto pwd = exec_path.parent_path().string();
 
     auto success = CreateProcessA(
-        exec_path_str.c_str(),
-        const_cast<char *>(cmdline.c_str()),
+        nullptr,
+        &cmdline[0],
         nullptr,
         nullptr,
         false,
