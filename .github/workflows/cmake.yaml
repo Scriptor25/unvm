@@ -5,12 +5,14 @@ on:
   pull_request:
     types: [ opened, synchronize, reopened ]
   push:
+    branches:
+      - main
     tags:
-      - "release/*"
+      - release/*
 
 jobs:
   build:
-    name: "${{ matrix.os }} | ${{ matrix.toolchain }}"
+    name: ${{ matrix.os }} | ${{ matrix.toolchain }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
