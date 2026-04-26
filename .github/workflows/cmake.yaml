@@ -134,13 +134,13 @@ jobs:
           CXX: ${{ matrix.cxx }}
         run: >
           cmake
-            -S .
-            -B build
-            -G "${{ matrix.generator || 'Ninja' }}"
-            -DCMAKE_BUILD_TYPE=Release
-            -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-            -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release
-            -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+          -S .
+          -B build
+          -G "${{ matrix.generator || 'Ninja' }}"
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release
+          -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
 
       - name: Build
         run: cmake --build build --config Release --parallel
