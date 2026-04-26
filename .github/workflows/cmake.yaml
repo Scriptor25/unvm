@@ -3,7 +3,7 @@ name: CMake Multi-Platform Build
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
   push:
     tags:
       - "release/*"
@@ -71,10 +71,9 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
-          fetch-depth: 0
 
       - name: Sanitize Version Name
         id: version-name
@@ -93,16 +92,43 @@ jobs:
           fi
         shell: bash
 
-      - name: Setup vcpkg
-        id: vcpkg
-        uses: johnwason/vcpkg-action@v7
-        with:
-          pkgs: libarchive openssl
-          triplet: ${{ matrix.triplet }}-release
-          token: ${{ github.token }}
-          cache-key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
+      - name: Clone vcpkg
+        run: git clone https://github.com/microsoft/vcpkg.git
 
-      - name: Configure CMake
+      - name: Cache vcpkg
+        uses: actions/cache@v5
+        with:
+          path: |
+            vcpkg/installed
+            vcpkg/downloads
+          key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-
+            vcpkg-${{ matrix.os }}-
+
+      - name: Bootstrap vcpkg
+        run: |
+          ./vcpkg/bootstrap-vcpkg.sh
+        shell: bash
+        if: runner.os != 'Windows'
+
+      - name: Bootstrap vcpkg (Windows)
+        run: |
+          .\vcpkg\bootstrap-vcpkg.bat
+        if: runner.os == 'Windows'
+
+      - name: Install dependencies
+        run: |
+          ./vcpkg/vcpkg install libarchive openssl --triplet ${{ matrix.triplet }}-release
+        shell: bash
+        if: runner.os != 'Windows'
+
+      - name: Install dependencies (Windows)
+        run: |
+          .\vcpkg\vcpkg install libarchive openssl --triplet ${{ matrix.triplet }}-release
+        if: runner.os == 'Windows'
+
+      - name: Configure cmake
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
@@ -112,8 +138,9 @@ jobs:
           -B build
           -G "${{ matrix.generator || 'Ninja' }}"
           -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release
           -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
-          ${{ steps.vcpkg.outputs.vcpkg-cmake-config }}
 
       - name: Build
         run: cmake --build build --config Release --parallel

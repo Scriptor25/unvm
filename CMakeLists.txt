@@ -31,7 +31,7 @@ message(STATUS "Processor: ${PLATFORM_SYSTEM_PROCESSOR}")
 
 ### Subdirectories ###
 
-add_subdirectory(deps/json)
+add_subdirectory(deps/toolkit)
 
 ### Targets ###
 
@@ -59,7 +59,7 @@ add_dependencies(unvm ca_bundle_h)
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
 target_link_libraries(unvm PRIVATE
-        json
+        toolkit::json
         OpenSSL::SSL
         OpenSSL::Crypto
         LibArchive::LibArchive
