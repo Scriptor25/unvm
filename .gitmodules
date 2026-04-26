@@ -1,4 +1,4 @@
 [submodule "json"]
 	path = deps/json
-	url = https://github.com/Scriptor25/json.git
+	url = https://github.com/Scriptor25/toolkit.git
 	branch = main
