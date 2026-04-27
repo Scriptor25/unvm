@@ -3,7 +3,7 @@ name: CMake Multi-Platform Build
 on:
   workflow_dispatch:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }} | ${{ matrix.toolchain }}
+    name: build - ${{ matrix.os }} | ${{ matrix.toolchain }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
@@ -82,11 +82,11 @@ jobs:
         if: github.ref_type == 'tag'
         run: |
           ref="${{ github.ref_name }}"
-          
+
           version="${ref##*/}"
           version="${version#v}"
           version=$(echo "$version" | sed 's/[^a-zA-Z0-9._-]/-/g')
-          
+
           if [[ "$version" =~ ^[0-9]+(\.[0-9]+)+([._-][A-Za-z0-9]+)?$ ]]; then
             echo "version=$version" >> "$GITHUB_OUTPUT"
           else
