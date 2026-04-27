@@ -35,7 +35,7 @@ add_subdirectory(deps/toolkit)
 
 ### Targets ###
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
