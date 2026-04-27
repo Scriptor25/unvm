@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    name: build - ${{ matrix.os }} | ${{ matrix.toolchain }}
+    name: ${{ matrix.os }} | ${{ matrix.toolchain }}
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: write
