@@ -102,7 +102,6 @@ jobs:
         with:
           path: |
             vcpkg/installed
-            vcpkg/downloads
           key: vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
           restore-keys: |
             vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-
@@ -127,6 +126,7 @@ jobs:
 
       - name: Install dependencies (Windows)
         run: |
+          set VCPKG_BUILD_TYPE=release
           .\vcpkg\vcpkg install libarchive openssl --triplet ${{ matrix.triplet }}-release
         if: runner.os == 'Windows'
 
@@ -197,6 +197,7 @@ jobs:
         shell: bash
 
       - name: Package
+        if: github.ref_type == 'tag'
         run: |
           mkdir dist
           cd dist
