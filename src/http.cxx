@@ -8,6 +8,7 @@
 
 #include <ssl/ca-bundle.h>
 
+#include <charconv>
 #include <iostream>
 #include <istream>
 #include <memory>
@@ -446,7 +447,7 @@ int unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
     std::size_t content_length = ~0ULL;
     if (auto it = response.Headers.find("content-length"); it != response.Headers.end())
     {
-        auto [ptr, ec] = std::from_chars(it->second.data(), it->second.data() + it->second.size(), content_length);
+        auto [_, ec] = std::from_chars(it->second.data(), it->second.data() + it->second.size(), content_length);
         if (ec != std::errc())
         {
             std::cerr << "failed to parse content length header." << std::endl;
