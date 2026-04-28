@@ -5,21 +5,20 @@
 #include <fstream>
 #include <iostream>
 
-int unvm::ReadConfigFile(Config &config)
+toolkit::result<> unvm::ReadConfigFile(Config &config)
 {
     auto data_directory = GetDataDirectory();
     auto path = data_directory / "config.json";
 
     if (!std::filesystem::exists(path))
     {
-        return 0;
+        return {};
     }
 
     std::ifstream stream(path);
     if (!stream)
     {
-        std::cerr << "failed to open config file." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to open config file.");
     }
 
     json::Node json;
@@ -27,18 +26,17 @@ int unvm::ReadConfigFile(Config &config)
 
     if (!(json >> config))
     {
-        std::cerr << "failed to parse config file." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to parse config file.");
     }
 
-    return 0;
+    return {};
 }
 
-int unvm::WriteConfigFile(const Config &config)
+toolkit::result<> unvm::WriteConfigFile(const Config &config)
 {
     if (!config.Dirty)
     {
-        return 0;
+        return {};
     }
 
     auto data_directory = GetDataDirectory();
@@ -46,17 +44,15 @@ int unvm::WriteConfigFile(const Config &config)
 
     if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
     {
-        std::cerr << "failed to create data directory: " << ec.message() << " (" << ec.value() << ")." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to create data directory: {} ({}).", ec.message(), ec.value());
     }
 
     std::ofstream stream(path);
     if (!stream)
     {
-        std::cerr << "failed to open config file." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to open config file.");
     }
 
     stream << json::Node(config);
-    return 0;
+    return {};
 }

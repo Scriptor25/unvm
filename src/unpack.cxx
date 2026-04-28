@@ -24,7 +24,7 @@ static la_ssize_t read_callback(archive */*arc*/, void *user_data, const void **
     return len;
 }
 
-int unvm::UnpackArchive(std::istream &stream, const std::filesystem::path &directory)
+toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesystem::path &directory)
 {
     const auto arc = archive_read_new();
     const auto ext = archive_write_disk_new();
@@ -41,11 +41,11 @@ int unvm::UnpackArchive(std::istream &stream, const std::filesystem::path &direc
 
     if (const auto error = archive_read_open(arc, &stream, nullptr, read_callback, nullptr))
     {
-        std::cerr << "failed to open archive: " << archive_error_string(arc) << std::endl;
+        auto res = toolkit::make_error("failed to open archive: {} ({}).", archive_error_string(arc), error);
 
         archive_read_free(arc);
         archive_write_free(ext);
-        return error;
+        return res;
     }
 
     archive_entry *entry;
@@ -62,11 +62,11 @@ int unvm::UnpackArchive(std::istream &stream, const std::filesystem::path &direc
 
         if (const auto error = archive_write_header(ext, entry))
         {
-            std::cerr << "failed to write archive header: " << archive_error_string(ext) << std::endl;
+            auto res = toolkit::make_error("failed to write archive header: {} ({}).", archive_error_string(ext), error);
 
             archive_read_free(arc);
             archive_write_free(ext);
-            return error;
+            return res;
         }
 
         while (true)
@@ -78,34 +78,34 @@ int unvm::UnpackArchive(std::istream &stream, const std::filesystem::path &direc
                     break;
                 }
 
-                std::cerr << "failed to read archive data block: " << archive_error_string(arc) << std::endl;
+                auto res = toolkit::make_error("failed to read archive data block: {} ({}).", archive_error_string(arc), error);
 
                 archive_read_free(arc);
                 archive_write_free(ext);
-                return error;
+                return res;
             }
 
             if (const auto error = archive_write_data_block(ext, buf, len, off))
             {
-                std::cerr << "failed to write archive data block: " << archive_error_string(ext) << std::endl;
+                auto res = toolkit::make_error("failed to write archive data block: {} ({}).", archive_error_string(ext), error);
 
                 archive_read_free(arc);
                 archive_write_free(ext);
-                return static_cast<int>(error);
+                return res;
             }
         }
     }
 
     if (err != ARCHIVE_EOF)
     {
-        std::cerr << "failed to read archive header: " << archive_error_string(arc) << std::endl;
+        auto res = toolkit::make_error("failed to read archive header: {} ({}).", archive_error_string(arc), err);
 
         archive_read_free(arc);
         archive_write_free(ext);
-        return err;
+        return res;
     }
 
     archive_read_free(arc);
     archive_write_free(ext);
-    return 0;
+    return {};
 }

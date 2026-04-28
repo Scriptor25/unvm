@@ -1,4 +1,5 @@
 #include <unvm/semver.hxx>
+#include <unvm/util.hxx>
 
 #include <iostream>
 #include <map>
@@ -11,7 +12,7 @@ unvm::semver::Parser::Parser(std::istream &stream)
     m_Token = Next();
 }
 
-unvm::semver::RangeSet unvm::semver::Parser::Parse()
+toolkit::result<unvm::semver::RangeSet> unvm::semver::Parser::Parse()
 {
     RangeSet set;
 
@@ -19,7 +20,11 @@ unvm::semver::RangeSet unvm::semver::Parser::Parse()
     {
         Skip(" ");
 
-        auto begin = ParsePrimitive();
+        Primitive begin;
+        if (auto res = ParsePrimitive() >> begin; !res)
+        {
+            return res;
+        }
 
         Skip(" ");
 
@@ -27,7 +32,11 @@ unvm::semver::RangeSet unvm::semver::Parser::Parse()
         {
             Skip(" ");
 
-            auto end = ParsePartial();
+            Partial end;
+            if (auto res = ParsePartial() >> end; !res)
+            {
+                return res;
+            }
 
             set.emplace_back(
                 Hyphen
@@ -43,7 +52,15 @@ unvm::semver::RangeSet unvm::semver::Parser::Parse()
 
             while (!At("||") && !At(""))
             {
-                primitives.push_back(ParsePrimitive());
+                Skip(" ");
+
+                Primitive value;
+                if (auto res = ParsePrimitive() >> value; !res)
+                {
+                    return res;
+                }
+
+                primitives.push_back(std::move(value));
                 Skip(" ");
             }
 
@@ -57,7 +74,7 @@ unvm::semver::RangeSet unvm::semver::Parser::Parse()
     return set;
 }
 
-unvm::semver::Primitive unvm::semver::Parser::ParsePrimitive()
+toolkit::result<unvm::semver::Primitive> unvm::semver::Parser::ParsePrimitive()
 {
     static const std::map<std::string_view, PrimitiveType> map
     {
@@ -79,21 +96,33 @@ unvm::semver::Primitive unvm::semver::Parser::ParsePrimitive()
         type = map.at(op);
     }
 
-    auto value = ParsePartial();
+    Skip(" ");
+
+    Partial value;
+    if (auto res = ParsePartial() >> value; !res)
+    {
+        return res;
+    }
 
     return {
-        .Type = type,
-        .Value = std::move(value),
+        {
+            .Type = type,
+            .Value = std::move(value),
+        }
     };
 }
 
-unvm::semver::Partial unvm::semver::Parser::ParsePartial()
+toolkit::result<unvm::semver::Partial> unvm::semver::Parser::ParsePartial()
 {
     Partial partial;
 
-    if (ParsePossibleWildcard(partial.Value.Major))
+    if (auto res = ParsePossibleWildcard(partial.Value.Major); res && *res)
     {
         partial.Mod |= 0b001;
+    }
+    else if (!res)
+    {
+        return res;
     }
 
     partial.Mask = 0;
@@ -102,9 +131,13 @@ unvm::semver::Partial unvm::semver::Parser::ParsePartial()
         return partial;
     }
 
-    if (ParsePossibleWildcard(partial.Value.Minor))
+    if (auto res = ParsePossibleWildcard(partial.Value.Minor); res && *res)
     {
         partial.Mod |= 0b010;
+    }
+    else if (!res)
+    {
+        return res;
     }
 
     partial.Mask = 1;
@@ -113,9 +146,13 @@ unvm::semver::Partial unvm::semver::Parser::ParsePartial()
         return partial;
     }
 
-    if (ParsePossibleWildcard(partial.Value.Patch))
+    if (auto res = ParsePossibleWildcard(partial.Value.Patch); res && *res)
     {
         partial.Mod |= 0b100;
+    }
+    else if (!res)
+    {
+        return res;
     }
 
     partial.Mask = 2;
@@ -153,17 +190,35 @@ unvm::semver::Partial unvm::semver::Parser::ParsePartial()
     return partial;
 }
 
-unvm::semver::Version unvm::semver::Parser::ParseVersion()
+toolkit::result<unvm::semver::Version> unvm::semver::Parser::ParseVersion()
 {
     Version version;
 
-    ParseVersionPart(version.Major);
-    Expect(".");
+    if (auto res = ParseVersionPart(version.Major); !res)
+    {
+        return res;
+    }
 
-    ParseVersionPart(version.Minor);
-    Expect(".");
+    if (auto res = Expect("."); !res)
+    {
+        return res;
+    }
 
-    ParseVersionPart(version.Patch);
+    if (auto res = ParseVersionPart(version.Minor); !res)
+    {
+        return res;
+    }
+
+    if (auto res = Expect("."); !res)
+    {
+        return res;
+    }
+
+    if (auto res = ParseVersionPart(version.Patch); !res)
+    {
+        return res;
+    }
+    
     if (!At("-", "+"))
     {
         return version;
@@ -198,18 +253,22 @@ unvm::semver::Version unvm::semver::Parser::ParseVersion()
     return version;
 }
 
-bool unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
+toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
 {
     if (Skip("x", "X", "*"))
     {
         return true;
     }
 
-    ParseVersionPart(value);
+    if (auto res = ParseVersionPart(value); !res)
+    {
+        return res;
+    }
+
     return false;
 }
 
-void unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
+toolkit::result<> unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
 {
     auto token = std::move(m_Token);
     m_Token = Next();
@@ -219,7 +278,12 @@ void unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
         token = token.substr(1);
     }
 
-    value = std::stoul(token);
+    if (auto res = ParseString<std::uint32_t>(token) >> value; !res)
+    {
+        return res;
+    }
+
+    return {};
 }
 
 bool unvm::semver::Parser::At(const std::set<std::string_view> &set) const
@@ -245,7 +309,7 @@ bool unvm::semver::Parser::Skip(const std::set<std::string_view> &set)
     return false;
 }
 
-std::string unvm::semver::Parser::Expect(const std::set<std::string_view> &set)
+toolkit::result<std::string> unvm::semver::Parser::Expect(const std::set<std::string_view> &set)
 {
     if (At(set))
     {
@@ -254,7 +318,7 @@ std::string unvm::semver::Parser::Expect(const std::set<std::string_view> &set)
         return token;
     }
 
-    throw std::runtime_error("expect");
+    return toolkit::make_error("expected one of {}, but got {}", set, m_Token);
 }
 
 std::string unvm::semver::Parser::Next()
@@ -359,39 +423,52 @@ std::string unvm::semver::Parser::Next()
     return value;
 }
 
-unvm::semver::RangeSet unvm::semver::ParseRangeSet(std::istream &stream)
+toolkit::result<unvm::semver::RangeSet> unvm::semver::ParseRangeSet(std::istream &stream)
 {
     Parser parser(stream);
     return parser.Parse();
 }
 
-unvm::semver::RangeSet unvm::semver::ParseRangeSet(const std::string_view str)
+toolkit::result<unvm::semver::RangeSet> unvm::semver::ParseRangeSet(const std::string_view str)
 {
     const std::string s(str);
     std::istringstream stream(s);
     return ParseRangeSet(stream);
 }
 
-unvm::semver::RangeSet unvm::semver::ParseRangeSet(const std::string &str)
+toolkit::result<unvm::semver::RangeSet> unvm::semver::ParseRangeSet(const std::string &str)
 {
     std::istringstream stream(str);
     return ParseRangeSet(stream);
 }
 
-bool unvm::semver::IsInRange(const RangeSet &set, const std::string_view version)
+toolkit::result<bool> unvm::semver::IsInRange(const RangeSet &set, const std::string_view version)
 {
     const std::string str(version);
     std::istringstream stream(str);
+
     Parser parser(stream);
-    const auto parsed = parser.ParseVersion();
+    
+    Version parsed;
+    if (auto res = parser.ParseVersion() >> parsed; !res)
+    {
+        return res;
+    }
+
     return IsInRange(set, parsed);
 }
 
-bool unvm::semver::IsInRange(const RangeSet &set, const std::string &version)
+toolkit::result<bool> unvm::semver::IsInRange(const RangeSet &set, const std::string &version)
 {
     std::istringstream stream(version);
     Parser parser(stream);
-    const auto parsed = parser.ParseVersion();
+
+    Version parsed;
+    if (auto res = parser.ParseVersion() >> parsed; !res)
+    {
+        return res;
+    }
+
     return IsInRange(set, parsed);
 }
 
@@ -610,8 +687,17 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
         if (a_numeric && b_numeric)
         {
-            const auto a_value = std::stoul(a_entry);
-            const auto b_value = std::stoul(b_entry);
+            std::uint32_t a_value{}, b_value{};
+
+            if (auto res = unvm::ParseString<std::uint32_t>(a_entry) >> a_value; !res)
+            {
+                std::cerr << "warning: " << res.error() << std::endl;
+            }
+            
+            if (auto res = unvm::ParseString<std::uint32_t>(b_entry) >> b_value; !res)
+            {
+                std::cerr << "warning: " << res.error() << std::endl;
+            }
 
             if (a_value < b_value)
             {

@@ -4,33 +4,31 @@
 #include <fstream>
 #include <iostream>
 
-static int read_exact_version(
+static toolkit::result<> read_exact_version(
     const std::filesystem::path &path,
     std::optional<std::string> &version)
 {
     std::ifstream stream(path);
     if (!stream)
     {
-        std::cerr << "failed to open '" << path.string() << "'." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to open '{}'.", path.string());
     }
 
     std::string line;
     std::getline(stream, line);
 
     version = std::move(line);
-    return 0;
+    return {};
 }
 
-static int read_package_version(
+static toolkit::result<> read_package_version(
     const std::filesystem::path &path,
     std::optional<std::string> &version)
 {
     std::ifstream stream(path);
     if (!stream)
     {
-        std::cerr << "failed to open '" << path.string() << "'." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to open '{}'.", path.string());
     }
 
     json::Node node;
@@ -38,15 +36,13 @@ static int read_package_version(
 
     if (!node)
     {
-        std::cerr << "failed to parse '" << path.string() << "'." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to parse '{}'.", path.string());
     }
 
     std::optional<std::string> maybe;
     if (!(node["engines"]["node"] >> maybe))
     {
-        std::cerr << "failed to convert key 'engines.node' in '" << path.string() << "' to string." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to convert key 'engines.node' in '{}' to string.", path.string());
     }
 
     if (maybe)
@@ -54,10 +50,10 @@ static int read_package_version(
         version = *std::move(maybe);
     }
 
-    return 0;
+    return {};
 }
 
-int unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *type)
+toolkit::result<> unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *type)
 {
     const auto current_path = std::filesystem::weakly_canonical(std::filesystem::current_path());
 
@@ -65,9 +61,9 @@ int unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *ty
     {
         if (auto entry = parent_path / ".unvm"; std::filesystem::exists(entry))
         {
-            if (const auto error = read_exact_version(entry, version))
+            if (auto res = read_exact_version(entry, version); !res)
             {
-                return error;
+                return res;
             }
 
             if (version)
@@ -76,18 +72,15 @@ int unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *ty
                 {
                     *type = VersionType::Exact;
                 }
-                return 0;
+                return {};
             }
         }
 
         if (auto entry = parent_path / "package.json"; std::filesystem::exists(entry))
         {
-            // TODO: if package has no version, continue upwards, until either other config file or package is found.
-            // TODO: if parent package is found, and workspaces entry contains current path file tree, if that package has a version, return that, or else return default
-
-            if (const auto error = read_package_version(entry, version))
+            if (auto res = read_package_version(entry, version); !res)
             {
-                return error;
+                return res;
             }
 
             if (version)
@@ -96,7 +89,7 @@ int unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *ty
                 {
                     *type = VersionType::Package;
                 }
-                return 0;
+                return {};
             }
         }
 
@@ -107,7 +100,7 @@ int unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *ty
             {
                 *type = VersionType::Default;
             }
-            return 0;
+            return {};
         }
 
         parent_path = next;
