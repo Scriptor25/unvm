@@ -215,7 +215,12 @@ int main(const int argc, char **argv)
 
     if (maybe_active)
     {
-        const auto set = unvm::semver::ParseRangeSet(*maybe_active);
+        unvm::semver::RangeSet set;
+        if (auto res = unvm::semver::ParseRangeSet(*maybe_active) >> set; !res)
+        {
+            std::cerr << res.error() << std::endl;
+            return 1;
+        }
 
         unvm::VersionTable table;
         if (const auto error = unvm::LoadVersionTable(client, table, false))
@@ -230,9 +235,14 @@ int main(const int argc, char **argv)
                 continue;
             }
 
-            if (!unvm::semver::IsInRange(set, entry.Version))
+            if (auto res = unvm::semver::IsInRange(set, entry.Version); res && !*res)
             {
                 continue;
+            }
+            else if (!res)
+            {
+                std::cerr << res.error() << std::endl;
+                return 1;
             }
 
             config.Active = entry.Version;
@@ -258,7 +268,12 @@ int main(const int argc, char **argv)
 
     if (!config.Active)
     {
-        const auto set = unvm::semver::ParseRangeSet(*maybe_active);
+        unvm::semver::RangeSet set;
+        if (auto res = unvm::semver::ParseRangeSet(*maybe_active) >> set; !res)
+        {
+            std::cerr << res.error() << std::endl;
+            return 1;
+        }
 
         unvm::VersionTable table;
         if (const auto error = unvm::LoadVersionTable(client, table, true))
@@ -268,9 +283,14 @@ int main(const int argc, char **argv)
 
         for (auto &entry : table)
         {
-            if (!unvm::semver::IsInRange(set, entry.Version))
+            if (auto res = unvm::semver::IsInRange(set, entry.Version); res && !*res)
             {
                 continue;
+            }
+            else if (!res)
+            {
+                std::cerr << res.error() << std::endl;
+                return 1;
             }
 
             if (const auto error = unvm::Install(config, client, *maybe_active, entry))
