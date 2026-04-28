@@ -6,7 +6,7 @@
 #include <iostream>
 #include <sstream>
 
-static int get_checksum(
+static toolkit::result<> get_checksum(
     unvm::http::HttpClient &client,
     const unvm::VersionEntry &entry,
     const std::string &filename,
@@ -35,23 +35,14 @@ static int get_checksum(
         .Body = &stream,
     };
 
-    if (auto error = client.Fetch(std::move(request), response))
+    if (auto res = client.Fetch(std::move(request), response); !res)
     {
-        std::cerr << "failed to get file." << std::endl;
-        return error;
+        return toolkit::make_error("failed to get file: {}", res.error());
     }
 
     if (!unvm::http::IsSuccess(response.StatusCode))
     {
-        std::cerr
-                << "failed to get file: "
-                << response.StatusCode
-                << ", "
-                << response.StatusMessage
-                << std::endl
-                << stream.str()
-                << std::endl;
-        return 1;
+        return toolkit::make_error("failed to get file: {}, {}\n{}", response.StatusCode, response.StatusMessage, stream.str());
     }
 
     for (std::string line; std::getline(stream, line);)
@@ -65,15 +56,14 @@ static int get_checksum(
         if (auto pos = line.find(with_extension); pos != std::string::npos)
         {
             checksum = unvm::Trim(line.substr(0, pos));
-            return 0;
+            return {};
         }
     }
 
-    std::cerr << "failed to get checksum for filename '" << with_extension << "'." << std::endl;
-    return 1;
+    return toolkit::make_error("failed to get checksum for filename '{}'.", with_extension);
 }
 
-static int generate_checksum(std::istream &str, std::string &checksum)
+static void generate_checksum(std::istream &str, std::string &checksum)
 {
     str.seekg(0, std::ios::end);
     std::vector<unsigned char> buffer(str.tellg());
@@ -90,16 +80,14 @@ static int generate_checksum(std::istream &str, std::string &checksum)
         stream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
     }
     checksum = stream.str();
-
-    return 0;
 }
 
-int unvm::Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
+toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
 {
     if (config.Installed.contains(entry.Version))
     {
         std::cerr << "version '" << version << "' is already installed." << std::endl;
-        return 0;
+        return {};
     }
 
 #if defined(SYSTEM_WINDOWS)
@@ -165,110 +153,67 @@ int unvm::Install(Config &config, http::HttpClient &client, std::string_view ver
         .Body = &stream,
     };
 
-    if (auto error = client.Fetch(std::move(request), response))
+    if (auto res = client.Fetch(std::move(request), response); !res)
     {
-        std::cerr << "failed to get file." << std::endl;
-        return error;
+        return toolkit::make_error("failed to get file: {}", res.error());
     }
 
     if (!http::IsSuccess(response.StatusCode))
     {
-        std::cerr
-                << "failed to get file: "
-                << response.StatusCode
-                << ", "
-                << response.StatusMessage
-                << std::endl
-                << stream.str()
-                << std::endl;
-        return 1;
+        return toolkit::make_error("failed to get file: {}, {}\n{}", response.StatusCode, response.StatusMessage, stream.str());
     }
 
     std::string checksum;
-    if (const auto error = get_checksum(client, entry, filename, extension, checksum))
+    if (auto res = get_checksum(client, entry, filename, extension, checksum); !res)
     {
-        std::cerr << "failed to get checksum." << std::endl;
-        return error;
+        return toolkit::make_error("failed to get checksum: {}", res.error());
     }
 
     std::string archive_checksum;
-    if (const auto error = generate_checksum(stream, archive_checksum))
-    {
-        std::cerr << "failed to generate archive checksum." << std::endl;
-        return error;
-    }
+    generate_checksum(stream, archive_checksum);
 
     if (archive_checksum != checksum)
     {
-        std::cerr
-                    << "checksum mismatch, archive checksum '"
-                    << archive_checksum
-                    << "' does not match '"
-                    << checksum
-                    << "'."
-                    << std::endl;
-        return 1;
+        return toolkit::make_error("checksum mismatch, archive checksum '{}' does not match '{}'.", archive_checksum, checksum);
     }
 
     auto data_directory = GetDataDirectory();
 
     if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
     {
-        std::cerr
-                << "failed to create directory '"
-                << data_directory.string()
-                << "': "
-                << ec.message()
-                << " ("
-                << ec.value()
-                << ")"
-                << std::endl;
-        return ec.value();
+        return toolkit::make_error("failed to create directory '{}': {} ({}).", data_directory.string(), ec.message(), ec.value());
     }
 
-    if (const auto error = UnpackArchive(stream, data_directory))
+    if (auto res = UnpackArchive(stream, data_directory); !res)
     {
-        std::cerr << "failed to unpack archive." << std::endl;
-        return error;
+        return toolkit::make_error("failed to unpack archive: {}", res.error());
     }
 
     auto from_path = data_directory / filename;
     auto to_path = data_directory / entry.Version;
+
     if (std::error_code ec; std::filesystem::rename(from_path, to_path, ec), ec)
     {
-        std::cerr
-                << "failed to rename '"
-                << from_path.string()
-                << "' to '"
-                << to_path.string()
-                << "': "
-                << ec.message()
-                << " ("
-                << ec.value()
-                << ")"
-                << std::endl;
-        return ec.value();
+        return toolkit::make_error("failed to rename '{}' to '{}': {} ({})", from_path.string(), to_path.string(), ec.message(), ec.value());
     }
 
     config.Installed.emplace(entry.Version);
     config.Dirty = true;
-    return 0;
+    return {};
 }
 
-int unvm::Install(Config &config, http::HttpClient &client, const std::string_view version)
+toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const std::string_view version)
 {
     VersionTable table;
-    if (const auto error = LoadVersionTable(client, table, true))
+    if (auto res = LoadVersionTable(client, table, true); !res)
     {
-        std::cerr << "failed to load version table." << std::endl;
-        return error;
+        return toolkit::make_error("failed to load version table: {}", res.error());
     }
 
     const auto entry_ptr = FindEffectiveVersion(table, version);
     if (!entry_ptr)
     {
-        std::cerr << "no effective version for '" << version << "'." << std::endl;
-        return 1;
+        return toolkit::make_error("no effective version for '{}'.", version);
     }
 
     return Install(config, client, version, *entry_ptr);

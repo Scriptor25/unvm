@@ -4,10 +4,9 @@
 #include <unvm/http/url.hxx>
 
 #include <fstream>
-#include <iostream>
 #include <sstream>
 
-int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online)
+toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online)
 {
     /**
      * {
@@ -42,23 +41,14 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
             .Body = &stream,
         };
 
-        if (auto error = client.Fetch(std::move(request), response))
+        if (auto res = client.Fetch(std::move(request), response); !res)
         {
-            std::cerr << "failed to get file." << std::endl;
-            return error;
+            return toolkit::make_error("failed to get file: {}", res.error());
         }
 
         if (!IsSuccess(response.StatusCode))
         {
-            std::cerr
-                    << "failed to get file: "
-                    << response.StatusCode
-                    << ", "
-                    << response.StatusMessage
-                    << std::endl
-                    << stream.str()
-                    << std::endl;
-            return 1;
+            return toolkit::make_error("failed to get file: {}, {}\n{}", response.StatusCode, response.StatusMessage, stream.str());
         }
 
         json::Node node;
@@ -66,14 +56,13 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
 
         if (!(node >> table))
         {
-            std::cerr << "failed to parse table json." << std::endl;
-            return 1;
+            return toolkit::make_error("failed to parse table json.");
         }
 
         std::ofstream file(index);
         file << node;
 
-        return 0;
+        return {};
     }
 
     std::ifstream stream(index);
@@ -83,9 +72,8 @@ int unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool o
 
     if (!(node >> table))
     {
-        std::cerr << "failed to parse table json." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to parse table json.");
     }
 
-    return 0;
+    return {};
 }

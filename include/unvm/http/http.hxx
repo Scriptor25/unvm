@@ -1,5 +1,7 @@
 #pragma once
 
+#include <toolkit/result.hxx>
+
 #include <cstdint>
 #include <format>
 #include <map>
@@ -125,7 +127,7 @@ namespace unvm::http
         std::ostream *Body;
     };
 
-    int ParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
+    toolkit::result<> ParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
     void ParseHeaders(std::istream &stream, HttpHeaders &headers);
 
     struct HttpTransport
@@ -142,7 +144,7 @@ namespace unvm::http
         HttpClient();
         ~HttpClient();
 
-        int Fetch(HttpRequest request, HttpResponse &response);
+        toolkit::result<> Fetch(HttpRequest request, HttpResponse &response);
 
     private:
         struct State;

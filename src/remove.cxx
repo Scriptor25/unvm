@@ -3,19 +3,19 @@
 
 #include <iostream>
 
-int unvm::Remove(Config &config, http::HttpClient &client, const std::string_view version)
+toolkit::result<> unvm::Remove(Config &config, http::HttpClient &client, const std::string_view version)
 {
     VersionTable table;
-    if (const auto error = LoadVersionTable(client, table, false))
+    if (auto res = LoadVersionTable(client, table, false); !res)
     {
-        return error;
+        return res;
     }
 
     const auto entry = FindEffectiveVersion(table, version);
     if (!entry || !config.Installed.contains(entry->Version))
     {
         std::cerr << "version '" << version << "' is not installed." << std::endl;
-        return 0;
+        return {};
     }
 
     const auto data_directory = GetDataDirectory();
@@ -23,5 +23,5 @@ int unvm::Remove(Config &config, http::HttpClient &client, const std::string_vie
 
     config.Installed.erase(entry->Version);
     config.Dirty = true;
-    return 0;
+    return {};
 }

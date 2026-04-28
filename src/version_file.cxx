@@ -23,63 +23,52 @@ bool unvm::FindVersionFile(std::filesystem::path &path)
     }
 }
 
-int unvm::ReadVersionFile(std::optional<std::string> &version)
+toolkit::result<> unvm::ReadVersionFile(std::optional<std::string> &version)
 {
     std::filesystem::path path;
     if (!FindVersionFile(path))
     {
         version = std::nullopt;
-        return 0;
+        return {};
     }
 
     std::ifstream stream(path);
     if (!stream)
     {
-        std::cerr << "failed to open file '" << path.string() << "'." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to open file '{}'.", path.string());
     }
 
     std::string str;
     std::getline(stream, str);
 
     version = std::move(str);
-    return 0;
+    return {};
 }
 
-int unvm::WriteVersionFile(const std::string &version)
+toolkit::result<> unvm::WriteVersionFile(const std::string &version)
 {
     std::ofstream stream(".unvm");
     if (!stream)
     {
-        std::cerr << "failed to open file '.unvm'." << std::endl;
-        return 1;
+        return toolkit::make_error("failed to open file '.unvm'.");
     }
 
     stream << version << std::endl;
-    return 0;
+    return {};
 }
 
-int unvm::RemoveVersionFile()
+toolkit::result<> unvm::RemoveVersionFile()
 {
     std::filesystem::path path;
     if (!FindVersionFile(path))
     {
-        return 0;
+        return {};
     }
 
     if (std::error_code ec; std::filesystem::remove(path, ec), ec)
     {
-        std::cerr
-                << "failed to delete file '"
-                << path.string()
-                << "': "
-                << ec.message()
-                << " ("
-                << ec.value()
-                << ")."
-                << std::endl;
-        return 1;
+        return toolkit::make_error("failed to delete file '{}': {} ({}).", path.string(), ec.message(), ec.value());
     }
 
-    return 0;
+    return {};
 }

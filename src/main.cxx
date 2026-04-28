@@ -49,19 +49,18 @@ static const std::map<std::string_view, unsigned> operation_map
     { "la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS },
 };
 
-static int execute(unvm::Config &config, unvm::http::HttpClient &client, const std::vector<std::string_view> &args)
+static toolkit::result<> execute(unvm::Config &config, unvm::http::HttpClient &client, const std::vector<std::string_view> &args)
 {
     if (args.empty())
     {
         unvm::PrintManual();
-        return 0;
+        return {};
     }
 
     const auto it = operation_map.find(args[0]);
     if (it == operation_map.end())
     {
-        std::cerr << "undefined operation '" << args[0] << "'." << std::endl;
-        return 1;
+        return toolkit::make_error("undefined operation '{}'.", args[0]);
     }
 
     switch (const auto operation = it->second; operation & OPERATION_BITS)
@@ -69,16 +68,14 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
     case INSTALL_BITS:
         if (args.size() != 2)
         {
-            std::cerr << "invalid argument count." << std::endl;
-            return 1;
+            return toolkit::make_error("invalid argument count.");
         }
         return Install(config, client, args[1]);
 
     case REMOVE_BITS:
         if (args.size() != 2)
         {
-            std::cerr << "invalid argument count." << std::endl;
-            return 1;
+            return toolkit::make_error("invalid argument count.");
         }
         return Remove(config, client, args[1]);
 
@@ -90,13 +87,11 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
         case 3:
             if (args[2] != "local")
             {
-                std::cerr << "invalid use modifier '" << args[2] << "'." << std::endl;
-                return 1;
+                return toolkit::make_error("invalid use modifier '{}'.", args[2]);
             }
             return Use(config, client, args[1], true);
         default:
-            std::cerr << "invalid argument count." << std::endl;
-            return 1;
+            return toolkit::make_error("invalid argument count.");
         }
 
     case LIST_BITS:
@@ -106,8 +101,7 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
         {
             if (args.size() != 1)
             {
-                std::cerr << "invalid argument count." << std::endl;
-                return 1;
+                return toolkit::make_error("invalid argument count.");
             }
             available = (operation & MOD_VALUE_BITS) == LIST_MOD_AVAILABLE_BITS;
         }
@@ -122,15 +116,13 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
             case 2:
                 if (args[1] != "available")
                 {
-                    std::cerr << "invalid list modifier '" << args[1] << "'." << std::endl;
-                    return 1;
+                    return toolkit::make_error("invalid list modifier '{}'.", args[1]);
                 }
                 available = true;
                 break;
 
             default:
-                std::cerr << "invalid argument count." << std::endl;
-                return 1;
+                return toolkit::make_error("invalid argument count.");
             }
         }
 
@@ -138,8 +130,7 @@ static int execute(unvm::Config &config, unvm::http::HttpClient &client, const s
     }
 
     default:
-        std::cerr << "operation not implemented." << std::endl;
-        return 1;
+        return toolkit::make_error("operation not implemented.");
     }
 }
 
@@ -152,7 +143,7 @@ static void print_file_tree(const std::filesystem::path &path, const unsigned de
             print_file_tree(entry.path(), depth + 1);
 }
 
-static int execute(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
+static int shim(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
 {
     const auto data_directory = unvm::GetDataDirectory();
 
@@ -197,15 +188,17 @@ int main(const int argc, char **argv)
     unvm::Config config;
     unvm::http::HttpClient client;
 
-    if (const auto error = unvm::ReadConfigFile(config))
+    if (auto res = unvm::ReadConfigFile(config); !res)
     {
-        return error;
+        std::cerr << res.error() << std::endl;
+        return 1;
     }
 
     std::optional<std::string> maybe_active;
-    if (const auto error = unvm::FindActiveVersion(maybe_active))
+    if (auto res = unvm::FindActiveVersion(maybe_active); !res)
     {
-        return error;
+        std::cerr << res.error() << std::endl;
+        return 1;
     }
 
     if (!maybe_active && config.Default)
@@ -223,9 +216,10 @@ int main(const int argc, char **argv)
         }
 
         unvm::VersionTable table;
-        if (const auto error = unvm::LoadVersionTable(client, table, false))
+        if (auto res = unvm::LoadVersionTable(client, table, false); !res)
         {
-            return error;
+            std::cerr << res.error() << std::endl;
+            return 1;
         }
 
         for (auto &entry : table)
@@ -252,12 +246,19 @@ int main(const int argc, char **argv)
 
     if (exec.stem() == "unvm" || exec.stem() == "unvm.exe")
     {
-        if (const auto error = execute(config, client, { argv + 1, argv + argc }))
+        if (auto res = execute(config, client, { argv + 1, argv + argc }); !res)
         {
-            return error;
+            std::cerr << res.error() << std::endl;
+            return 1;
         }
 
-        return unvm::WriteConfigFile(config);
+        if (auto res = unvm::WriteConfigFile(config); !res)
+        {
+            std::cerr << res.error() << std::endl;
+            return 1;
+        }
+
+        return 0;
     }
 
     if (!maybe_active)
@@ -276,9 +277,10 @@ int main(const int argc, char **argv)
         }
 
         unvm::VersionTable table;
-        if (const auto error = unvm::LoadVersionTable(client, table, true))
+        if (auto res = unvm::LoadVersionTable(client, table, true); !res)
         {
-            return error;
+            std::cerr << res.error() << std::endl;
+            return 1;
         }
 
         for (auto &entry : table)
@@ -293,9 +295,10 @@ int main(const int argc, char **argv)
                 return 1;
             }
 
-            if (const auto error = unvm::Install(config, client, *maybe_active, entry))
+            if (auto res = unvm::Install(config, client, *maybe_active, entry); !res)
             {
-                return error;
+                std::cerr << res.error() << std::endl;
+                return 1;
             }
 
             config.Active = entry.Version;
@@ -309,10 +312,11 @@ int main(const int argc, char **argv)
         }
     }
 
-    if (const auto error = unvm::WriteConfigFile(config))
+    if (auto res = unvm::WriteConfigFile(config); !res)
     {
-        return error;
+        std::cerr << res.error() << std::endl;
+        return 1;
     }
 
-    return execute(*config.Active, exec, argc, argv);
+    return shim(*config.Active, exec, argc, argv);
 }

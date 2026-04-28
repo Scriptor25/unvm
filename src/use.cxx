@@ -3,16 +3,16 @@
 
 #include <iostream>
 
-int unvm::Use(Config &config, http::HttpClient &client, const std::string_view version, const bool local)
+toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std::string_view version, const bool local)
 {
     std::optional<std::string> active;
     VersionType type;
 
     if (local)
     {
-        if (const auto error = FindActiveVersion(active, &type))
+        if (auto res = FindActiveVersion(active, &type); !res)
         {
-            return error;
+            return toolkit::make_error("failed to find active version: {}", res.error());
         }
     }
     else if (config.Default)
@@ -25,60 +25,63 @@ int unvm::Use(Config &config, http::HttpClient &client, const std::string_view v
         if (!active)
         {
             std::cerr << "node is already not active in the current context." << std::endl;
-            return 0;
+            return {};
         }
 
         if (!local)
         {
             config.Default = std::nullopt;
             config.Dirty = true;
-            return 0;
+            return {};
         }
 
         if (type == VersionType::Package)
         {
-            std::cerr << "cannot use no version in the current context." << std::endl;
-            return 1;
+            return toolkit::make_error("cannot use no version in the current context.");
         }
 
         if (type != VersionType::Exact)
         {
-            return 0;
+            return {};
         }
 
-        if (const auto error = RemoveVersionFile())
+        if (auto res = RemoveVersionFile(); !res)
         {
-            return error;
+            return toolkit::make_error("failed to remove version file: {}", res.error());
         }
 
-        return 0;
+        return {};
     }
 
     VersionTable table;
-    if (const auto error = LoadVersionTable(client, table, false))
+    if (auto res = LoadVersionTable(client, table, false); !res)
     {
-        return error;
+        return res;
     }
 
     const auto entry = FindEffectiveVersion(table, version);
     if (!entry || !config.Installed.contains(entry->Version))
     {
-        std::cerr << "version '" << version << "' is not installed." << std::endl;
-        return 1;
+        return toolkit::make_error("version '{}' is not installed.", version);
     }
 
     if (active && *active == entry->Version)
     {
         std::cerr << "version '" << version << "' is already active in the current context." << std::endl;
-        return 0;
+        return {};
     }
 
     if (!local)
     {
         config.Default = entry->Version;
         config.Dirty = true;
-        return 0;
+        return {};
     }
 
-    return WriteVersionFile(entry->Version);
+    if (auto res = WriteVersionFile(entry->Version); !res)
+    {
+        return toolkit::make_error("failed to write version file: {}", res.error());
+    }
+
+    return {};
 }

@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-int unvm::List(const Config &config, http::HttpClient &client, const bool available)
+toolkit::result<> unvm::List(const Config &config, http::HttpClient &client, const bool available)
 {
     Table out(
         {
@@ -16,9 +16,9 @@ int unvm::List(const Config &config, http::HttpClient &client, const bool availa
         });
 
     VersionTable table;
-    if (const auto error = LoadVersionTable(client, table, available))
+    if (auto res = LoadVersionTable(client, table, available); !res)
     {
-        return error;
+        return res;
     }
 
     for (auto &entry : table)
@@ -38,9 +38,9 @@ int unvm::List(const Config &config, http::HttpClient &client, const bool availa
     if (out.Empty())
     {
         std::cerr << "no elements to list." << std::endl;
-        return 0;
+        return {};
     }
 
     std::cerr << out;
-    return 0;
+    return {};
 }

@@ -1,4 +1,5 @@
 #include <unvm/semver.hxx>
+#include <unvm/util.hxx>
 
 #include <iostream>
 #include <map>
@@ -688,12 +689,12 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
         {
             std::uint32_t a_value{}, b_value{};
 
-            if (auto res = unvm::semver::ParseString<std::uint32_t>(a_entry) >> a_value; !res)
+            if (auto res = unvm::ParseString<std::uint32_t>(a_entry) >> a_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }
             
-            if (auto res = unvm::semver::ParseString<std::uint32_t>(b_entry) >> b_value; !res)
+            if (auto res = unvm::ParseString<std::uint32_t>(b_entry) >> b_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }
