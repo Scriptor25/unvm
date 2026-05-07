@@ -13,13 +13,33 @@ UNVM is a user-mode Node.js version manager. It does **not require administrativ
 - Work devices with restricted access
 - Non-rooted mobile environments (e.g., Android with Termux)
 
+## From 0 to running
+
+0. You can either choose to use one of the prebuild binaries, or build your own.
+
+1. Once you have the main binary, `unvm` (or `unvm.exe` on Windows), put it somewhere and add the directory to your `PATH` variable (or environment on Windows).
+
+2. Then, if not already installed with the binary, create three symlinks (or hardlinks) to `unvm`:
+
+    - `node`
+    - `npm`
+    - `npx`
+
+3. Now, if all of these are also on your `PATH`, you should be able to just execute `node`, `npm` and `npx` as normal, with the core difference that they are only shims, which point to `unvm`. Then, a lot of dark magic happens, like finding the version for the current directory or project, before running the actual executables.
+
 ## Build
 
 The project uses CMake for cross-platform builds. Supported configurations:
 
-- **Windows x64**: Visual Studio 17 2022 / MSVC or Ninja / Clang
-- **Linux x64**: Ninja / GCC or Clang
-- **Darwin ARM64**: Ninja / GCC or Clang
+- **Windows x64**:
+    - `Visual Studio 17 2022` | `MSVC`
+    - `Ninja` | `Clang`
+- **Linux x64**:
+    - `Ninja` | `GCC`
+    - `Ninja` | `Clang`
+- **Darwin ARM64**:
+    - `Ninja` | `GCC`
+    - `Ninja` | `Clang`
 
 ### Dependencies
 
@@ -29,13 +49,20 @@ Make sure the following libraries are installed:
 - `LibArchive`
 - `ZLib`
 
-### Example: Fedora Linux 43
+### Build using CMake
 
 ```shell
 git clone --depth 1 --single-branch --recurse-submodules --shallow-submodules https://github.com/Scriptor25/unvm.git
 cd unvm
 cmake -S . -B build -G Ninja
 cmake --build build --parallel
+```
+
+### Install using CMake
+
+```shell
+cd unvm
+sudo cmake --install build
 ```
 
 ## Usage
