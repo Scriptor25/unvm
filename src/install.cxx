@@ -1,7 +1,7 @@
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 
 #include <iostream>
 #include <sstream>
@@ -47,15 +47,11 @@ static toolkit::result<> get_checksum(
 
     for (std::string line; std::getline(stream, line);)
     {
-        line = unvm::Trim(std::move(line));
-        if (line.empty())
-        {
-            continue;
-        }
+        std::istringstream str(line);
 
-        if (auto pos = line.find(with_extension); pos != std::string::npos)
+        if (std::string hash, file; (str >> hash >> file) && file == with_extension)
         {
-            checksum = unvm::Trim(line.substr(0, pos));
+            checksum = hash;
             return {};
         }
     }
@@ -63,23 +59,54 @@ static toolkit::result<> get_checksum(
     return toolkit::make_error("failed to get checksum for filename '{}'.", with_extension);
 }
 
-static void generate_checksum(std::istream &str, std::string &checksum)
+static toolkit::result<> generate_checksum(std::istream &str, std::string &checksum)
 {
-    str.seekg(0, std::ios::end);
-    std::vector<unsigned char> buffer(str.tellg());
-    str.seekg(0, std::ios::beg);
-    str.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
-    str.seekg(0, std::ios::beg);
+    auto *ctx = EVP_MD_CTX_new();
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create evp context.");
+    }
 
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256(buffer.data(), buffer.size(), hash);
+    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1)
+    {
+        return toolkit::make_error("failed to initialize digest for sha256.");
+    }
 
-    std::stringstream stream;
+    std::array<char, 8192> chunk;
+
+    while (str)
+    {
+        str.read(chunk.data(), chunk.size());
+
+        auto count = str.gcount();
+        if (count > 0)
+        {
+            if (EVP_DigestUpdate(ctx, chunk.data(), count) != 1)
+            {
+                return toolkit::make_error("failed to update digest.");
+            }
+        }
+    }
+
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_length = 0;
+
+    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) != 1)
+    {
+        return toolkit::make_error("failed to finalize digest.");
+    }
+
+    std::ostringstream stream;
     for (auto &c : hash)
     {
         stream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
     }
+
+    str.clear();
+    str.seekg(0, std::ios::beg);
+
     checksum = stream.str();
+    return {};
 }
 
 toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
@@ -170,7 +197,10 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::s
     }
 
     std::string archive_checksum;
-    generate_checksum(stream, archive_checksum);
+    if (auto res = generate_checksum(stream, archive_checksum); !res)
+    {
+        return toolkit::make_error("failed to generate checksum: {}", res.error());
+    }
 
     if (archive_checksum != checksum)
     {
