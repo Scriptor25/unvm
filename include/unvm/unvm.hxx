@@ -4,6 +4,7 @@
 #include <unvm/version.hxx>
 #include <unvm/http/http.hxx>
 
+#include <toolkit/args.hxx>
 #include <toolkit/result.hxx>
 
 #include <filesystem>
@@ -13,18 +14,48 @@ namespace unvm
 {
     void PrintManual();
 
-    toolkit::result<> LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online);
+    toolkit::result<> LoadVersionTable(
+        http::HttpClient &client,
+        VersionTable &table,
+        bool online);
 
-    const VersionEntry *FindEffectiveVersion(const VersionTable &table, std::string_view version);
+    const VersionEntry *FindEffectiveVersion(
+        const VersionTable &table,
+        std::string_view version);
 
-    toolkit::result<> UnpackArchive(std::istream &stream, const std::filesystem::path &directory);
+    toolkit::result<> UnpackArchive(
+        std::istream &stream,
+        const std::filesystem::path &directory);
 
-    toolkit::result<> Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry);
-    toolkit::result<> Install(Config &config, http::HttpClient &client, std::string_view version);
+    toolkit::result<> Install(
+        Config &config,
+        http::HttpClient &client,
+        std::string_view version,
+        const VersionEntry &entry);
+    toolkit::result<> Install(
+        Config &config,
+        http::HttpClient &client,
+        std::string_view version);
 
-    toolkit::result<> Remove(Config &config, http::HttpClient &client, std::string_view version);
+    toolkit::result<> Remove(
+        Config &config,
+        http::HttpClient &client,
+        std::string_view version);
 
-    toolkit::result<> Use(Config &config, http::HttpClient &client, std::string_view version, bool local);
+    toolkit::result<> Use(
+        Config &config,
+        http::HttpClient &client,
+        std::string_view version,
+        bool local);
 
-    toolkit::result<> List(const Config &config, http::HttpClient &client, bool available);
+    toolkit::result<> List(
+        const Config &config,
+        http::HttpClient &client,
+        bool available,
+        bool flat);
+
+    toolkit::result<> Complete(
+        const Config &config,
+        http::HttpClient &client,
+        const toolkit::arg_context &args);
 }

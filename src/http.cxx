@@ -3,6 +3,7 @@
 #include <unvm/http/url.hxx>
 
 #include <toolkit/defer.hxx>
+#include <toolkit/string.hxx>
 
 #include <openssl/crypto.h>
 #include <openssl/err.h>
@@ -65,7 +66,7 @@ static toolkit::result<> read_until(unvm::http::HttpTransport *transport, std::s
 
 static void set_header_if_missing(unvm::http::HttpHeaders &headers, const std::string &key, const std::string &val)
 {
-    if (headers.contains(key) || headers.contains(unvm::Lower(key)))
+    if (headers.contains(key) || headers.contains(toolkit::lowercase(key)))
     {
         return;
     }
@@ -89,7 +90,7 @@ toolkit::result<> unvm::http::ParseStatus(
     stream >> status_code;
     GetLine(stream, status_message, EOL);
 
-    status_message = Trim(std::move(status_message));
+    status_message = toolkit::trim(std::move(status_message));
     return {};
 }
 
@@ -114,10 +115,10 @@ void unvm::http::ParseHeaders(std::istream &stream, HttpHeaders &headers)
         auto key = line.substr(0, colon);
         auto val = line.substr(colon + 1);
 
-        key = Trim(std::move(key));
-        val = Trim(std::move(val));
+        key = toolkit::trim(std::move(key));
+        val = toolkit::trim(std::move(val));
 
-        headers.emplace(Lower(std::move(key)), std::move(val));
+        headers.emplace(toolkit::lowercase(std::move(key)), std::move(val));
     }
 }
 

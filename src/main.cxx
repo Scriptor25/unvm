@@ -18,36 +18,53 @@
 #include <windows.h>
 #endif
 
-constexpr auto MOD_PRESENT_BITS = 0b1000000000000000u;
-constexpr auto MOD_VALUE_BITS = 0b0111000000000000u;
-constexpr auto OPERATION_BITS = 0b0000000011111111u;
-
-constexpr auto INSTALL_BITS = 0b00000001u;
-constexpr auto REMOVE_BITS = 0b00000010u;
-constexpr auto USE_BITS = 0b00000100u;
-constexpr auto LIST_BITS = 0b00001000u;
-
-constexpr auto LIST_MOD_INSTALLED_BITS = 0b0000000000000000u;
-constexpr auto LIST_MOD_AVAILABLE_BITS = 0b0001000000000000u;
-
-/**
- * bits [3:0] -> operation
- * bits [7:4] -> modifier
- *  - bit 7 -> modifier present bit
- *  - bits [6:4] -> modifier value
- */
-static const std::map<std::string_view, unsigned> operation_map
+enum class Operation
 {
-    { "install", INSTALL_BITS },
-    { "i", INSTALL_BITS },
-    { "remove", REMOVE_BITS },
-    { "r", REMOVE_BITS },
-    { "use", USE_BITS },
-    { "u", USE_BITS },
-    { "list", LIST_BITS },
-    { "l", LIST_BITS },
-    { "ls", MOD_PRESENT_BITS | LIST_MOD_INSTALLED_BITS | LIST_BITS },
-    { "la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS },
+    Install,
+    Remove,
+    Use,
+    List,
+    Complete,
+};
+
+static const std::map<std::string_view, Operation> operation_map
+{
+    { "install", Operation::Install },
+    { "i", Operation::Install },
+    { "remove", Operation::Remove },
+    { "r", Operation::Remove },
+    { "use", Operation::Use },
+    { "u", Operation::Use },
+    { "list", Operation::List },
+    { "l", Operation::List },
+    { "complete", Operation::Complete },
+    { "c", Operation::Complete },
+};
+
+static const toolkit::arg_manifest manifest
+{
+    {
+        {
+            .id = "help",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "?", "-?", "-h", "--help" },
+        },
+        {
+            .id = "local",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-l", "--local" },
+        },
+        {
+            .id = "available",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-a", "--available" },
+        },
+        {
+            .id = "flat",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-f", "--flat" },
+        },
+    },
 };
 
 static toolkit::result<> execute(
@@ -57,28 +74,7 @@ static toolkit::result<> execute(
     const char *const*argv)
 {
     toolkit::arg_context args;
-    if (auto res = toolkit::arg_parse(
-                       {
-                           {
-                               {
-                                   .id = "help",
-                                   .kind = toolkit::arg_kind::flag,
-                                   .patterns = { "?", "-?", "-h", "--help" },
-                               },
-                               {
-                                   .id = "available",
-                                   .kind = toolkit::arg_kind::flag,
-                                   .patterns = { "-a", "--available" },
-                               },
-                               {
-                                   .id = "local",
-                                   .kind = toolkit::arg_kind::flag,
-                                   .patterns = { "-l", "--local" },
-                               },
-                           },
-                       },
-                       argc,
-                       argv) >> args; !res)
+    if (auto res = toolkit::arg_parse(manifest, argc, argv) >> args; !res)
         return res;
 
     if (args.empty() || args.is("help"))
@@ -93,9 +89,9 @@ static toolkit::result<> execute(
         return toolkit::make_error("undefined operation '{}'.", args[0]);
     }
 
-    switch (const auto operation = it->second; operation & OPERATION_BITS)
+    switch (it->second)
     {
-    case INSTALL_BITS:
+    case Operation::Install:
         if (args.size() != 2)
         {
             return toolkit::make_error("invalid argument count.");
@@ -103,7 +99,7 @@ static toolkit::result<> execute(
 
         return Install(config, client, args[1]);
 
-    case REMOVE_BITS:
+    case Operation::Remove:
         if (args.size() != 2)
         {
             return toolkit::make_error("invalid argument count.");
@@ -111,7 +107,7 @@ static toolkit::result<> execute(
 
         return Remove(config, client, args[1]);
 
-    case USE_BITS:
+    case Operation::Use:
         if (args.size() != 2)
         {
             return toolkit::make_error("invalid argument count.");
@@ -119,24 +115,31 @@ static toolkit::result<> execute(
 
         return Use(config, client, args[1], args.is("local"));
 
-    case LIST_BITS:
+    case Operation::List:
     {
         if (args.size() != 1)
         {
             return toolkit::make_error("invalid argument count.");
         }
 
-        bool available;
-        if (operation & MOD_PRESENT_BITS)
-        {
-            available = (operation & MOD_VALUE_BITS) == LIST_MOD_AVAILABLE_BITS;
-        }
-        else
-        {
-            available = args.is("available");
-        }
+        const auto available = args.is("available");
+        const auto flat = args.is("flat");
 
-        return List(config, client, available);
+        return List(config, client, available, flat);
+    }
+
+    case Operation::Complete:
+    {
+        std::vector<const char *> line(args.size());
+        line[0] = args.file.data();
+        for (size_t i = 1; i < args.size(); ++i)
+            line[i] = args[i].data();
+
+        toolkit::arg_context context;
+        if (auto res = toolkit::arg_parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
+            return res;
+
+        return unvm::Complete(config, client, context);
     }
 
     default:
