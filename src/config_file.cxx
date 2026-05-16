@@ -3,7 +3,6 @@
 #include <unvm/util.hxx>
 
 #include <fstream>
-#include <iostream>
 
 toolkit::result<> unvm::ReadConfigFile(Config &config)
 {

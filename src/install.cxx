@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <toolkit/defer.hxx>
 
 static toolkit::result<> get_checksum(
     unvm::http::HttpClient &client,
@@ -35,14 +36,18 @@ static toolkit::result<> get_checksum(
         .Body = &stream,
     };
 
-    if (auto res = client.Fetch(std::move(request), response); !res)
+    if (auto res = client.FetchWithRedirects(std::move(request), response); !res)
     {
         return toolkit::make_error("failed to get file: {}", res.error());
     }
 
     if (!unvm::http::IsSuccess(response.StatusCode))
     {
-        return toolkit::make_error("failed to get file: {}, {}\n{}", response.StatusCode, response.StatusMessage, stream.str());
+        return toolkit::make_error(
+            "failed to get file: {}, {}\n{}",
+            response.StatusCode,
+            response.StatusMessage,
+            stream.str());
     }
 
     for (std::string line; std::getline(stream, line);)
@@ -67,19 +72,20 @@ static toolkit::result<> generate_checksum(std::istream &str, std::string &check
         return toolkit::make_error("failed to create evp context.");
     }
 
+    auto guard0 = toolkit::defer(EVP_MD_CTX_free, ctx);
+
     if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1)
     {
         return toolkit::make_error("failed to initialize digest for sha256.");
     }
 
-    std::array<char, 8192> chunk;
+    std::array<char, 8192> chunk{};
 
     while (str)
     {
         str.read(chunk.data(), chunk.size());
 
-        auto count = str.gcount();
-        if (count > 0)
+        if (const auto count = str.gcount(); count > 0)
         {
             if (EVP_DigestUpdate(ctx, chunk.data(), count) != 1)
             {
@@ -89,7 +95,7 @@ static toolkit::result<> generate_checksum(std::istream &str, std::string &check
     }
 
     unsigned char hash[EVP_MAX_MD_SIZE];
-    unsigned int hash_length = 0;
+    unsigned hash_length = 0;
 
     if (EVP_DigestFinal_ex(ctx, hash, &hash_length) != 1)
     {
@@ -97,9 +103,9 @@ static toolkit::result<> generate_checksum(std::istream &str, std::string &check
     }
 
     std::ostringstream stream;
-    for (auto &c : hash)
+    for (unsigned i = 0; i < hash_length; ++i)
     {
-        stream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(c);
+        stream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
     }
 
     str.clear();
@@ -109,7 +115,11 @@ static toolkit::result<> generate_checksum(std::istream &str, std::string &check
     return {};
 }
 
-toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::string_view version, const VersionEntry &entry)
+toolkit::result<> unvm::Install(
+    Config &config,
+    http::HttpClient &client,
+    std::string_view version,
+    const VersionEntry &entry)
 {
     if (config.Installed.contains(entry.Version))
     {
@@ -180,14 +190,18 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::s
         .Body = &stream,
     };
 
-    if (auto res = client.Fetch(std::move(request), response); !res)
+    if (auto res = client.FetchWithRedirects(std::move(request), response); !res)
     {
         return toolkit::make_error("failed to get file: {}", res.error());
     }
 
     if (!http::IsSuccess(response.StatusCode))
     {
-        return toolkit::make_error("failed to get file: {}, {}\n{}", response.StatusCode, response.StatusMessage, stream.str());
+        return toolkit::make_error(
+            "failed to get file: {}, {}\n{}",
+            response.StatusCode,
+            response.StatusMessage,
+            stream.str());
     }
 
     std::string checksum;
@@ -204,14 +218,21 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::s
 
     if (archive_checksum != checksum)
     {
-        return toolkit::make_error("checksum mismatch, archive checksum '{}' does not match '{}'.", archive_checksum, checksum);
+        return toolkit::make_error(
+            "checksum mismatch, archive checksum '{}' does not match '{}'.",
+            archive_checksum,
+            checksum);
     }
 
     auto data_directory = GetDataDirectory();
 
     if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
     {
-        return toolkit::make_error("failed to create directory '{}': {} ({}).", data_directory.string(), ec.message(), ec.value());
+        return toolkit::make_error(
+            "failed to create directory '{}': {} ({}).",
+            data_directory.string(),
+            ec.message(),
+            ec.value());
     }
 
     if (auto res = UnpackArchive(stream, data_directory); !res)
@@ -224,7 +245,12 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, std::s
 
     if (std::error_code ec; std::filesystem::rename(from_path, to_path, ec), ec)
     {
-        return toolkit::make_error("failed to rename '{}' to '{}': {} ({})", from_path.string(), to_path.string(), ec.message(), ec.value());
+        return toolkit::make_error(
+            "failed to rename '{}' to '{}': {} ({})",
+            from_path.string(),
+            to_path.string(),
+            ec.message(),
+            ec.value());
     }
 
     config.Installed.emplace(entry.Version);

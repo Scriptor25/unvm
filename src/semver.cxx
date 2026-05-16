@@ -218,7 +218,7 @@ toolkit::result<unvm::semver::Version> unvm::semver::Parser::ParseVersion()
     {
         return res;
     }
-    
+
     if (!At("-", "+"))
     {
         return version;
@@ -448,7 +448,7 @@ toolkit::result<bool> unvm::semver::IsInRange(const RangeSet &set, const std::st
     std::istringstream stream(str);
 
     Parser parser(stream);
-    
+
     Version parsed;
     if (auto res = parser.ParseVersion() >> parsed; !res)
     {
@@ -693,7 +693,7 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }
-            
+
             if (auto res = unvm::ParseString<std::uint32_t>(b_entry) >> b_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;

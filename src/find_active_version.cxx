@@ -2,7 +2,6 @@
 #include <unvm/util.hxx>
 
 #include <fstream>
-#include <iostream>
 
 static toolkit::result<> read_exact_version(
     const std::filesystem::path &path,

@@ -144,7 +144,8 @@ namespace unvm::http
         HttpClient();
         ~HttpClient();
 
-        toolkit::result<> Fetch(HttpRequest request, HttpResponse &response);
+        toolkit::result<> Fetch(HttpRequest request, HttpResponse &response) const;
+        toolkit::result<> FetchWithRedirects(HttpRequest request, HttpResponse &response) const;
 
     private:
         struct State;

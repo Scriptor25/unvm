@@ -7,6 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <toolkit/args.hxx>
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 #include <unistd.h>
@@ -49,9 +50,38 @@ static const std::map<std::string_view, unsigned> operation_map
     { "la", MOD_PRESENT_BITS | LIST_MOD_AVAILABLE_BITS | LIST_BITS },
 };
 
-static toolkit::result<> execute(unvm::Config &config, unvm::http::HttpClient &client, const std::vector<std::string_view> &args)
+static toolkit::result<> execute(
+    unvm::Config &config,
+    unvm::http::HttpClient &client,
+    const int argc,
+    const char *const*argv)
 {
-    if (args.empty())
+    toolkit::arg_context args;
+    if (auto res = toolkit::arg_parse(
+                       {
+                           {
+                               {
+                                   .id = "help",
+                                   .kind = toolkit::arg_kind::flag,
+                                   .patterns = { "?", "-?", "-h", "--help" },
+                               },
+                               {
+                                   .id = "available",
+                                   .kind = toolkit::arg_kind::flag,
+                                   .patterns = { "-a", "--available" },
+                               },
+                               {
+                                   .id = "local",
+                                   .kind = toolkit::arg_kind::flag,
+                                   .patterns = { "-l", "--local" },
+                               },
+                           },
+                       },
+                       argc,
+                       argv) >> args; !res)
+        return res;
+
+    if (args.empty() || args.is("help"))
     {
         unvm::PrintManual();
         return {};
@@ -70,6 +100,7 @@ static toolkit::result<> execute(unvm::Config &config, unvm::http::HttpClient &c
         {
             return toolkit::make_error("invalid argument count.");
         }
+
         return Install(config, client, args[1]);
 
     case REMOVE_BITS:
@@ -77,60 +108,39 @@ static toolkit::result<> execute(unvm::Config &config, unvm::http::HttpClient &c
         {
             return toolkit::make_error("invalid argument count.");
         }
+
         return Remove(config, client, args[1]);
 
     case USE_BITS:
-        switch (args.size())
+        if (args.size() != 2)
         {
-        case 2:
-            return Use(config, client, args[1], false);
-        case 3:
-            if (args[2] != "local")
-            {
-                return toolkit::make_error("invalid use modifier '{}'.", args[2]);
-            }
-            return Use(config, client, args[1], true);
-        default:
             return toolkit::make_error("invalid argument count.");
         }
 
+        return Use(config, client, args[1], args.is("local"));
+
     case LIST_BITS:
     {
+        if (args.size() != 1)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
         bool available;
         if (operation & MOD_PRESENT_BITS)
         {
-            if (args.size() != 1)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
             available = (operation & MOD_VALUE_BITS) == LIST_MOD_AVAILABLE_BITS;
         }
         else
         {
-            switch (args.size())
-            {
-            case 1:
-                available = false;
-                break;
-
-            case 2:
-                if (args[1] != "available")
-                {
-                    return toolkit::make_error("invalid list modifier '{}'.", args[1]);
-                }
-                available = true;
-                break;
-
-            default:
-                return toolkit::make_error("invalid argument count.");
-            }
+            available = args.is("available");
         }
 
         return List(config, client, available);
     }
 
     default:
-        return toolkit::make_error("operation not implemented.");
+        return toolkit::make_error("operation '{}' not implemented.", args[0]);
     }
 }
 
@@ -246,7 +256,7 @@ int main(const int argc, char **argv)
 
     if (exec.stem() == "unvm" || exec.stem() == "unvm.exe")
     {
-        if (auto res = execute(config, client, { argv + 1, argv + argc }); !res)
+        if (auto res = execute(config, client, argc, argv); !res)
         {
             std::cerr << res.error() << std::endl;
             return 1;
