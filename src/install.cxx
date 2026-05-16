@@ -1,18 +1,18 @@
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
+#include <toolkit/defer.hxx>
+
 #include <openssl/evp.h>
 
 #include <iostream>
 #include <sstream>
-#include <toolkit/defer.hxx>
 
-static toolkit::result<> get_checksum(
+static toolkit::result<std::string> get_checksum(
     unvm::http::HttpClient &client,
     const unvm::VersionEntry &entry,
     const std::string &filename,
-    const std::string &extension,
-    std::string &checksum)
+    const std::string &extension)
 {
     auto with_extension = filename + '.' + extension;
 
@@ -56,15 +56,14 @@ static toolkit::result<> get_checksum(
 
         if (std::string hash, file; (str >> hash >> file) && file == with_extension)
         {
-            checksum = hash;
-            return {};
+            return hash;
         }
     }
 
     return toolkit::make_error("failed to get checksum for filename '{}'.", with_extension);
 }
 
-static toolkit::result<> generate_checksum(std::istream &str, std::string &checksum)
+static toolkit::result<std::string> generate_checksum(std::istream &str)
 {
     auto *ctx = EVP_MD_CTX_new();
     if (!ctx)
@@ -111,8 +110,7 @@ static toolkit::result<> generate_checksum(std::istream &str, std::string &check
     str.clear();
     str.seekg(0, std::ios::beg);
 
-    checksum = stream.str();
-    return {};
+    return stream.str();
 }
 
 toolkit::result<> unvm::Install(
@@ -204,16 +202,16 @@ toolkit::result<> unvm::Install(
             stream.str());
     }
 
-    std::string checksum;
-    if (auto res = get_checksum(client, entry, filename, extension, checksum); !res)
-    {
-        return toolkit::make_error("failed to get checksum: {}", res.error());
-    }
-
     std::string archive_checksum;
-    if (auto res = generate_checksum(stream, archive_checksum); !res)
+    if (auto res = generate_checksum(stream) >> archive_checksum; !res)
     {
         return toolkit::make_error("failed to generate checksum: {}", res.error());
+    }
+
+    std::string checksum;
+    if (auto res = get_checksum(client, entry, filename, extension) >> checksum; !res)
+    {
+        return toolkit::make_error("failed to get checksum: {}", res.error());
     }
 
     if (archive_checksum != checksum)

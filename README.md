@@ -48,6 +48,7 @@ Make sure the following libraries are installed:
 - `OpenSSL`
 - `LibArchive`
 - `ZLib`
+- `RNP`
 
 ### Build using CMake
 
@@ -75,9 +76,9 @@ unvm
 
 ### Version Names
 
-- `latest` — latest version
-- `lts` — latest long-term-support version
-- `[v]<major>[.<minor>[.<patch>]]` — specific version
+- `latest` - latest version
+- `lts` - latest long-term-support version
+- `[v]<major>[.<minor>[.<patch>]]` - specific version
 - LTS by name, e.g., `Krypton` (case-insensitive)
 
 ### Commands
@@ -135,8 +136,8 @@ See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file for fu
 
 Included libraries:
 
-- **OpenSSL** — Apache License 2.0
-- **LibArchive** — BSD 2-Clause License
-- **ZLib** — zlib License
+- **OpenSSL**: Apache License 2.0
+- **LibArchive**: New BSD License
+- **ZLib**: zlib License
 
-These notices are included in the install package to comply with each project's license requirements.
+These notices are included in the installation package to comply with each project's license requirements.
