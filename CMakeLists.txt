@@ -38,14 +38,14 @@ add_subdirectory(deps/toolkit)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
-set(CA_BUNDLE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/ca-bundle.h)
+set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/cacert.pem)
+set(CA_BUNDLE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h)
 
 add_custom_command(
         OUTPUT ${CA_BUNDLE_OUTPUT}
         COMMAND xxd -i -n ca_bundle_data ${CA_BUNDLE_INPUT} ${CA_BUNDLE_OUTPUT}
         DEPENDS ${CA_BUNDLE_INPUT}
-        COMMENT "embedding ca-bundle.crt with xxd"
+        COMMENT "embedding cacert.pem with xxd"
 )
 add_custom_target(ca_bundle_h DEPENDS ${CA_BUNDLE_OUTPUT})
 

@@ -9,7 +9,7 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#include <ssl/ca-bundle.h>
+#include <ssl/cacert.h>
 
 #include <iostream>
 #include <istream>
