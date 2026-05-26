@@ -1,10 +1,9 @@
+#include <unvm/pgp.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
 #include <toolkit/defer.hxx>
 #include <toolkit/string.hxx>
-
-#include <gpgme.h>
 
 #include <openssl/evp.h>
 
@@ -88,8 +87,8 @@ static toolkit::result<std::string> get_trusted_checksum(
     const unvm::VersionEntry &entry,
     const std::string &with_extension)
 {
-    std::stringstream data_stream(std::stringstream::in | std::stringstream::out);
-    if (auto res = get_file_from_repo(client, data_stream, entry.Version, "SHASUMS256.txt", false); !res)
+    std::stringstream stream(std::stringstream::in | std::stringstream::out);
+    if (auto res = get_file_from_repo(client, stream, entry.Version, "SHASUMS256.txt", false); !res)
     {
         return res;
     }
@@ -103,35 +102,14 @@ static toolkit::result<std::string> get_trusted_checksum(
 
     if (has_signature)
     {
-        auto data_string = data_stream.str();
+        auto data_string = stream.str();
         auto signature_string = signature_stream.str();
 
-        std::vector<char> data_buffer(data_string.begin(), data_string.end());
-        std::vector<char> signature_buffer(signature_string.begin(), signature_string.end());
+        // TODO: generate data signature
+        // TODO: parse openpgp signature
+        // TODO: verify data with signature
 
-        gpgme_check_version(nullptr);
-
-        gpgme_ctx_t ctx;
-        gpgme_new(&ctx);
-        gpgme_set_protocol(ctx, GPGME_PROTOCOL_OpenPGP);
-        auto guard_ctx = toolkit::defer(gpgme_release, ctx);
-
-        gpgme_data_t data;
-        gpgme_data_new_from_mem(&data, data_buffer.data(), data_buffer.size(), 0);
-        auto guard_data = toolkit::defer(gpgme_data_release, data);
-
-        gpgme_data_t signature;
-        gpgme_data_new_from_mem(&signature, signature_buffer.data(), signature_buffer.size(), 0);
-        auto guard_signature = toolkit::defer(gpgme_data_release, signature);
-
-        if (auto error = gpgme_op_verify(ctx, signature, data, nullptr))
-        {
-            return toolkit::make_error("failed to verify gpg signature: {}", gpgme_strerror(error));
-        }
-
-        auto result = gpgme_op_verify_result(ctx);
-
-        for (auto s = result->signatures; s; s = s->next)
+        for (auto s = signatures; s; s = s->next)
         {
             if (config.Fingerprints.contains(s->fpr))
             {
@@ -159,7 +137,7 @@ static toolkit::result<std::string> get_trusted_checksum(
         }
     }
 
-    for (std::string line; std::getline(data_stream, line);)
+    for (std::string line; std::getline(stream, line);)
     {
         std::istringstream str(line);
 

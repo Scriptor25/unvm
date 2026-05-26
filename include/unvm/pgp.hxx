@@ -1,5 +1,9 @@
 #pragma once
 
+#include <toolkit/result.hxx>
+
+#include <openssl/evp.h>
+
 #include <cstdint>
 #include <format>
 #include <string_view>
@@ -354,18 +358,8 @@ namespace unvm::pgp
     };
 
 #pragma pack(push, 1)
-    /**
-     * - [5:2] - packet tag
-     * - [1:0] - length type
-     */
     struct PGPPacketTagOldFormat
     {
-        /**
-         * 0 - one-octet length
-         * 1 - two-octet length
-         * 2 - four-octet length
-         * 3 - indeterminate length
-         */
         uint8_t LengthType : 2;
 
         PacketTypeID PacketType : 4;
@@ -376,15 +370,6 @@ namespace unvm::pgp
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-    /**
-     * - [5:0] - packet tag
-     *
-     * length type:
-     *  - up to 0xBF: one-octet length
-     *  - up to 0x20BF: two-octet length
-     *  - up to 0xFFFFFFFF: four-octet-length
-     *  - otherwise indeterminate length
-     */
     struct PGPPacketTagNewFormat
     {
         PacketTypeID PacketType  : 6;
@@ -394,11 +379,6 @@ namespace unvm::pgp
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-    /**
-     * - [7] - always one
-     * - [6] - new format
-     * - [5:0] - packet tag
-     */
     struct PGPPacketTag
     {
         uint8_t           : 6;
@@ -424,24 +404,9 @@ namespace unvm::pgp
 #pragma pack(push, 1)
     struct PGPVersion4SignaturePacket
     {
-        /**
-         * One-octet version number (4).
-         */
         uint8_t Version;
-
-        /**
-         * One-octet signature type.
-         */
         SignatureTypeID SignatureType;
-
-        /**
-         * One-octet public-key algorithm.
-         */
         PublicKeyAlgorithmID PublicKeyAlgorithm;
-
-        /**
-         * One-octet hash algorithm.
-         */
         HashAlgorithmID HashAlgorithm;
     };
 #pragma pack(pop)
@@ -484,15 +449,7 @@ namespace unvm::pgp
         [[nodiscard]] iterator begin() const;
         [[nodiscard]] iterator end() const;
 
-        /**
-         * Two-octet scalar octet count for following hashed subpacket data. Note that this is the length in octets of
-         * all the hashed subpackets; a pointer incremented by this number will skip over the hashed subpackets.
-         */
         uint8_t Length[2];
-
-        /**
-         * Hashed subpacket data set (zero or more subpackets).
-         */
         uint8_t Data[];
     };
 #pragma pack(pop)
@@ -500,15 +457,7 @@ namespace unvm::pgp
 #pragma pack(push, 1)
     struct PGPSignatureBlock
     {
-        /**
-         * Two-octet field holding the left 16 bits of the signed hash value.
-         */
         uint8_t HashLeft16Bit[2];
-
-        /**
-         * One or more multiprecision integers comprising the signature. This portion is algorithm specific, as
-         * described above.
-         */
         uint8_t Signature[];
     };
 #pragma pack(pop)
@@ -537,6 +486,8 @@ namespace unvm::pgp
         uint8_t KeyID[8];
     };
 #pragma pack(pop)
+
+    toolkit::result<> VerifySignature(std::span<const uint8_t> data, std::span<const uint8_t> sig, EVP_PKEY *public_key);
 }
 
 template<>

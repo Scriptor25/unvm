@@ -120,14 +120,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          ./vcpkg/vcpkg install libarchive openssl gpgmepp --triplet ${{ matrix.triplet }}-release
+          ./vcpkg/vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
         shell: bash
         if: runner.os != 'Windows'
 
       - name: Install dependencies (Windows)
         run: |
           set VCPKG_BUILD_TYPE=release
-          .\vcpkg\vcpkg install libarchive openssl gpgmepp --triplet ${{ matrix.triplet }}-release
+          .\vcpkg\vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
         if: runner.os == 'Windows'
 
       - name: Configure cmake

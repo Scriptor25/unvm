@@ -13,10 +13,10 @@ set(PROJECT_BUILD_DATE "${BUILD_DATE}")
 
 ### Find dependencies ###
 
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto SSL)
 find_package(LibArchive REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(Gpgmepp REQUIRED)
+find_package(LibLZMA REQUIRED)
 
 ### Options ###
 
@@ -60,12 +60,17 @@ add_dependencies(unvm cacert)
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
 target_link_libraries(unvm PRIVATE
+        toolkit::core
         toolkit::json
-        OpenSSL::SSL
+
         OpenSSL::Crypto
+        OpenSSL::SSL
+
         LibArchive::LibArchive
+
         ZLIB::ZLIB
-        Gpgme::Gpgme
+
+        LibLZMA::LibLZMA
 )
 
 target_compile_definitions(unvm PRIVATE

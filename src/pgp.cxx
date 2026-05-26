@@ -1,5 +1,7 @@
 #include <unvm/pgp.hxx>
 
+#include <toolkit/defer.hxx>
+
 #include <unordered_map>
 
 std::string_view unvm::pgp::ToString(PacketTypeID packet_type)
@@ -131,6 +133,15 @@ std::string_view unvm::pgp::ToString(HashAlgorithmID algorithm)
 {
     static const std::unordered_map<HashAlgorithmID, const char *> map
     {
+        { HashAlgorithmID::MD5, "MD5" },
+        { HashAlgorithmID::SHA1, "SHA1" },
+        { HashAlgorithmID::RIPEMD160, "RIPEMD160" },
+        { HashAlgorithmID::SHA256, "SHA256" },
+        { HashAlgorithmID::SHA384, "SHA384" },
+        { HashAlgorithmID::SHA512, "SHA512" },
+        { HashAlgorithmID::SHA224, "SHA224" },
+        { HashAlgorithmID::SHA3_256, "SHA3_256" },
+        { HashAlgorithmID::SHA3_512, "SHA3_512" },
     };
 
     if (auto it = map.find(algorithm); it != map.end())
@@ -289,4 +300,119 @@ unvm::pgp::PGPSubpacketSet::begin() const
 unvm::pgp::PGPSubpacketSet::iterator unvm::pgp::PGPSubpacketSet::end() const
 {
     return { Data + GetLength() };
+}
+
+toolkit::result<> unvm::pgp::VerifySignature(const std::span<const uint8_t> data, const std::span<const uint8_t> sig, EVP_PKEY *public_key)
+{
+    static const std::unordered_map<HashAlgorithmID, const EVP_MD *> hash_algorithms
+    {
+        { HashAlgorithmID::MD5,       EVP_md5()       },
+        { HashAlgorithmID::SHA1,      EVP_sha1()      },
+        { HashAlgorithmID::RIPEMD160, EVP_ripemd160() },
+        { HashAlgorithmID::SHA256,    EVP_sha256()    },
+        { HashAlgorithmID::SHA384,    EVP_sha384()    },
+        { HashAlgorithmID::SHA512,    EVP_sha512()    },
+        { HashAlgorithmID::SHA224,    EVP_sha224()    },
+        { HashAlgorithmID::SHA3_256,  EVP_sha3_256()  },
+        { HashAlgorithmID::SHA3_512,  EVP_sha3_512()  },
+    };
+
+    auto *header = reinterpret_cast<const PGPPacketHeader *>(sig.data());
+
+    PacketTypeID packet_type;
+    uint32_t packet_length;
+    uint8_t header_length;
+    bool partial;
+
+    header->Parse(packet_type, packet_length, header_length, partial);
+    
+    if (partial)
+    {
+        return toolkit::make_error("partial gpg packets are not supported.");
+    }
+
+    if (packet_type != PacketTypeID::SignaturePacket)
+    {
+        return toolkit::make_error("unsupported packet type {}", packet_type);
+    }
+
+    auto *packet = reinterpret_cast<const PGPVersion4SignaturePacket *>(reinterpret_cast<const uint8_t *>(header) + header_length);
+
+    if (packet->Version != 0x04)
+    {
+        return toolkit::make_error("unsupported packet version {:02x}", packet->Version);
+    }
+
+    if (packet->SignatureType != SignatureTypeID::Binary)
+    {
+        return toolkit::make_error("unsupported signature type {}", packet->SignatureType);
+    }
+
+    auto *hashed = reinterpret_cast<const PGPSubpacketSet *>(packet + 1);
+    auto hashed_length = hashed->GetLength();
+
+    auto *unhashed = reinterpret_cast<const PGPSubpacketSet *>(reinterpret_cast<const uint8_t *>(hashed) + 2 + hashed_length);
+    auto unhashed_length = unhashed->GetLength();
+
+    auto *signature = reinterpret_cast<const PGPSignatureBlock *>(reinterpret_cast<const uint8_t *>(unhashed) + 2 + unhashed_length);
+
+    const EVP_MD *md;
+    if (auto it = hash_algorithms.find(packet->HashAlgorithm); it != hash_algorithms.end())
+    {
+        md = it->second;
+    }
+    else
+    {
+        return toolkit::make_error("unsupported hash algorithm {}", packet->HashAlgorithm);
+    }
+
+    auto *ctx = EVP_MD_CTX_new();
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create evp context.");
+    }
+
+    auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
+
+    if (EVP_DigestVerifyInit(ctx, nullptr, md, nullptr, public_key) != 1)
+    {
+        return toolkit::make_error("failed to initialize digest verify context.");
+    }
+
+    if (EVP_DigestVerifyUpdate(ctx, data.data(), data.size()) != 1)
+    {
+        return toolkit::make_error("failed to update digest verify context.");
+    }
+
+    uint32_t signature_length = 4 + 2 + hashed_length;
+
+    if (EVP_DigestVerifyUpdate(ctx, packet, signature_length) != 1)
+    {
+        return toolkit::make_error("failed to update digest verify context.");
+    }
+
+    const uint8_t trailer[]
+    {
+        0x04,
+        0xFF,
+        static_cast<uint8_t>((signature_length >> 24) & 0xFF),
+        static_cast<uint8_t>((signature_length >> 16) & 0xFF),
+        static_cast<uint8_t>((signature_length >> 8) & 0xFF),
+        static_cast<uint8_t>(signature_length & 0xFF),
+    };
+
+    if (EVP_DigestVerifyUpdate(ctx, trailer, sizeof(trailer)) != 1)
+    {
+        return toolkit::make_error("failed to update digest verify context.");
+    }
+
+    uint16_t bit_count = static_cast<uint16_t>(signature->Signature[0]) << 8 | static_cast<uint16_t>(signature->Signature[1]);
+    uint16_t byte_count = (bit_count + 7) / 8;
+
+    if (EVP_DigestVerifyFinal(ctx, signature->Signature + 2, byte_count) != 1)
+    {
+        return toolkit::make_error("failed to update digest verify context.");
+    }
+
+    return {};
 }
