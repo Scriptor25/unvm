@@ -1,86 +1,24 @@
-#include <unvm/pgp.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
 #include <toolkit/defer.hxx>
+#include <toolkit/string.hxx>
+
+#include <gpgme.h>
 
 #include <openssl/evp.h>
-#include <openssl/pem.h>
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 
-static std::vector<unsigned char> base64_decode(const std::string &str)
-{
-    auto *bio = BIO_new_mem_buf(str.data(), static_cast<int>(str.size()));
-    auto *base64 = BIO_new(BIO_f_base64());
-
-    BIO_set_flags(base64, BIO_FLAGS_BASE64_NO_NL);
-    bio = BIO_push(base64, bio);
-
-    std::vector<unsigned char> vec(str.size());
-
-    const auto len = BIO_read(bio, vec.data(), static_cast<int>(vec.size()));
-    vec.resize(len > 0 ? len : 0);
-
-    BIO_free_all(bio);
-    return vec;
-}
-
-EVP_PKEY *load_pubkey(const std::filesystem::path &filename)
-{
-    auto *file = fopen(filename.c_str(), "r");
-    if (!file)
-    {
-        return nullptr;
-    }
-
-    auto *key = PEM_read_PUBKEY(file, nullptr, nullptr, nullptr);
-
-    fclose(file);
-    return key;
-}
-
-bool verify(EVP_PKEY *pubkey, const std::string &message, const std::vector<unsigned char> &signature)
-{
-    auto *ctx = EVP_MD_CTX_new();
-    if (!ctx)
-    {
-        return false;
-    }
-
-    auto guard0 = toolkit::defer(EVP_MD_CTX_free, ctx);
-
-    if (EVP_DigestVerifyInit(ctx, nullptr, EVP_sha256(), nullptr, pubkey) != 1)
-    {
-        return false;
-    }
-
-    EVP_DigestVerifyUpdate(ctx, message.data(), message.size());
-
-    if (EVP_DigestVerifyFinal(ctx, signature.data(), signature.size()) != 1)
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool shasums256_verify(std::istream &stream, EVP_PKEY *key)
-{
-    // const auto msg;
-    // const auto sig;
-    //
-    // return verify(key, msg, sig);
-
-    return false;
-}
-
-static toolkit::result<> get_file_from_repo(
+static toolkit::result<bool> get_file_from_repo(
     unvm::http::HttpClient &client,
     std::ostream &stream,
     std::string version,
-    std::string filename)
+    std::string filename,
+    bool optional)
 {
     unvm::http::HttpRequest request
     {
@@ -107,6 +45,11 @@ static toolkit::result<> get_file_from_repo(
             res.error());
     }
 
+    if (optional && response.StatusCode == unvm::http::HttpStatusCode::NotFound)
+    {
+        return false;
+    }
+
     if (!unvm::http::IsSuccess(response.StatusCode))
     {
         return toolkit::make_error(
@@ -117,124 +60,106 @@ static toolkit::result<> get_file_from_repo(
             response.StatusMessage);
     }
 
-    return {};
+    return true;
 }
 
-static toolkit::result<std::string> get_checksum(
+template<typename... M>
+std::string prompt(const M &... message)
+{
+    (std::cout << ... << message) << std::flush;
+
+    std::string input;
+    std::getline(std::cin, input);
+    
+    return input;
+}
+
+template<typename... M>
+static bool confirm(const M &... message)
+{
+    auto input = toolkit::lowercase(prompt(message..., " [y/N]: "));
+
+    return input == "y" || input == "yes";
+}
+
+static toolkit::result<std::string> get_trusted_checksum(
+    unvm::Config &config,
     unvm::http::HttpClient &client,
     const unvm::VersionEntry &entry,
-    const std::string &filename,
-    const std::string &extension)
+    const std::string &with_extension)
 {
-    auto with_extension = filename + '.' + extension;
-
-    std::stringstream stream(std::stringstream::in | std::stringstream::out);
-    if (auto res = get_file_from_repo(client, stream, entry.Version, "SHASUMS256.txt"); !res)
+    std::stringstream data_stream(std::stringstream::in | std::stringstream::out);
+    if (auto res = get_file_from_repo(client, data_stream, entry.Version, "SHASUMS256.txt", false); !res)
     {
         return res;
     }
 
-    std::stringstream sig_stream(std::stringstream::in | std::stringstream::out | std::stringstream::binary);
-    if (auto res = get_file_from_repo(client, sig_stream, entry.Version, "SHASUMS256.txt.sig"); !res)
+    std::stringstream signature_stream(std::stringstream::in | std::stringstream::out | std::stringstream::binary);
+    bool has_signature;
+    if (auto res = get_file_from_repo(client, signature_stream, entry.Version, "SHASUMS256.txt.sig", true) >> has_signature; !res)
     {
         return res;
     }
 
-    sig_stream.seekg(0, std::ios::end);
-    std::vector<unsigned char> sig(sig_stream.tellg());
-    sig_stream.seekg(0, std::ios::beg);
-    sig_stream.read(reinterpret_cast<char *>(sig.data()), static_cast<std::streamsize>(sig.size()));
-
+    if (has_signature)
     {
-        auto *header = reinterpret_cast<const unvm::pgp::PGPPacketHeader *>(sig.data());
+        auto data_string = data_stream.str();
+        auto signature_string = signature_stream.str();
 
-        unvm::pgp::PacketTagValue packet_tag;
-        uint8_t header_length;
-        uint32_t packet_length;
-        bool partial;
+        std::vector<char> data_buffer(data_string.begin(), data_string.end());
+        std::vector<char> signature_buffer(signature_string.begin(), signature_string.end());
 
-        header->Parse(packet_tag, packet_length, header_length, partial);
+        gpgme_check_version(nullptr);
 
-        if (partial)
+        gpgme_ctx_t ctx;
+        gpgme_new(&ctx);
+        gpgme_set_protocol(ctx, GPGME_PROTOCOL_OpenPGP);
+        auto guard_ctx = toolkit::defer(gpgme_release, ctx);
+
+        gpgme_data_t data;
+        gpgme_data_new_from_mem(&data, data_buffer.data(), data_buffer.size(), 0);
+        auto guard_data = toolkit::defer(gpgme_data_release, data);
+
+        gpgme_data_t signature;
+        gpgme_data_new_from_mem(&signature, signature_buffer.data(), signature_buffer.size(), 0);
+        auto guard_signature = toolkit::defer(gpgme_data_release, signature);
+
+        if (auto error = gpgme_op_verify(ctx, signature, data, nullptr))
         {
-            (void) header_length;
-            (void) packet_length;
-            return toolkit::make_error("partial packets are not supported.");
+            return toolkit::make_error("failed to verify gpg signature: {}", gpgme_strerror(error));
         }
 
-        if (packet_length == 0)
+        auto result = gpgme_op_verify_result(ctx);
+
+        for (auto s = result->signatures; s; s = s->next)
         {
-            (void) header_length;
-            return toolkit::make_error("indeterminate sized packets are not supported.");
-        }
+            if (config.Fingerprints.contains(s->fpr))
+            {
+                continue;
+            }
 
-        if (packet_tag != unvm::pgp::PacketTagValue::SignaturePacket)
+            std::cout << "untrusted fingerprint '" << s->fpr << "' (" << gpgme_strerror(s->status) << ")." << std::endl;
+
+            if (auto trust = confirm("trust this fingerprint?"); !trust)
+            {
+                return toolkit::make_error("untrusted fingerprint '{}' ({}).", s->fpr, gpgme_strerror(s->status));
+            }
+
+            config.Fingerprints.insert(s->fpr);
+            config.Dirty = true;
+        }
+    }
+    else
+    {
+        std::cout << "version '" << entry.Version << "' does not have a signature file." << std::endl;
+
+        if (auto trust = confirm("install anyways?"); !trust)
         {
-            return toolkit::make_error(
-                "invalid packet tag {:02X}, must be signature packet tag {:02X}.",
-                static_cast<uint8_t>(packet_tag),
-                static_cast<uint8_t>(unvm::pgp::PacketTagValue::SignaturePacket));
+            return toolkit::make_error("version '{}' does not have a signature file.", entry.Version);
         }
-
-        auto *body = reinterpret_cast<const uint8_t *>(header) + header_length;
-
-        auto *packet = reinterpret_cast<const unvm::pgp::PGPVersion4SignaturePacket *>(body);
-        if (packet->Version != 0x04)
-        {
-            return toolkit::make_error(
-                "invalid packet version {:02X}, must be {:02X}",
-                packet->Version,
-                0x04);
-        }
-
-        if (packet->SignatureType != unvm::pgp::SignatureTypeValue::BinaryDocument)
-        {
-            return toolkit::make_error(
-                "invalid signature type {:02X}, must be binary document signature type {:02X}.",
-                static_cast<uint8_t>(packet->SignatureType),
-                static_cast<uint8_t>(unvm::pgp::SignatureTypeValue::BinaryDocument));
-        }
-
-        auto *hashed_subpackets = reinterpret_cast<const unvm::pgp::PGPSubpacketSet *>(
-            body + sizeof(unvm::pgp::PGPVersion4SignaturePacket)
-        );
-
-        auto *unhashed_subpackets = reinterpret_cast<const unvm::pgp::PGPSubpacketSet *>(
-            body
-            + sizeof(unvm::pgp::PGPVersion4SignaturePacket)
-            + sizeof(unvm::pgp::PGPSubpacketSet)
-            + hashed_subpackets->GetLength()
-        );
-
-        auto *signature = reinterpret_cast<const unvm::pgp::PGPSignatureBlock *>(
-            body
-            + sizeof(unvm::pgp::PGPVersion4SignaturePacket)
-            + sizeof(unvm::pgp::PGPSubpacketSet)
-            + hashed_subpackets->GetLength()
-            + sizeof(unvm::pgp::PGPSubpacketSet)
-            + unhashed_subpackets->GetLength()
-        );
-
-        for (auto descriptor : *hashed_subpackets)
-        {
-            (void) descriptor.Data->Type;
-
-            std::cerr << descriptor.Length << std::endl;
-        }
-
-        for (auto descriptor : *unhashed_subpackets)
-        {
-            (void) descriptor.Data->Type;
-
-            std::cerr << descriptor.Length << std::endl;
-        }
-
-        __builtin_debugtrap();
     }
 
-    // TODO: verify pgp signature
-
-    for (std::string line; std::getline(stream, line);)
+    for (std::string line; std::getline(data_stream, line);)
     {
         std::istringstream str(line);
 
@@ -247,7 +172,7 @@ static toolkit::result<std::string> get_checksum(
     return toolkit::make_error("failed to get checksum for filename '{}'.", with_extension);
 }
 
-static toolkit::result<std::string> generate_checksum(std::istream &str)
+static toolkit::result<std::string> get_file_checksum(std::istream &stream)
 {
     auto *ctx = EVP_MD_CTX_new();
     if (!ctx)
@@ -255,7 +180,7 @@ static toolkit::result<std::string> generate_checksum(std::istream &str)
         return toolkit::make_error("failed to create evp context.");
     }
 
-    auto guard0 = toolkit::defer(EVP_MD_CTX_free, ctx);
+    auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
     if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1)
     {
@@ -264,11 +189,11 @@ static toolkit::result<std::string> generate_checksum(std::istream &str)
 
     std::array<char, 8192> chunk{};
 
-    while (str)
+    while (stream)
     {
-        str.read(chunk.data(), chunk.size());
+        stream.read(chunk.data(), chunk.size());
 
-        if (const auto count = str.gcount(); count > 0)
+        if (const auto count = stream.gcount(); count > 0)
         {
             if (EVP_DigestUpdate(ctx, chunk.data(), count) != 1)
             {
@@ -285,16 +210,13 @@ static toolkit::result<std::string> generate_checksum(std::istream &str)
         return toolkit::make_error("failed to finalize digest.");
     }
 
-    std::ostringstream stream;
+    std::ostringstream os;
     for (unsigned i = 0; i < hash_length; ++i)
     {
-        stream << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+        os << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned>(hash[i]);
     }
 
-    str.clear();
-    str.seekg(0, std::ios::beg);
-
-    return stream.str();
+    return os.str();
 }
 
 toolkit::result<> unvm::Install(
@@ -311,6 +233,10 @@ toolkit::result<> unvm::Install(
 
 #if defined(SYSTEM_WINDOWS)
 
+#if defined(ARCH_X86)
+    constexpr auto format = "node-{}-win-x86";
+#endif
+
 #if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr auto format = "node-{}-win-x64";
 #endif
@@ -325,6 +251,10 @@ toolkit::result<> unvm::Install(
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID)
 
+#if defined(ARCH_X86)
+    constexpr auto format = "node-{}-linux-x86";
+#endif
+
 #if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr auto format = "node-{}-linux-x64";
 #endif
@@ -333,7 +263,7 @@ toolkit::result<> unvm::Install(
     constexpr auto format = "node-{}-linux-arm64";
 #endif
 
-    constexpr auto extension = "tar.xz";
+    constexpr auto extension = "tar.gz";
 
 #endif
 
@@ -347,37 +277,55 @@ toolkit::result<> unvm::Install(
     constexpr auto format = "node-{}-darwin-arm64";
 #endif
 
-    constexpr auto extension = "tar.xz";
+    constexpr auto extension = "tar.gz";
 
 #endif
 
     auto filename = std::format(format, entry.Version);
     auto with_extension = std::format("{}.{}", filename, extension);
 
-    std::stringstream stream(std::stringstream::binary | std::stringstream::in | std::stringstream::out);
-    if (auto res = get_file_from_repo(client, stream, entry.Version, with_extension); !res)
+    std::string trusted_checksum;
+    if (auto res = get_trusted_checksum(config, client, entry, with_extension) >> trusted_checksum; !res)
     {
-        return res;
+        return toolkit::make_error("failed to get trusted checksum: {}", res.error());
+    }
+    
+    char archive_name[L_tmpnam];
+    tmpnam(archive_name);
+
+    auto guard_archive = toolkit::defer([](const char *name)
+    {
+        if (std::error_code ec; std::filesystem::remove(name, ec), ec)
+        {
+            std::cerr << "failed to remove file '" << name << "': " << ec.message() << " (" << ec.value() << ")." << std::endl;
+        }
+    }, archive_name);
+
+    // write archive to disk
+    {
+        std::ofstream archive_stream(archive_name, std::ios::binary);
+        if (auto res = get_file_from_repo(client, archive_stream, entry.Version, with_extension, false); !res)
+        {
+            return toolkit::make_error("failed to get archive: {}", res.error());
+        }
     }
 
+    // read archive from disk, get file checksum
     std::string archive_checksum;
-    if (auto res = generate_checksum(stream) >> archive_checksum; !res)
     {
-        return toolkit::make_error("failed to generate checksum: {}", res.error());
+        std::ifstream archive_stream(archive_name, std::ios::binary);
+        if (auto res = get_file_checksum(archive_stream) >> archive_checksum; !res)
+        {
+            return toolkit::make_error("failed to generate archive checksum: {}", res.error());
+        }
     }
 
-    std::string checksum;
-    if (auto res = get_checksum(client, entry, filename, extension) >> checksum; !res)
-    {
-        return toolkit::make_error("failed to get checksum: {}", res.error());
-    }
-
-    if (archive_checksum != checksum)
+    if (archive_checksum != trusted_checksum)
     {
         return toolkit::make_error(
-            "checksum mismatch, archive checksum '{}' does not match '{}'.",
+            "checksum mismatch, archive checksum '{}' does not match trusted checksum '{}'.",
             archive_checksum,
-            checksum);
+            trusted_checksum);
     }
 
     auto data_directory = GetDataDirectory();
@@ -391,9 +339,13 @@ toolkit::result<> unvm::Install(
             ec.value());
     }
 
-    if (auto res = UnpackArchive(stream, data_directory); !res)
+    // read archive from disk, unpack archive
     {
-        return toolkit::make_error("failed to unpack archive: {}", res.error());
+        std::ifstream archive_stream(archive_name, std::ios::binary);
+        if (auto res = UnpackArchive(archive_stream, data_directory); !res)
+        {
+            return toolkit::make_error("failed to unpack archive: {}", res.error());
+        }
     }
 
     auto from_path = data_directory / filename;

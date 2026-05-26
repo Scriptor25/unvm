@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <format>
+#include <string_view>
 
 namespace unvm::pgp
 {
-    enum class PacketTagValue : uint8_t
+    enum class PacketTypeID : uint8_t
     {
         PublicKeyEncryptedSessionKeyPacket          = 1,
         SignaturePacket                             = 2,
@@ -25,7 +27,7 @@ namespace unvm::pgp
         ModificationDetectionCodePacket             = 19,
     };
 
-    enum class SubpacketTypeValue : uint8_t
+    enum class SubpacketTypeID : uint8_t
     {
         SignatureCreationTime          = 2,
         SignatureExpirationTime        = 3,
@@ -55,21 +57,21 @@ namespace unvm::pgp
         PreferredAEADCipherSuites      = 39,
     };
 
-    enum class SignatureTypeValue : uint8_t
+    enum class SignatureTypeID : uint8_t
     {
-        BinaryDocument        = 0x00,
-        CanonicalTextDocument = 0x01,
-        Standalone            = 0x02,
+        Binary     = 0x00,
+        Text       = 0x01,
+        Standalone = 0x02,
 
-        GenericCertificationOfUserIDAndPublicKey  = 0x10,
-        PersonaCertificationOfUserIDAndPublicKey  = 0x11,
-        CasualCertificationOfUserIDAndPublicKey   = 0x12,
-        PositiveCertificationOfUserIDAndPublicKey = 0x13,
+        GenericCertification  = 0x10,
+        PersonaCertification  = 0x11,
+        CasualCertification   = 0x12,
+        PositiveCertification = 0x13,
 
         SubkeyBinding     = 0x18,
         PrimaryKeyBinding = 0x19,
 
-        DirectlyOnKey = 0x1F,
+        DirectKey     = 0x1F,
         KeyRevocation = 0x20,
 
         SubkeyRevocation = 0x28,
@@ -80,6 +82,42 @@ namespace unvm::pgp
 
         ThirdPartyConfirmation = 0x50,
     };
+
+    enum class PublicKeyAlgorithmID : uint8_t
+    {
+        RSA_ES = 0x01,
+        RSA_EO = 0x02,
+        RSA_SO = 0x03,
+
+        Elgamal = 0x10,
+        DSA     = 0x11,
+        ECDH    = 0x12,
+        ECDSA   = 0x13,
+
+        X25519  = 0x19,
+        X448    = 0x1A,
+        Ed25519 = 0x1B,
+        Ed448   = 0x1C,
+    };
+
+    enum class HashAlgorithmID : uint8_t
+    {
+        MD5       = 0x01,
+        SHA1      = 0x02,
+        RIPEMD160 = 0x03,
+        SHA256    = 0x08,
+        SHA384    = 0x09,
+        SHA512    = 0x0A,
+        SHA224    = 0x0B,
+        SHA3_256  = 0x0C,
+        SHA3_512  = 0x0E,
+    };
+
+    std::string_view ToString(PacketTypeID packet_type);
+    std::string_view ToString(SubpacketTypeID subpacket_type);
+    std::string_view ToString(SignatureTypeID signature_type);
+    std::string_view ToString(PublicKeyAlgorithmID algorithm);
+    std::string_view ToString(HashAlgorithmID algorithm);
 
     constexpr uint8_t SIG_MD5[]
     {
@@ -93,22 +131,22 @@ namespace unvm::pgp
         0x05,
     };
 
-    constexpr uint8_t SIG_RIPEMD_160[]
-    {
-        0x2B,
-        0x24,
-        0x03,
-        0x02,
-        0x01,
-    };
-
-    constexpr uint8_t SIG_SHA_1[]
+    constexpr uint8_t SIG_SHA1[]
     {
         0x2B,
         0x0E,
         0x03,
         0x02,
         0x1A,
+    };
+
+    constexpr uint8_t SIG_RIPEMD160[]
+    {
+        0x2B,
+        0x24,
+        0x03,
+        0x02,
+        0x01,
     };
 
     constexpr uint8_t SIG_SHA224[]
@@ -185,26 +223,7 @@ namespace unvm::pgp
         0x10,
     };
 
-    constexpr uint8_t HASH_PREFIX_RIPEMD_160[]
-    {
-        0x30,
-        0x21,
-        0x30,
-        0x09,
-        0x06,
-        0x05,
-        0x2B,
-        0x24,
-        0x03,
-        0x02,
-        0x01,
-        0x05,
-        0x00,
-        0x04,
-        0x14,
-    };
-
-    constexpr uint8_t HASH_PREFIX_SHA_1[]
+    constexpr uint8_t HASH_PREFIX_SHA1[]
     {
         0x30,
         0x21,
@@ -217,6 +236,25 @@ namespace unvm::pgp
         0x03,
         0x02,
         0x1A,
+        0x05,
+        0x00,
+        0x04,
+        0x14,
+    };
+
+    constexpr uint8_t HASH_PREFIX_RIPEMD160[]
+    {
+        0x30,
+        0x21,
+        0x30,
+        0x09,
+        0x06,
+        0x05,
+        0x2B,
+        0x24,
+        0x03,
+        0x02,
+        0x01,
         0x05,
         0x00,
         0x04,
@@ -330,7 +368,7 @@ namespace unvm::pgp
          */
         uint8_t LengthType : 2;
 
-        PacketTagValue PacketTag : 4;
+        PacketTypeID PacketType : 4;
 
         uint8_t NewFormat : 1;
         uint8_t AlwaysOne : 1;
@@ -349,7 +387,7 @@ namespace unvm::pgp
      */
     struct PGPPacketTagNewFormat
     {
-        PacketTagValue PacketTag : 6;
+        PacketTypeID PacketType  : 6;
         uint8_t NewFormat        : 1;
         uint8_t AlwaysOne        : 1;
     };
@@ -373,7 +411,7 @@ namespace unvm::pgp
     struct PGPPacketHeader
     {
         void Parse(
-            PacketTagValue &packet_tag,
+            PacketTypeID &packet_type,
             uint32_t &packet_length,
             uint8_t &header_length,
             bool &partial) const;
@@ -394,24 +432,24 @@ namespace unvm::pgp
         /**
          * One-octet signature type.
          */
-        SignatureTypeValue SignatureType;
+        SignatureTypeID SignatureType;
 
         /**
          * One-octet public-key algorithm.
          */
-        uint8_t PublicKeyAlgorithm;
+        PublicKeyAlgorithmID PublicKeyAlgorithm;
 
         /**
          * One-octet hash algorithm.
          */
-        uint8_t HashAlgorithm;
+        HashAlgorithmID HashAlgorithm;
     };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
     struct PGPSubpacketData
     {
-        SubpacketTypeValue Type;
+        SubpacketTypeID Type;
         uint8_t Data[];
     };
 #pragma pack(pop)
@@ -476,37 +514,111 @@ namespace unvm::pgp
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-    struct PGPSignatureCreationTimeSubpacket
+    struct PGPIssuerFingerprintSubpacket
     {
-        SubpacketTypeValue Type;
-        uint8_t Data[4];
+        SubpacketTypeID Type;
+        uint8_t KeyVersionNumber[1];
+        uint8_t Fingerprint[20];
     };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
+    struct PGPSignatureCreationTimeSubpacket
+    {
+        SubpacketTypeID Type;
+        uint8_t Time[4];
+    };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-#pragma pack(pop)
-
-#pragma pack(push, 1)
+    struct PGPIssuerKeyIDSubpacket
+    {
+        SubpacketTypeID Type;
+        uint8_t KeyID[8];
+    };
 #pragma pack(pop)
 }
+
+template<>
+struct std::formatter<unvm::pgp::PacketTypeID>
+{
+    template<typename C>
+    static constexpr auto parse(C &&ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename C>
+    auto format(unvm::pgp::PacketTypeID packet_type, C &&ctx) const
+    {
+        for (auto c : unvm::pgp::ToString(packet_type))
+        {
+            *ctx.out()++ = c;
+        }
+
+        return ctx.out();
+    }
+};
+
+template<>
+struct std::formatter<unvm::pgp::SignatureTypeID>
+{
+    template<typename C>
+    static constexpr auto parse(C &&ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename C>
+    auto format(unvm::pgp::SignatureTypeID signature_type, C &&ctx) const
+    {
+        for (auto c : unvm::pgp::ToString(signature_type))
+        {
+            *ctx.out()++ = c;
+        }
+
+        return ctx.out();
+    }
+};
+
+template<>
+struct std::formatter<unvm::pgp::PublicKeyAlgorithmID>
+{
+    template<typename C>
+    static constexpr auto parse(C &&ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename C>
+    auto format(unvm::pgp::PublicKeyAlgorithmID algorithm, C &&ctx) const
+    {
+        for (auto c : unvm::pgp::ToString(algorithm))
+        {
+            *ctx.out()++ = c;
+        }
+
+        return ctx.out();
+    }
+};
+
+template<>
+struct std::formatter<unvm::pgp::HashAlgorithmID>
+{
+    template<typename C>
+    static constexpr auto parse(C &&ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename C>
+    auto format(unvm::pgp::HashAlgorithmID algorithm, C &&ctx) const
+    {
+        for (auto c : unvm::pgp::ToString(algorithm))
+        {
+            *ctx.out()++ = c;
+        }
+
+        return ctx.out();
+    }
+};

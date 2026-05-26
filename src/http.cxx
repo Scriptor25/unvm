@@ -247,8 +247,8 @@ unvm::http::HttpClient::HttpClient()
 
     if (auto res = load_cert_chain_from_shared_mem(
         m_State->SslCtx,
-        ca_bundle_data,
-        static_cast<int>(ca_bundle_data_len)); !res)
+        cacert_data,
+        static_cast<int>(cacert_data_len)); !res)
     {
         std::cerr << "failed to load vendor certificates: " << res.error() << std::endl;
         return;

@@ -1,17 +1,20 @@
 #pragma once
 
 #include <optional>
-#include <set>
 #include <string>
+#include <unordered_set>
 
 namespace unvm
 {
     struct Config
     {
-        std::set<std::string> Installed;
+        bool Dirty{};
+
+        std::unordered_set<std::string> Installed;
         std::optional<std::string> Default;
 
         std::optional<std::string> Active;
-        bool Dirty{};
+
+        std::unordered_set<std::string> Fingerprints;
     };
 }

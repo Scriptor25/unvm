@@ -25,11 +25,19 @@ toolkit::result<> unvm::List(
         {
             if (available || config.Installed.contains(entry.Version))
             {
-                versions.insert(entry.Version);
-
-                if (entry.Version.front() == 'v')
+                for (size_t pos = 0; (pos = entry.Version.find('.', pos)), true; ++pos)
                 {
-                    versions.insert(entry.Version.substr(1));
+                    auto str = entry.Version.substr(0, pos);
+
+                    versions.insert(str);
+
+                    if (str.front() == 'v')
+                    {
+                        versions.insert(str.substr(1));
+                    }
+
+                    if (pos == std::string::npos)
+                        break;
                 }
 
                 if (entry.Lts && !versions.contains(*entry.Lts))

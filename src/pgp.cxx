@@ -1,7 +1,148 @@
 #include <unvm/pgp.hxx>
 
+#include <unordered_map>
+
+std::string_view unvm::pgp::ToString(PacketTypeID packet_type)
+{
+    static const std::unordered_map<PacketTypeID, const char *> map
+    {
+        { PacketTypeID::PublicKeyEncryptedSessionKeyPacket, "PublicKeyEncryptedSessionKeyPacket" },
+        { PacketTypeID::SignaturePacket, "SignaturePacket" },
+        { PacketTypeID::SymmetricKeyEncryptedSessionKeyPacket, "SymmetricKeyEncryptedSessionKeyPacket" },
+        { PacketTypeID::OnePassSignaturePacket, "OnePassSignaturePacket" },
+        { PacketTypeID::SecretKeyPacket, "SecretKeyPacket" },
+        { PacketTypeID::PublicKeyPacket, "PublicKeyPacket" },
+        { PacketTypeID::SecretSubkeyPacket, "SecretSubkeyPacket" },
+        { PacketTypeID::CompressedDataPacket, "CompressedDataPacket" },
+        { PacketTypeID::SymmetricallyEncryptedDataPacket, "SymmetricallyEncryptedDataPacket" },
+        { PacketTypeID::MarkerPacket, "MarkerPacket" },
+        { PacketTypeID::LiteralDataPacket, "LiteralDataPacket" },
+        { PacketTypeID::TrustPacket, "TrustPacket" },
+        { PacketTypeID::UserIDPacket, "UserIDPacket" },
+        { PacketTypeID::PublicSubkeyPacket, "PublicSubkeyPacket" },
+        { PacketTypeID::UserAttributePacket, "UserAttributePacket" },
+        { PacketTypeID::SymEncryptedAndIntegrityProtectedDataPacket, "SymEncryptedAndIntegrityProtectedDataPacket" },
+        { PacketTypeID::ModificationDetectionCodePacket, "ModificationDetectionCodePacket" },
+    };
+
+    if (auto it = map.find(packet_type); it != map.end())
+    {
+        return it->second;
+    }
+
+    return "?";
+}
+
+std::string_view unvm::pgp::ToString(SubpacketTypeID subpacket_type)
+{
+    static const std::unordered_map<SubpacketTypeID, const char *> map
+    {
+        { SubpacketTypeID::SignatureCreationTime, "SignatureCreationTime" },
+        { SubpacketTypeID::SignatureExpirationTime, "SignatureExpirationTime" },
+        { SubpacketTypeID::ExportableCertification, "ExportableCertification" },
+        { SubpacketTypeID::TrustSignature, "TrustSignature" },
+        { SubpacketTypeID::RegularExpression, "RegularExpression" },
+        { SubpacketTypeID::Revocable, "Revocable" },
+        { SubpacketTypeID::KeyExpirationTime, "KeyExpirationTime" },
+        { SubpacketTypeID::PreferredSymmetricAlgorithms, "PreferredSymmetricAlgorithms" },
+        { SubpacketTypeID::RevocationKey, "RevocationKey" },
+        { SubpacketTypeID::IssuerKeyID, "IssuerKeyID" },
+        { SubpacketTypeID::NotationData, "NotationData" },
+        { SubpacketTypeID::PreferredHashAlgorithms, "PreferredHashAlgorithms" },
+        { SubpacketTypeID::PreferredCompressionAlgorithms, "PreferredCompressionAlgorithms" },
+        { SubpacketTypeID::KeyServerPreferences, "KeyServerPreferences" },
+        { SubpacketTypeID::PreferredKeyServer, "PreferredKeyServer" },
+        { SubpacketTypeID::PrimaryUserID, "PrimaryUserID" },
+        { SubpacketTypeID::PolicyURI, "PolicyURI" },
+        { SubpacketTypeID::KeyFlags, "KeyFlags" },
+        { SubpacketTypeID::SignersUserID, "SignersUserID" },
+        { SubpacketTypeID::ReasonForRevocation, "ReasonForRevocation" },
+        { SubpacketTypeID::Features, "Features" },
+        { SubpacketTypeID::SignatureTarget, "SignatureTarget" },
+        { SubpacketTypeID::EmbeddedSignature, "EmbeddedSignature" },
+        { SubpacketTypeID::IssuerFingerprint, "IssuerFingerprint" },
+        { SubpacketTypeID::IntendedRecipientFingerprint, "IntendedRecipientFingerprint" },
+        { SubpacketTypeID::PreferredAEADCipherSuites, "PreferredAEADCipherSuites" },
+    };
+
+    if (auto it = map.find(subpacket_type); it != map.end())
+    {
+        return it->second;
+    }
+
+    return "?";
+}
+
+std::string_view unvm::pgp::ToString(SignatureTypeID signature_type)
+{
+    static const std::unordered_map<SignatureTypeID, const char *> map
+    {
+        { SignatureTypeID::Binary, "Binary" },
+        { SignatureTypeID::Text, "Text" },
+        { SignatureTypeID::Standalone, "Standalone" },
+        { SignatureTypeID::GenericCertification, "GenericCertification" },
+        { SignatureTypeID::PersonaCertification, "PersonaCertification" },
+        { SignatureTypeID::CasualCertification, "CasualCertification" },
+        { SignatureTypeID::PositiveCertification, "PositiveCertification" },
+        { SignatureTypeID::SubkeyBinding, "SubkeyBinding" },
+        { SignatureTypeID::PrimaryKeyBinding, "PrimaryKeyBinding" },
+        { SignatureTypeID::DirectKey, "DirectKey" },
+        { SignatureTypeID::KeyRevocation, "KeyRevocation" },
+        { SignatureTypeID::SubkeyRevocation, "SubkeyRevocation" },
+        { SignatureTypeID::CertificationRevocation, "CertificationRevocation" },
+        { SignatureTypeID::Timestamp, "Timestamp" },
+        { SignatureTypeID::ThirdPartyConfirmation, "ThirdPartyConfirmation" },
+    };
+
+    if (auto it = map.find(signature_type); it != map.end())
+    {
+        return it->second;
+    }
+
+    return "?";
+}
+
+std::string_view unvm::pgp::ToString(PublicKeyAlgorithmID algorithm)
+{
+    static const std::unordered_map<PublicKeyAlgorithmID, const char *> map
+    {
+        { PublicKeyAlgorithmID::RSA_ES, "RSA (Encrypt and Signature)" },
+        { PublicKeyAlgorithmID::RSA_EO, "RSA (Encrypt Only)" },
+        { PublicKeyAlgorithmID::RSA_SO, "RSA (Signature Only)" },
+        { PublicKeyAlgorithmID::Elgamal, "Elgamal" },
+        { PublicKeyAlgorithmID::DSA, "DSA" },
+        { PublicKeyAlgorithmID::ECDH, "ECDH" },
+        { PublicKeyAlgorithmID::ECDSA, "ECDSA" },
+        { PublicKeyAlgorithmID::X25519, "X25519" },
+        { PublicKeyAlgorithmID::X448, "X448" },
+        { PublicKeyAlgorithmID::Ed25519, "Ed25519" },
+        { PublicKeyAlgorithmID::Ed448, "Ed448" },
+    };
+
+    if (auto it = map.find(algorithm); it != map.end())
+    {
+        return it->second;
+    }
+
+    return "?";
+}
+
+std::string_view unvm::pgp::ToString(HashAlgorithmID algorithm)
+{
+    static const std::unordered_map<HashAlgorithmID, const char *> map
+    {
+    };
+
+    if (auto it = map.find(algorithm); it != map.end())
+    {
+        return it->second;
+    }
+
+    return "?";
+}
+
 void unvm::pgp::PGPPacketHeader::Parse(
-    PacketTagValue &packet_tag,
+    PacketTypeID &packet_type,
     uint32_t &packet_length,
     uint8_t &header_length,
     bool &partial) const
@@ -9,7 +150,7 @@ void unvm::pgp::PGPPacketHeader::Parse(
     if (Tag.NewFormat)
     {
         auto *tag = reinterpret_cast<const PGPPacketTagNewFormat *>(&Tag);
-        packet_tag = tag->PacketTag;
+        packet_type = tag->PacketType;
 
         if (const auto fst = Length[0]; fst < 0xC0)
         {
@@ -44,7 +185,7 @@ void unvm::pgp::PGPPacketHeader::Parse(
     else
     {
         auto *tag = reinterpret_cast<const PGPPacketTagOldFormat *>(&Tag);
-        packet_tag = tag->PacketTag;
+        packet_type = tag->PacketType;
 
         const auto length_bytes = 1 << tag->LengthType;
         header_length = 1 + length_bytes;

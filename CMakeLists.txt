@@ -16,6 +16,7 @@ set(PROJECT_BUILD_DATE "${BUILD_DATE}")
 find_package(OpenSSL REQUIRED)
 find_package(LibArchive REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(Gpgmepp REQUIRED)
 
 ### Options ###
 
@@ -38,23 +39,23 @@ add_subdirectory(deps/toolkit)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/cacert.pem)
-set(CA_BUNDLE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h)
+set(CACERT_INPUT ${CMAKE_SOURCE_DIR}/ssl/cacert.pem)
+set(CACERT_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h)
 
 add_custom_command(
-        OUTPUT ${CA_BUNDLE_OUTPUT}
-        COMMAND xxd -i -n ca_bundle_data ${CA_BUNDLE_INPUT} ${CA_BUNDLE_OUTPUT}
-        DEPENDS ${CA_BUNDLE_INPUT}
+        OUTPUT ${CACERT_OUTPUT}
+        COMMAND xxd -i -n cacert_data ${CACERT_INPUT} ${CACERT_OUTPUT}
+        DEPENDS ${CACERT_INPUT}
         COMMENT "embedding cacert.pem with xxd"
 )
-add_custom_target(ca_bundle_h DEPENDS ${CA_BUNDLE_OUTPUT})
+add_custom_target(cacert DEPENDS ${CACERT_OUTPUT})
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 
-add_dependencies(unvm ca_bundle_h)
+add_dependencies(unvm cacert)
 
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
@@ -64,6 +65,7 @@ target_link_libraries(unvm PRIVATE
         OpenSSL::Crypto
         LibArchive::LibArchive
         ZLIB::ZLIB
+        Gpgme::Gpgme
 )
 
 target_compile_definitions(unvm PRIVATE
