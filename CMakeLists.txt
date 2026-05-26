@@ -39,23 +39,27 @@ add_subdirectory(deps/toolkit)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CACERT_INPUT ${CMAKE_SOURCE_DIR}/ssl/cacert.pem)
-set(CACERT_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h)
+function(add_xxd NAME SRC DST)
 
-add_custom_command(
-        OUTPUT ${CACERT_OUTPUT}
-        COMMAND xxd -i -n cacert_data ${CACERT_INPUT} ${CACERT_OUTPUT}
-        DEPENDS ${CACERT_INPUT}
-        COMMENT "embedding cacert.pem with xxd"
-)
-add_custom_target(cacert DEPENDS ${CACERT_OUTPUT})
+    add_custom_command(
+            OUTPUT "${DST}"
+            COMMAND xxd -i -n "${NAME}" "${SRC}" "${DST}"
+            DEPENDS "${SRC}"
+            COMMENT "embedding ${NAME} with xxd"
+    )
+    add_custom_target(${NAME} DEPENDS "${DST}")
+
+endfunction()
+
+add_xxd(cacert "${CMAKE_SOURCE_DIR}/ssl/cacert.pem" "${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h")
+add_xxd(keyring "${CMAKE_SOURCE_DIR}/ssl/keyring.pgp" "${CMAKE_CURRENT_BINARY_DIR}/ssl/keyring.h")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 
-add_dependencies(unvm cacert)
+add_dependencies(unvm cacert keyring)
 
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 

@@ -4,7 +4,6 @@
 
 #include <openssl/evp.h>
 
-#include <cstdint>
 #include <format>
 #include <string_view>
 
@@ -357,8 +356,10 @@ namespace unvm::pgp
         0x40,
     };
 
+    struct SubpacketDescriptor;
+
 #pragma pack(push, 1)
-    struct PGPPacketTagOldFormat
+    struct PacketTagLegacy
     {
         uint8_t LengthType : 2;
 
@@ -367,28 +368,15 @@ namespace unvm::pgp
         uint8_t NewFormat : 1;
         uint8_t AlwaysOne : 1;
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPPacketTagNewFormat
+    struct PacketTag
     {
-        PacketTypeID PacketType  : 6;
-        uint8_t NewFormat        : 1;
-        uint8_t AlwaysOne        : 1;
+        PacketTypeID PacketType : 6;
+        uint8_t NewFormat       : 1;
+        uint8_t AlwaysOne       : 1;
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPPacketTag
-    {
-        uint8_t           : 6;
-        uint8_t NewFormat : 1;
-        uint8_t AlwaysOne : 1;
-    };
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-    struct PGPPacketHeader
+    struct PacketHeader
     {
         void Parse(
             PacketTypeID &packet_type,
@@ -396,98 +384,130 @@ namespace unvm::pgp
             uint8_t &header_length,
             bool &partial) const;
 
-        PGPPacketTag Tag;
+        PacketTag Tag;
         uint8_t Length[];
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPVersion4SignaturePacket
+    struct PublicKeyPacket
+    {
+        uint8_t Version;
+    };
+
+    struct PublicKeyPacketV4
+    {
+        uint8_t Version;
+        uint8_t CreationTime[4];
+        PublicKeyAlgorithmID PublicKeyAlgorithm;
+
+        uint8_t Key[];
+    };
+
+    struct PublicKeyPacketV6
+    {
+        uint8_t Version;
+        uint8_t CreationTime[4];
+        PublicKeyAlgorithmID PublicKeyAlgorithm;
+
+        uint8_t KeyLength[4];
+        uint8_t Key[];
+    };
+
+    struct SignaturePacket
     {
         uint8_t Version;
         SignatureTypeID SignatureType;
         PublicKeyAlgorithmID PublicKeyAlgorithm;
         HashAlgorithmID HashAlgorithm;
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPSubpacketData
+    struct SubpacketData
     {
         SubpacketTypeID Type;
         uint8_t Data[];
     };
-#pragma pack(pop)
 
-    struct PGPSubpacketDescriptor
+    struct SubpacketIterator
     {
-        const uint8_t *Subpacket;
-        const uint8_t *Next;
+        bool operator!=(const SubpacketIterator &it) const;
 
-        uint32_t Length;
-        const PGPSubpacketData *Data;
+        SubpacketDescriptor operator*() const;
+
+        SubpacketIterator &operator++();
+
+        const uint8_t *ptr;
     };
 
-    PGPSubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
-
-#pragma pack(push, 1)
-    struct PGPSubpacketSet
+    struct SubpacketSetV4
     {
-        struct iterator
-        {
-            bool operator!=(const iterator &it) const;
-
-            PGPSubpacketDescriptor operator*() const;
-
-            iterator &operator++();
-
-            const uint8_t *ptr;
-        };
-
         [[nodiscard]] uint16_t GetLength() const;
 
-        [[nodiscard]] iterator begin() const;
-        [[nodiscard]] iterator end() const;
+        [[nodiscard]] SubpacketIterator begin() const;
+        [[nodiscard]] SubpacketIterator end() const;
 
         uint8_t Length[2];
         uint8_t Data[];
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPSignatureBlock
+    struct SubpacketSetV6
+    {
+        [[nodiscard]] uint32_t GetLength() const;
+
+        [[nodiscard]] SubpacketIterator begin() const;
+        [[nodiscard]] SubpacketIterator end() const;
+
+        uint8_t Length[4];
+        uint8_t Data[];
+    };
+
+    struct SignatureBlock
     {
         uint8_t HashLeft16Bit[2];
         uint8_t Signature[];
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPIssuerFingerprintSubpacket
+    struct IssuerFingerprintSubpacket
     {
         SubpacketTypeID Type;
         uint8_t KeyVersionNumber[1];
         uint8_t Fingerprint[20];
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPSignatureCreationTimeSubpacket
+    struct SignatureCreationTimeSubpacket
     {
         SubpacketTypeID Type;
         uint8_t Time[4];
     };
-#pragma pack(pop)
 
-#pragma pack(push, 1)
-    struct PGPIssuerKeyIDSubpacket
+    struct IssuerKeyIDSubpacket
     {
         SubpacketTypeID Type;
         uint8_t KeyID[8];
     };
 #pragma pack(pop)
 
-    toolkit::result<> VerifySignature(std::span<const uint8_t> data, std::span<const uint8_t> sig, EVP_PKEY *public_key);
+    struct SubpacketDescriptor
+    {
+        const uint8_t *Subpacket;
+        const uint8_t *Next;
+
+        uint32_t Length;
+        const SubpacketData *Data;
+    };
+
+    SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
+
+    struct Certificate
+    {
+    };
+
+    using Keyring = std::vector<Certificate>;
+
+    toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
+
+    toolkit::result<> VerifySignature(
+        std::span<const uint8_t> buffer,
+        std::span<const uint8_t> signature_buffer,
+        EVP_PKEY *public_key);
 }
 
 template<>
@@ -500,7 +520,7 @@ struct std::formatter<unvm::pgp::PacketTypeID>
     }
 
     template<typename C>
-    auto format(unvm::pgp::PacketTypeID packet_type, C &&ctx) const
+    auto format(const unvm::pgp::PacketTypeID packet_type, C &&ctx) const
     {
         for (auto c : unvm::pgp::ToString(packet_type))
         {
@@ -521,7 +541,7 @@ struct std::formatter<unvm::pgp::SignatureTypeID>
     }
 
     template<typename C>
-    auto format(unvm::pgp::SignatureTypeID signature_type, C &&ctx) const
+    auto format(const unvm::pgp::SignatureTypeID signature_type, C &&ctx) const
     {
         for (auto c : unvm::pgp::ToString(signature_type))
         {
@@ -542,7 +562,7 @@ struct std::formatter<unvm::pgp::PublicKeyAlgorithmID>
     }
 
     template<typename C>
-    auto format(unvm::pgp::PublicKeyAlgorithmID algorithm, C &&ctx) const
+    auto format(const unvm::pgp::PublicKeyAlgorithmID algorithm, C &&ctx) const
     {
         for (auto c : unvm::pgp::ToString(algorithm))
         {
@@ -563,7 +583,7 @@ struct std::formatter<unvm::pgp::HashAlgorithmID>
     }
 
     template<typename C>
-    auto format(unvm::pgp::HashAlgorithmID algorithm, C &&ctx) const
+    auto format(const unvm::pgp::HashAlgorithmID algorithm, C &&ctx) const
     {
         for (auto c : unvm::pgp::ToString(algorithm))
         {

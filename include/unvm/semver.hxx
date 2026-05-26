@@ -122,7 +122,7 @@ namespace unvm::semver
     private:
         std::istream &m_Stream;
         int m_Buffer;
-        
+
         std::string m_Token;
     };
 

@@ -1,3 +1,4 @@
+#include <unvm/data.hxx>
 #include <unvm/pgp.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
@@ -69,7 +70,7 @@ std::string prompt(const M &... message)
 
     std::string input;
     std::getline(std::cin, input);
-    
+
     return input;
 }
 
@@ -95,36 +96,52 @@ static toolkit::result<std::string> get_trusted_checksum(
 
     std::stringstream signature_stream(std::stringstream::in | std::stringstream::out | std::stringstream::binary);
     bool has_signature;
-    if (auto res = get_file_from_repo(client, signature_stream, entry.Version, "SHASUMS256.txt.sig", true) >> has_signature; !res)
+    if (auto res = get_file_from_repo(
+                       client,
+                       signature_stream,
+                       entry.Version,
+                       "SHASUMS256.txt.sig",
+                       true) >> has_signature; !res)
     {
         return res;
     }
 
     if (has_signature)
     {
-        auto data_string = stream.str();
-        auto signature_string = signature_stream.str();
+        const auto data_string = stream.str();
+        const auto signature_string = signature_stream.str();
 
-        // TODO: generate data signature
-        // TODO: parse openpgp signature
-        // TODO: verify data with signature
+        const std::vector<uint8_t> data_buffer(data_string.begin(), data_string.end());
+        const std::vector<uint8_t> signature_buffer(signature_string.begin(), signature_string.end());
 
-        for (auto s = signatures; s; s = s->next)
+        unvm::pgp::Keyring keyring;
+        if (auto res = unvm::pgp::ParseKeyring(unvm::data::keyring) >> keyring; !res)
         {
-            if (config.Fingerprints.contains(s->fpr))
-            {
-                continue;
-            }
+            return res;
+        }
 
-            std::cout << "untrusted fingerprint '" << s->fpr << "' (" << gpgme_strerror(s->status) << ")." << std::endl;
+        // TODO: extract fingerprint from signature buffer
+        // TODO: extract public key from trusted key store using fingerprint
+        // TODO: if no key is found, ask user for confirmation
 
-            if (auto trust = confirm("trust this fingerprint?"); !trust)
-            {
-                return toolkit::make_error("untrusted fingerprint '{}' ({}).", s->fpr, gpgme_strerror(s->status));
-            }
+        // if (!config.Fingerprints.contains(fingerprint))
+        // {
+        //     std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;
+        //
+        //     if (auto trust = confirm("trust this fingerprint?"); !trust)
+        //     {
+        //         return toolkit::make_error("untrusted fingerprint '{}'.", fingerprint);
+        //     }
+        //
+        //     config.Fingerprints.insert(fingerprint);
+        //     config.Dirty = true;
+        // }
 
-            config.Fingerprints.insert(s->fpr);
-            config.Dirty = true;
+        // TODO: else verify signature
+
+        if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, nullptr); !res)
+        {
+            return res;
         }
     }
     else
@@ -267,17 +284,27 @@ toolkit::result<> unvm::Install(
     {
         return toolkit::make_error("failed to get trusted checksum: {}", res.error());
     }
-    
+
     char archive_name[L_tmpnam];
     tmpnam(archive_name);
 
-    auto guard_archive = toolkit::defer([](const char *name)
-    {
-        if (std::error_code ec; std::filesystem::remove(name, ec), ec)
+    auto guard_archive = toolkit::defer(
+        [](const char *name)
         {
-            std::cerr << "failed to remove file '" << name << "': " << ec.message() << " (" << ec.value() << ")." << std::endl;
-        }
-    }, archive_name);
+            if (std::error_code ec; std::filesystem::remove(name, ec), ec)
+            {
+                std::cerr
+                        << "failed to remove file '"
+                        << name
+                        << "': "
+                        << ec.message()
+                        << " ("
+                        << ec.value()
+                        << ")."
+                        << std::endl;
+            }
+        },
+        archive_name);
 
     // write archive to disk
     {

@@ -1,3 +1,4 @@
+#include <unvm/data.hxx>
 #include <unvm/util.hxx>
 #include <unvm/http/http.hxx>
 #include <unvm/http/url.hxx>
@@ -8,8 +9,6 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-
-#include <ssl/cacert.h>
 
 #include <iostream>
 #include <istream>
@@ -247,8 +246,8 @@ unvm::http::HttpClient::HttpClient()
 
     if (auto res = load_cert_chain_from_shared_mem(
         m_State->SslCtx,
-        cacert_data,
-        static_cast<int>(cacert_data_len)); !res)
+        data::cacert.data(),
+        static_cast<int>(data::cacert.size())); !res)
     {
         std::cerr << "failed to load vendor certificates: " << res.error() << std::endl;
         return;
