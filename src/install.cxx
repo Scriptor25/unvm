@@ -126,7 +126,7 @@ static toolkit::result<std::string> get_trusted_checksum(
             return res;
         }
 
-        std::cerr << "fingerprint: " << unvm::pgp::ToHexString(fpr.IssuerFingerprint) << std::endl;
+        std::cerr << "fingerprint: " << unvm::pgp::ToHexString(fpr.Fingerprint) << std::endl;
 
         // TODO: extract public key from trusted key store using fingerprint
         auto public_key = unvm::pgp::MatchPublicKey(keyring, fpr);

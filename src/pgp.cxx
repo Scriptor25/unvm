@@ -303,12 +303,14 @@ unvm::pgp::SubpacketIterator &unvm::pgp::SubpacketIterator::operator++()
 }
 
 unvm::pgp::SubpacketIterable::SubpacketIterable(const uint8_t *first, const uint8_t *last)
-    : first(first), last(last)
+    : first(first),
+      last(last)
 {
 }
 
-unvm::pgp::SubpacketIterable::SubpacketIterable(std::span<const uint8_t> span)
-    : first(span.data()), last(span.data() + span.size())
+unvm::pgp::SubpacketIterable::SubpacketIterable(const std::span<const uint8_t> span)
+    : first(span.data()),
+      last(span.data() + span.size())
 {
 }
 
@@ -456,7 +458,7 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
 
                 const auto key_length = scalar(packet->KeyLength);
                 material = { packet->Key, packet->Key + key_length };
-                
+
                 fingerprint = SHA256(0x9B || packet_length || packet);
                 key_id = fingerprint.subspan(0, 8);
 
@@ -473,7 +475,7 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
             current_subkey = {};
 
             certificate = {
-                .Key = { 
+                .Key = {
                     .CreationTime = creation_time,
                     .Algorithm = algorithm,
                     .Material = material,
@@ -538,7 +540,7 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
             default:
                 return toolkit::make_error("unsupported packet version {:02x}", packet_header->Version);
             }
-            
+
             auto &subkey = current_certificate->Subkeys.emplace_back();
 
             current_user = {};
@@ -576,13 +578,15 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
                 auto hashed_length = hashed->GetLength();
 
                 hashed_block = { hashed->Data, hashed->Data + hashed_length };
-                
-                auto *unhashed = reinterpret_cast<const SubpacketSetV4 *>(reinterpret_cast<const uint8_t *>(hashed) + 2 + hashed_length);
+
+                auto *unhashed = reinterpret_cast<const SubpacketSetV4 *>(
+                    reinterpret_cast<const uint8_t *>(hashed) + 2 + hashed_length);
                 auto unhashed_length = unhashed->GetLength();
-                
+
                 unhashed_block = { unhashed->Data, unhashed->Data + unhashed_length };
 
-                signature_block = reinterpret_cast<const SignatureBlock *>(reinterpret_cast<const uint8_t *>(unhashed) + 2 + unhashed_length);
+                signature_block = reinterpret_cast<const SignatureBlock *>(
+                    reinterpret_cast<const uint8_t *>(unhashed) + 2 + unhashed_length);
 
                 break;
             }
@@ -590,15 +594,17 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
             {
                 auto *hashed = reinterpret_cast<const SubpacketSetV6 *>(packet + 1);
                 auto hashed_length = hashed->GetLength();
-                
+
                 hashed_block = { hashed->Data, hashed->Data + hashed_length };
 
-                auto *unhashed = reinterpret_cast<const SubpacketSetV6 *>(reinterpret_cast<const uint8_t *>(hashed) + 4 + hashed_length);
+                auto *unhashed = reinterpret_cast<const SubpacketSetV6 *>(
+                    reinterpret_cast<const uint8_t *>(hashed) + 4 + hashed_length);
                 auto unhashed_length = unhashed->GetLength();
-                
+
                 unhashed_block = { unhashed->Data, unhashed->Data + unhashed_length };
 
-                signature_block = reinterpret_cast<const SignatureBlock *>(reinterpret_cast<const uint8_t *>(unhashed) + 4 + unhashed_length);
+                signature_block = reinterpret_cast<const SignatureBlock *>(
+                    reinterpret_cast<const uint8_t *>(unhashed) + 4 + unhashed_length);
 
                 break;
             }
@@ -611,7 +617,8 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
                 return toolkit::make_error("illegal signature packet without user or subkey.");
             }
 
-            std::cerr << "        [X] " << ToString(packet->SignatureType) << " - " << ToString(packet->PublicKeyAlgorithm) << " - " << ToString(packet->HashAlgorithm) << std::endl;
+            std::cerr << "        [X] " << ToString(packet->SignatureType) << " - " << ToString(
+                packet->PublicKeyAlgorithm) << " - " << ToString(packet->HashAlgorithm) << std::endl;
 
             std::vector<Signature> *target;
             if (current_user)
@@ -645,7 +652,7 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
                     return res;
                 }
             }
-            
+
             for (auto desc : SubpacketIterable(unhashed_block))
             {
                 (void) desc.Length;
@@ -653,7 +660,7 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
                 (void) desc.Data->Data;
 
                 std::cerr << "            [~] " << ToString(desc.Data->Type) << std::endl;
-            
+
                 auto res = evaluate_subpacket(
                     current_certificate,
                     current_user,
@@ -724,13 +731,15 @@ toolkit::result<unvm::pgp::FingerprintReference> unvm::pgp::ParseFingerprint(std
         auto hashed_length = hashed->GetLength();
 
         hashed_block = { hashed->Data, hashed->Data + hashed_length };
-        
-        auto *unhashed = reinterpret_cast<const SubpacketSetV4 *>(reinterpret_cast<const uint8_t *>(hashed) + 2 + hashed_length);
+
+        auto *unhashed = reinterpret_cast<const SubpacketSetV4 *>(
+            reinterpret_cast<const uint8_t *>(hashed) + 2 + hashed_length);
         auto unhashed_length = unhashed->GetLength();
-        
+
         unhashed_block = { unhashed->Data, unhashed->Data + unhashed_length };
 
-        signature_block = reinterpret_cast<const SignatureBlock *>(reinterpret_cast<const uint8_t *>(unhashed) + 2 + unhashed_length);
+        signature_block = reinterpret_cast<const SignatureBlock *>(
+            reinterpret_cast<const uint8_t *>(unhashed) + 2 + unhashed_length);
 
         break;
     }
@@ -738,15 +747,17 @@ toolkit::result<unvm::pgp::FingerprintReference> unvm::pgp::ParseFingerprint(std
     {
         auto *hashed = reinterpret_cast<const SubpacketSetV6 *>(packet + 1);
         auto hashed_length = hashed->GetLength();
-        
+
         hashed_block = { hashed->Data, hashed->Data + hashed_length };
 
-        auto *unhashed = reinterpret_cast<const SubpacketSetV6 *>(reinterpret_cast<const uint8_t *>(hashed) + 4 + hashed_length);
+        auto *unhashed = reinterpret_cast<const SubpacketSetV6 *>(
+            reinterpret_cast<const uint8_t *>(hashed) + 4 + hashed_length);
         auto unhashed_length = unhashed->GetLength();
-        
+
         unhashed_block = { unhashed->Data, unhashed->Data + unhashed_length };
 
-        signature_block = reinterpret_cast<const SignatureBlock *>(reinterpret_cast<const uint8_t *>(unhashed) + 4 + unhashed_length);
+        signature_block = reinterpret_cast<const SignatureBlock *>(
+            reinterpret_cast<const uint8_t *>(unhashed) + 4 + unhashed_length);
 
         break;
     }
@@ -771,10 +782,10 @@ toolkit::result<unvm::pgp::FingerprintReference> unvm::pgp::ParseFingerprint(std
             switch (subpacket->KeyVersion)
             {
             case 0x04:
-                reference.IssuerFingerprint = { subpacket->Fingerprint, subpacket->Fingerprint + 20 };
+                reference.Fingerprint = { subpacket->Fingerprint, subpacket->Fingerprint + 20 };
                 break;
             case 0x06:
-                reference.IssuerFingerprint = { subpacket->Fingerprint, subpacket->Fingerprint + 32 };
+                reference.Fingerprint = { subpacket->Fingerprint, subpacket->Fingerprint + 32 };
                 break;
             default:
                 return toolkit::make_error("unsupported packet version {:02x}", packet->Version);
@@ -786,7 +797,7 @@ toolkit::result<unvm::pgp::FingerprintReference> unvm::pgp::ParseFingerprint(std
         {
             auto *subpacket = reinterpret_cast<const IssuerKeyIDSubpacket *>(desc.Data);
 
-            reference.IssuerKeyID = subpacket->KeyID;
+            reference.KeyID = subpacket->KeyID;
 
             break;
         }
@@ -802,31 +813,12 @@ const unvm::pgp::PublicKey *unvm::pgp::MatchPublicKey(const Keyring &keyring, co
 {
     for (auto &certificate : keyring)
     {
-        if (certificate.)
-
-        for (auto &user : certificate.Users)
+        if (certificate.Fingerprint == fpr.Fingerprint)
         {
-            for (auto &signature : user.Signatures)
-            {
-                if (signature.IssuerFingerprint == fpr.IssuerFingerprint)
-                {
-                    std::cerr << "match fingerprint for user " << user.Id << std::endl;
-                }
-            }
+            return &certificate.Key;
         }
 
-        for (auto &subkey : certificate.Subkeys)
-        {
-            for (auto &signature : subkey.Signatures)
-            {
-                if (signature.IssuerFingerprint == fpr.IssuerFingerprint)
-                {
-                    match = true;
-
-                    std::cerr << "match fingerprint for subkey" << std::endl;
-                }
-            }
-        }
+        // TODO: iterate over subkeys
     }
 }
 

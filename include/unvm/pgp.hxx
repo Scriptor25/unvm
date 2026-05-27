@@ -152,7 +152,7 @@ namespace unvm::pgp
     std::string_view ToString(SignatureTypeID signature_type);
     std::string_view ToString(PublicKeyAlgorithmID algorithm);
     std::string_view ToString(HashAlgorithmID algorithm);
-    
+
     std::string ToHexString(std::span<const uint8_t> buffer);
 
     constexpr uint8_t SIG_MD5[]
@@ -390,6 +390,7 @@ namespace unvm::pgp
     };
 
     struct SubpacketDescriptor;
+
     struct SubpacketIterator
     {
         bool operator!=(const SubpacketIterator &it) const;
@@ -406,8 +407,8 @@ namespace unvm::pgp
         SubpacketIterable(const uint8_t *first, const uint8_t *last);
         SubpacketIterable(std::span<const uint8_t> span);
 
-        SubpacketIterator begin() const;
-        SubpacketIterator end() const;
+        [[nodiscard]] SubpacketIterator begin() const;
+        [[nodiscard]] SubpacketIterator end() const;
 
         const uint8_t *first, *last;
     };
@@ -979,6 +980,7 @@ namespace unvm::pgp
     struct PreferredAEADCipherSuitesSubpacket
     {
         SubpacketTypeID Type;
+
         struct
         {
             SymmetricAlgorithmID SymmetricAlgorithm;
@@ -998,14 +1000,13 @@ namespace unvm::pgp
                     N == 4, uint32_t,
                     std::conditional_t<
                         N == 8, uint64_t,
-                        void
-                    >
+                        void>
                 >
             >
         >;
 
         T s{};
-        
+
         for (size_t i = 0; i < N; ++i)
         {
             s |= static_cast<T>(buffer[i]) << ((N - i - 1) * 8);
@@ -1068,7 +1069,7 @@ namespace unvm::pgp
         std::vector<SymmetricAlgorithmID> PreferredSymmetricAlgorithms;
         std::vector<HashAlgorithmID> PreferredHashAlgorithms;
     };
-    
+
     enum class SubkeyState
     {
         Valid,
@@ -1097,7 +1098,7 @@ namespace unvm::pgp
 
         const Signature *BindingSignature;
         const Signature *RevocationSignature;
-    
+
         std::vector<Signature> Signatures;
     };
 
@@ -1118,8 +1119,8 @@ namespace unvm::pgp
 
     struct FingerprintReference
     {
-        std::span<const uint8_t> IssuerFingerprint;
-        std::span<const uint8_t> IssuerKeyID;
+        std::span<const uint8_t> Fingerprint;
+        std::span<const uint8_t> KeyID;
 
         SignatureTypeID SignatureType;
         HashAlgorithmID HashAlgorithm;
