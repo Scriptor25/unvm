@@ -121,7 +121,15 @@ static toolkit::result<std::string> get_trusted_checksum(
         }
 
         // TODO: extract fingerprint from signature buffer
+
         // TODO: extract public key from trusted key store using fingerprint
+        for (auto &certificate : keyring)
+        {
+            certificate.Key;
+            certificate.Users;
+            certificate.Subkeys;
+        }
+
         // TODO: if no key is found, ask user for confirmation
 
         // if (!config.Fingerprints.contains(fingerprint))
@@ -137,7 +145,7 @@ static toolkit::result<std::string> get_trusted_checksum(
         //     config.Dirty = true;
         // }
 
-        // TODO: else verify signature
+        // TODO: else verify signature using public key
 
         if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, nullptr); !res)
         {
