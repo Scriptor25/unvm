@@ -152,6 +152,8 @@ namespace unvm::pgp
     std::string_view ToString(SignatureTypeID signature_type);
     std::string_view ToString(PublicKeyAlgorithmID algorithm);
     std::string_view ToString(HashAlgorithmID algorithm);
+    
+    std::string ToHexString(std::span<const uint8_t> buffer);
 
     constexpr uint8_t SIG_MD5[]
     {
@@ -1029,6 +1031,8 @@ namespace unvm::pgp
 
     SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
 
+    std::span<const uint8_t> GenerateFingerprint(const PublicKeyPacket *packet);
+
     struct PublicKey
     {
         uint32_t CreationTime;
@@ -1038,6 +1042,7 @@ namespace unvm::pgp
 
     struct Signature
     {
+        std::span<const uint8_t> IssuerFingerprint;
     };
 
     enum class UserState
@@ -1100,6 +1105,9 @@ namespace unvm::pgp
     {
         PublicKey Key;
 
+        std::span<const uint8_t> Fingerprint;
+        std::span<const uint8_t> KeyID;
+
         std::vector<User> Users;
         std::vector<Subkey> Subkeys;
     };
@@ -1107,6 +1115,19 @@ namespace unvm::pgp
     using Keyring = std::vector<Certificate>;
 
     toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
+
+    struct FingerprintReference
+    {
+        std::span<const uint8_t> IssuerFingerprint;
+        std::span<const uint8_t> IssuerKeyID;
+
+        SignatureTypeID SignatureType;
+        HashAlgorithmID HashAlgorithm;
+    };
+
+    toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);
+
+    const PublicKey *MatchPublicKey(const Keyring &keyring, const FingerprintReference &fpr);
 
     toolkit::result<> VerifySignature(
         std::span<const uint8_t> buffer,
@@ -1197,3 +1218,25 @@ struct std::formatter<unvm::pgp::HashAlgorithmID>
         return ctx.out();
     }
 };
+
+namespace std
+{
+    template<typename T>
+    bool operator==(const std::span<T> &left, const std::span<T> &right)
+    {
+        if (left.size() != right.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < left.size(); ++i)
+        {
+            if (left[i] != right[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}

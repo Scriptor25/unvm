@@ -120,15 +120,16 @@ static toolkit::result<std::string> get_trusted_checksum(
             return res;
         }
 
-        // TODO: extract fingerprint from signature buffer
+        unvm::pgp::FingerprintReference fpr;
+        if (auto res = unvm::pgp::ParseFingerprint(signature_buffer) >> fpr; !res)
+        {
+            return res;
+        }
+
+        std::cerr << "fingerprint: " << unvm::pgp::ToHexString(fpr.IssuerFingerprint) << std::endl;
 
         // TODO: extract public key from trusted key store using fingerprint
-        for (auto &certificate : keyring)
-        {
-            certificate.Key;
-            certificate.Users;
-            certificate.Subkeys;
-        }
+        auto public_key = unvm::pgp::MatchPublicKey(keyring, fpr);
 
         // TODO: if no key is found, ask user for confirmation
 
