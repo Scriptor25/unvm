@@ -126,31 +126,35 @@ static toolkit::result<std::string> get_trusted_checksum(
             return res;
         }
 
-        std::cerr << "fingerprint: " << unvm::pgp::ToHexString(fpr.Fingerprint) << std::endl;
-
-        // TODO: extract public key from trusted key store using fingerprint
         auto public_key = unvm::pgp::MatchPublicKey(keyring, fpr);
 
-        // TODO: if no key is found, ask user for confirmation
-
-        // if (!config.Fingerprints.contains(fingerprint))
-        // {
-        //     std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;
-        //
-        //     if (auto trust = confirm("trust this fingerprint?"); !trust)
-        //     {
-        //         return toolkit::make_error("untrusted fingerprint '{}'.", fingerprint);
-        //     }
-        //
-        //     config.Fingerprints.insert(fingerprint);
-        //     config.Dirty = true;
-        // }
-
-        // TODO: else verify signature using public key
-
-        if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, nullptr); !res)
+        if (!public_key)
         {
-            return res;
+            auto fingerprint = unvm::pgp::ToHexString(fpr.Fingerprint);
+
+            if (!config.Fingerprints.contains(fingerprint))
+            {
+                std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;
+            
+                if (auto trust = confirm("trust this fingerprint?"); !trust)
+                {
+                    return toolkit::make_error("untrusted fingerprint '{}'.", fingerprint);
+                }
+            
+                config.Fingerprints.insert(fingerprint);
+                config.Dirty = true;
+            }
+        }
+        else
+        {
+            (void) public_key->CreationTime;
+            (void) public_key->Algorithm;
+            (void) public_key->Material;
+
+            if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, nullptr); !res)
+            {
+                return res;
+            }
         }
     }
     else
@@ -181,14 +185,14 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
     auto *ctx = EVP_MD_CTX_new();
     if (!ctx)
     {
-        return toolkit::make_error("failed to create evp context.");
+        return toolkit::make_error("failed to create context.");
     }
 
     auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
     if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1)
     {
-        return toolkit::make_error("failed to initialize digest for sha256.");
+        return toolkit::make_error("failed to initialize digest.");
     }
 
     std::array<char, 8192> chunk{};

@@ -503,9 +503,20 @@ namespace unvm::pgp
         uint8_t Data[];
     };
 
-    struct SignatureBlock
+    struct SignaturePacketEndV4
     {
         uint8_t HashLeft16Bit[2];
+    };
+
+    struct SignaturePacketEndV6
+    {
+        uint8_t HashLeft16Bit[2];
+        uint8_t SaltLength;
+        uint8_t Salt[];
+    };
+
+    struct SignatureBlock
+    {
         uint8_t Signature[];
     };
 
@@ -1032,8 +1043,6 @@ namespace unvm::pgp
 
     SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
 
-    std::span<const uint8_t> GenerateFingerprint(const PublicKeyPacket *packet);
-
     struct PublicKey
     {
         uint32_t CreationTime;
@@ -1092,7 +1101,7 @@ namespace unvm::pgp
     struct Subkey
     {
         PublicKey Key;
-
+        
         SubkeyState State;
         SubkeyFlags Flags;
 
@@ -1106,7 +1115,7 @@ namespace unvm::pgp
     {
         PublicKey Key;
 
-        std::span<const uint8_t> Fingerprint;
+        std::vector<uint8_t> Fingerprint;
         std::span<const uint8_t> KeyID;
 
         std::vector<User> Users;
@@ -1222,8 +1231,8 @@ struct std::formatter<unvm::pgp::HashAlgorithmID>
 
 namespace std
 {
-    template<typename T>
-    bool operator==(const std::span<T> &left, const std::span<T> &right)
+    template<typename L, typename R>
+    bool operator==(const std::span<L> &left, const std::span<R> &right)
     {
         if (left.size() != right.size())
         {
