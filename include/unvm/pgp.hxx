@@ -165,20 +165,22 @@ namespace unvm::pgp
         Curve25519,
     };
 
-    constexpr std::array<uint8_t, 8> OID_NIST_P256 { 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
-    constexpr std::array<uint8_t, 5> OID_NIST_P384 { 0x2B, 0x81, 0x04, 0x00, 0x22 };
-    constexpr std::array<uint8_t, 5> OID_NIST_P521 { 0x2B, 0x81, 0x04, 0x00, 0x23 };
-    constexpr std::array<uint8_t, 9> OID_Brainpool_P256r1 { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
-    constexpr std::array<uint8_t, 9> OID_Brainpool_P384r1 { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
-    constexpr std::array<uint8_t, 9> OID_Brainpool_P512r1 { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
-    constexpr std::array<uint8_t, 9> OID_Ed25519 { 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
-    constexpr std::array<uint8_t, 10> OID_Curve25519 { 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
+    constexpr std::array<uint8_t, 8> OID_NIST_P256 = { 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
+    constexpr std::array<uint8_t, 5> OID_NIST_P384 = { 0x2B, 0x81, 0x04, 0x00, 0x22 };
+    constexpr std::array<uint8_t, 5> OID_NIST_P521 = { 0x2B, 0x81, 0x04, 0x00, 0x23 };
+    constexpr std::array<uint8_t, 9> OID_Brainpool_P256r1 = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
+    constexpr std::array<uint8_t, 9> OID_Brainpool_P384r1 = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
+    constexpr std::array<uint8_t, 9> OID_Brainpool_P512r1 = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
+    constexpr std::array<uint8_t, 9> OID_Ed25519 = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
+    constexpr std::array<uint8_t, 10> OID_Curve25519 = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
 
     std::string ToString(PacketTypeID packet_type);
     std::string ToString(SubpacketTypeID subpacket_type);
     std::string ToString(SignatureTypeID signature_type);
     std::string ToString(PublicKeyAlgorithmID algorithm);
     std::string ToString(HashAlgorithmID algorithm);
+    std::string ToString(CompressionAlgorithmID algorithm);
+    std::string ToString(SymmetricAlgorithmID algorithm);
 
     const char *ToString(CurveOID curve);
 
@@ -210,6 +212,7 @@ namespace unvm::pgp
 
     struct SubpacketIterable
     {
+        SubpacketIterable();
         SubpacketIterable(const uint8_t *first, const uint8_t *last);
         SubpacketIterable(std::span<const uint8_t> span);
 
@@ -235,6 +238,7 @@ namespace unvm::pgp
 
     struct MPIIterable
     {
+        MPIIterable();
         MPIIterable(const uint8_t *first, const uint8_t *last);
         MPIIterable(std::span<const uint8_t> span);
 
@@ -865,6 +869,19 @@ namespace unvm::pgp
 
     SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
 
+    enum class KeyUsageFlag : uint8_t
+    {
+        Certify        = 1 << 0,
+        Sign           = 1 << 1,
+        EncryptMessage = 1 << 2,
+        EncryptStorage = 1 << 3,
+        Split          = 1 << 4,
+        Authentication = 1 << 5,
+        Shared         = 1 << 7,
+    };
+
+    using FlagsT = uint16_t;
+
     struct PublicKey
     {
         uint32_t CreationTime;
@@ -874,61 +891,49 @@ namespace unvm::pgp
 
     struct Signature
     {
-        std::span<const uint8_t> IssuerFingerprint;
-    };
+        uint8_t Version;
+        SignatureTypeID SignatureType;
+        PublicKeyAlgorithmID PublicKeyAlgorithm;
+        HashAlgorithmID HashAlgorithm;
 
-    enum class UserState
-    {
-        Valid,
-        Revoked,
-        MissingSelfSignature,
-        InvalidSelfSignature,
+        std::span<const uint8_t> HashedBlock;
+        std::span<const uint8_t> UnhashedBlock;
+
+        std::span<const uint8_t> HashLeft16Bit;
+        std::span<const uint8_t> SaltMaterial;
+
+        MPIIterable SignatureMaterial;
+
+        FlagsT KeyFlags;
+        FlagsT Features;
+        FlagsT KeyServerPreferences;
+
+        uint32_t KeyExpirationTime;
+        uint32_t SignatureCreationTime;
+
+        bool PrimaryUserID;
+
+        std::span<const SymmetricAlgorithmID> PreferredSymmetricAlgorithms;
+        std::span<const HashAlgorithmID> PreferredHashAlgorithms;
+        std::span<const CompressionAlgorithmID> PreferredCompressionAlgorithms;
+
+        std::span<const uint8_t> IssuerFingerprint;
+        std::span<const uint8_t> IssuerKeyID;
+
+        uint8_t ReasonForRevocationCode;
+        std::span<const char> ReasonForRevocationMessage;
     };
 
     struct User
     {
         std::string Id;
 
-        bool Primary;
-
-        UserState State;
-
-        const Signature *ActiveSelfSignature;
-
         std::vector<Signature> Signatures;
-
-        std::vector<SymmetricAlgorithmID> PreferredSymmetricAlgorithms;
-        std::vector<HashAlgorithmID> PreferredHashAlgorithms;
     };
-
-    enum class SubkeyState
-    {
-        Valid,
-        Expired,
-        Revoked,
-        MissingBindingSignature,
-        InvalidBindingSignature,
-    };
-
-    enum class SubkeyUsage : uint8_t
-    {
-        Certify      = 1 << 0,
-        Sign         = 1 << 1,
-        Encrypt      = 1 << 2,
-        Authenticate = 1 << 3,
-    };
-
-    using SubkeyFlags = uint16_t;
 
     struct Subkey
     {
         PublicKey Key;
-        
-        SubkeyState State;
-        SubkeyFlags Flags;
-
-        const Signature *BindingSignature;
-        const Signature *RevocationSignature;
 
         std::vector<Signature> Signatures;
     };
@@ -946,8 +951,6 @@ namespace unvm::pgp
 
     using Keyring = std::vector<Certificate>;
 
-    toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
-
     struct FingerprintReference
     {
         std::span<const uint8_t> Fingerprint;
@@ -957,20 +960,23 @@ namespace unvm::pgp
         HashAlgorithmID HashAlgorithm;
     };
 
+    toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
+    toolkit::result<Signature> ParseSignature(const SignaturePacket *packet, uint32_t packet_length);
+
     toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);
 
-    const PublicKey *MatchPublicKey(const Keyring &keyring, const FingerprintReference &fpr);
+    const PublicKey *MatchPublicKey(const Keyring &keyring, const FingerprintReference &fpr, FlagsT flags);
 
     toolkit::result<> VerifySignature(
         std::span<const uint8_t> buffer,
         std::span<const uint8_t> signature_buffer,
         EVP_PKEY *public_key);
-    
+
     toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
     toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EC(std::span<const uint8_t> material);
     toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material);
     toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material);
-    
+
     toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey(const PublicKey &key);
 }
 
@@ -1008,6 +1014,27 @@ struct std::formatter<unvm::pgp::SignatureTypeID>
     auto format(const unvm::pgp::SignatureTypeID signature_type, C &&ctx) const
     {
         for (auto c : unvm::pgp::ToString(signature_type))
+        {
+            *ctx.out()++ = c;
+        }
+
+        return ctx.out();
+    }
+};
+
+template<>
+struct std::formatter<unvm::pgp::SubpacketTypeID>
+{
+    template<typename C>
+    static constexpr auto parse(C &&ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename C>
+    auto format(const unvm::pgp::SubpacketTypeID packet_type, C &&ctx) const
+    {
+        for (auto c : unvm::pgp::ToString(packet_type))
         {
             *ctx.out()++ = c;
         }

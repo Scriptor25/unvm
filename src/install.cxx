@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <json/json.hxx>
 
 static toolkit::result<bool> get_file_from_repo(
     unvm::http::HttpClient &client,
@@ -82,6 +83,167 @@ static bool confirm(const M &... message)
     return input == "y" || input == "yes";
 }
 
+template<typename T>
+struct data::serializer<std::span<T>>
+{
+    static void to_data(json::Node &node, const std::span<T> &value)
+    {
+        json::Array array(value.size());
+
+        for (size_t i = 0; i < value.size(); ++i)
+        {
+            array[i] = value[i];
+        }
+
+        node = std::move(array);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::PublicKeyAlgorithmID>
+{
+    static void to_data(json::Node &node, const unvm::pgp::PublicKeyAlgorithmID &value)
+    {
+        node = unvm::pgp::ToString(value);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::HashAlgorithmID>
+{
+    static void to_data(json::Node &node, const unvm::pgp::HashAlgorithmID &value)
+    {
+        node = unvm::pgp::ToString(value);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::CompressionAlgorithmID>
+{
+    static void to_data(json::Node &node, const unvm::pgp::CompressionAlgorithmID &value)
+    {
+        node = unvm::pgp::ToString(value);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::SymmetricAlgorithmID>
+{
+    static void to_data(json::Node &node, const unvm::pgp::SymmetricAlgorithmID &value)
+    {
+        node = unvm::pgp::ToString(value);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::SignatureTypeID>
+{
+    static void to_data(json::Node &node, const unvm::pgp::SignatureTypeID &value)
+    {
+        node = unvm::pgp::ToString(value);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::PublicKey>
+{
+    static void to_data(json::Node &node, const unvm::pgp::PublicKey &value)
+    {
+        node = json::Object
+        {
+            { "creation_time", value.CreationTime },
+            { "algorithm", value.Algorithm },
+        };
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::MPIIterable>
+{
+    static void to_data(json::Node &node, const unvm::pgp::MPIIterable &value)
+    {
+        json::Array array;
+
+        for (auto mpi : value)
+        {
+            array.emplace_back(mpi);
+        }
+
+        node = std::move(array);
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::Signature>
+{
+    static void to_data(json::Node &node, const unvm::pgp::Signature &value)
+    {
+        node = json::Object
+        {
+            { "version", value.Version },
+            { "signature_type", value.SignatureType },
+            { "public_key_algorithm", value.PublicKeyAlgorithm },
+            { "hash_algorithm", value.HashAlgorithm },
+            { "hash_left_16_bit", unvm::pgp::ToHexString(value.HashLeft16Bit) },
+            { "key_flags", unvm::pgp::ToHexString(value.KeyFlags) },
+            { "features", unvm::pgp::ToHexString(value.Features) },
+            { "key_server_preferences", unvm::pgp::ToHexString(value.KeyServerPreferences) },
+            { "key_expiration_time", value.KeyExpirationTime },
+            { "signature_creation_time", value.SignatureCreationTime },
+            { "primary_user_id", value.PrimaryUserID },
+            { "preferred_symmetric_algorithms", value.PreferredSymmetricAlgorithms },
+            { "preferred_hash_algorithms", value.PreferredHashAlgorithms },
+            { "preferred_compression_algorithms", value.PreferredCompressionAlgorithms },
+            { "issuer_fingerprint", unvm::pgp::ToHexString(value.IssuerFingerprint) },
+            { "issuer_key_id", unvm::pgp::ToHexString(value.IssuerKeyID) },
+            { "reason_for_revocation_code", value.ReasonForRevocationCode },
+            { "reason_for_revocation_message", value.ReasonForRevocationMessage },
+        };
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::User>
+{
+    static void to_data(json::Node &node, const unvm::pgp::User &value)
+    {
+        node = json::Object
+        {
+            { "id", value.Id },
+            { "signatures", value.Signatures },
+        };
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::Subkey>
+{
+    static void to_data(json::Node &node, const unvm::pgp::Subkey &value)
+    {
+        node = json::Object
+        {
+            { "key", value.Key },
+            { "signatures", value.Signatures },
+        };
+    }
+};
+
+template<>
+struct data::serializer<unvm::pgp::Certificate>
+{
+    static void to_data(json::Node &node, const unvm::pgp::Certificate &value)
+    {
+        node = json::Object
+        {
+            { "key", value.Key },
+            { "fingerprint", unvm::pgp::ToHexString(value.Fingerprint) },
+            { "key_id", unvm::pgp::ToHexString(value.KeyID) },
+            { "users", value.Users },
+            { "subkeys", value.Subkeys },
+        };
+    }
+};
+
 static toolkit::result<std::string> get_trusted_checksum(
     unvm::Config &config,
     unvm::http::HttpClient &client,
@@ -126,34 +288,37 @@ static toolkit::result<std::string> get_trusted_checksum(
             return res;
         }
 
-        auto *public_key = unvm::pgp::MatchPublicKey(keyring, fpr);
+        json::Node node(keyring);
+        std::cerr << std::setw(4) << std::dec << node << std::endl;
 
-        if (!public_key)
+        if (auto *key = unvm::pgp::MatchPublicKey(
+            keyring,
+            fpr,
+            static_cast<uint8_t>(unvm::pgp::KeyUsageFlag::Sign)); !key)
         {
-            auto fingerprint = unvm::pgp::ToHexString(fpr.Fingerprint);
-
-            if (!config.Fingerprints.contains(fingerprint))
+            if (auto fingerprint = unvm::pgp::ToHexString(fpr.Fingerprint);
+                !config.Fingerprints.contains(fingerprint))
             {
                 std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;
-            
+
                 if (auto trust = confirm("trust this fingerprint?"); !trust)
                 {
                     return toolkit::make_error("untrusted fingerprint '{}'.", fingerprint);
                 }
-            
+
                 config.Fingerprints.insert(fingerprint);
                 config.Dirty = true;
             }
         }
         else
         {
-            EVP_PKEY *pkey;
-            if (auto res = unvm::pgp::CreateOpenSSLPublicKey(*public_key) >> pkey; !res)
+            EVP_PKEY *public_key;
+            if (auto res = unvm::pgp::CreateOpenSSLPublicKey(*key) >> public_key; !res)
             {
                 return res;
             }
 
-            if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, pkey); !res)
+            if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, public_key); !res)
             {
                 return res;
             }

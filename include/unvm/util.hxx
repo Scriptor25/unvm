@@ -56,6 +56,8 @@ namespace unvm
         }
         return value;
     }
+
+    std::string GetSSLErrorStack();
 }
 
 template<typename K, typename V>
