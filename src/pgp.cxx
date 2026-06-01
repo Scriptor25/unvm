@@ -4,6 +4,7 @@
 #include <toolkit/result.hxx>
 
 #include <openssl/evp.h>
+#include <openssl/params.h>
 
 #include <ctime>
 #include <iomanip>
@@ -11,7 +12,7 @@
 #include <sstream>
 #include <unordered_map>
 
-std::string_view unvm::pgp::ToString(const PacketTypeID packet_type)
+std::string unvm::pgp::ToString(const PacketTypeID packet_type)
 {
     static const std::unordered_map<PacketTypeID, const char *> map
     {
@@ -39,10 +40,10 @@ std::string_view unvm::pgp::ToString(const PacketTypeID packet_type)
         return it->second;
     }
 
-    return "?";
+    return ToHexString(static_cast<uint8_t>(packet_type));
 }
 
-std::string_view unvm::pgp::ToString(const SubpacketTypeID subpacket_type)
+std::string unvm::pgp::ToString(const SubpacketTypeID subpacket_type)
 {
     static const std::unordered_map<SubpacketTypeID, const char *> map
     {
@@ -79,10 +80,10 @@ std::string_view unvm::pgp::ToString(const SubpacketTypeID subpacket_type)
         return it->second;
     }
 
-    return "?";
+    return ToHexString(static_cast<uint8_t>(subpacket_type));
 }
 
-std::string_view unvm::pgp::ToString(const SignatureTypeID signature_type)
+std::string unvm::pgp::ToString(const SignatureTypeID signature_type)
 {
     static const std::unordered_map<SignatureTypeID, const char *> map
     {
@@ -108,20 +109,25 @@ std::string_view unvm::pgp::ToString(const SignatureTypeID signature_type)
         return it->second;
     }
 
-    return "?";
+    return ToHexString(static_cast<uint8_t>(signature_type));
 }
 
-std::string_view unvm::pgp::ToString(const PublicKeyAlgorithmID algorithm)
+std::string unvm::pgp::ToString(const PublicKeyAlgorithmID algorithm)
 {
     static const std::unordered_map<PublicKeyAlgorithmID, const char *> map
     {
         { PublicKeyAlgorithmID::RSA_ES, "RSA (Encrypt and Signature)" },
         { PublicKeyAlgorithmID::RSA_EO, "RSA (Encrypt Only)" },
         { PublicKeyAlgorithmID::RSA_SO, "RSA (Signature Only)" },
-        { PublicKeyAlgorithmID::Elgamal, "Elgamal" },
+        { PublicKeyAlgorithmID::Elgamal_EO, "Elgamal (Encrypt Only)" },
         { PublicKeyAlgorithmID::DSA, "DSA" },
         { PublicKeyAlgorithmID::ECDH, "ECDH" },
         { PublicKeyAlgorithmID::ECDSA, "ECDSA" },
+        { PublicKeyAlgorithmID::Elgamal_ES, "Elgamal (Encrypt and Signature)" },
+        { PublicKeyAlgorithmID::DiffieHellman, "Diffie-Hellman" },
+        { PublicKeyAlgorithmID::EdDSA, "EdDSA" },
+        { PublicKeyAlgorithmID::AEDH, "AEDH" },
+        { PublicKeyAlgorithmID::AEDSA, "AEDSA" },
         { PublicKeyAlgorithmID::X25519, "X25519" },
         { PublicKeyAlgorithmID::X448, "X448" },
         { PublicKeyAlgorithmID::Ed25519, "Ed25519" },
@@ -133,10 +139,10 @@ std::string_view unvm::pgp::ToString(const PublicKeyAlgorithmID algorithm)
         return it->second;
     }
 
-    return "?";
+    return ToHexString(static_cast<uint8_t>(algorithm));
 }
 
-std::string_view unvm::pgp::ToString(const HashAlgorithmID algorithm)
+std::string unvm::pgp::ToString(const HashAlgorithmID algorithm)
 {
     static const std::unordered_map<HashAlgorithmID, const char *> map
     {
@@ -156,7 +162,42 @@ std::string_view unvm::pgp::ToString(const HashAlgorithmID algorithm)
         return it->second;
     }
 
-    return "?";
+    return ToHexString(static_cast<uint8_t>(algorithm));
+}
+
+const char *unvm::pgp::ToString(CurveOID curve)
+{
+    static const std::unordered_map<CurveOID, const char *> map
+    {
+        { CurveOID::NIST_P256, "prime256v1" },
+        { CurveOID::NIST_P384, "secp384r1" },
+        { CurveOID::NIST_P521, "secp521r1" },
+        { CurveOID::Brainpool_P256r1, "brainpoolP256r1" },
+        { CurveOID::Brainpool_P384r1, "brainpoolP384r1" },
+        { CurveOID::Brainpool_P512r1, "brainpoolP512r1" },
+        { CurveOID::Ed25519, "ED25519" },
+        { CurveOID::Curve25519, "X25519" },
+    };
+
+    if (const auto it = map.find(curve); it != map.end())
+    {
+        return it->second;
+    }
+
+    return nullptr;
+}
+
+std::string unvm::pgp::ToHexString(uint8_t value)
+{
+    char buffer[2];
+
+    buffer[0] = (value >> 4) & 0xF;
+    buffer[1] = value & 0xF;
+
+    buffer[0] = buffer[0] + (buffer[0] < 10 ? '0' : ('A' - 10));
+    buffer[1] = buffer[1] + (buffer[1] < 10 ? '0' : ('A' - 10));
+
+    return "0x" + std::string(buffer, sizeof(buffer));
 }
 
 std::string unvm::pgp::ToHexString(std::span<const uint8_t> buffer)
@@ -293,6 +334,17 @@ unvm::pgp::SubpacketIterator &unvm::pgp::SubpacketIterator::operator++()
     return *this;
 }
 
+unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterator::operator++(int)
+{
+    const auto descriptor = DescribeSubpacket(ptr);
+
+    auto *pre = ptr;
+
+    ptr = descriptor.Next;
+
+    return { pre };
+}
+
 unvm::pgp::SubpacketIterable::SubpacketIterable(const uint8_t *first, const uint8_t *last)
     : first(first),
       last(last)
@@ -311,6 +363,113 @@ unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterable::begin() const
 }
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterable::end() const
+{
+    return { last };
+}
+
+bool unvm::pgp::MPIIterator::operator!=(const MPIIterator &it) const
+{
+    return ptr != it.ptr;
+}
+
+std::span<const uint8_t> unvm::pgp::MPIIterator::operator*() const
+{
+    auto bit_count = scalar<2>(ptr);
+    auto byte_count = (bit_count + 7u) / 8u;
+
+    return { ptr + 2, byte_count };
+}
+
+unvm::pgp::MPIIterator &unvm::pgp::MPIIterator::operator++()
+{
+    auto bit_count = scalar<2>(ptr);
+    auto byte_count = (bit_count + 7u) / 8u;
+
+    ptr += 2 + byte_count;
+
+    return *this;
+}
+
+unvm::pgp::MPIIterator unvm::pgp::MPIIterator::operator++(int)
+{
+    auto bit_count = scalar<2>(ptr);
+    auto byte_count = (bit_count + 7u) / 8u;
+
+    auto *pre = ptr;
+
+    ptr += 2 + byte_count;
+
+    return { pre };
+}
+
+unvm::pgp::CurveOID unvm::pgp::MPIIterator::curve()
+{
+    auto len = *ptr;
+    std::span oid(ptr + 1, len);
+
+    ptr += 1 + len;
+
+    if (oid == OID_NIST_P256)
+    {
+        return CurveOID::NIST_P256;
+    }
+    
+    if (oid == OID_NIST_P384)
+    {
+        return CurveOID::NIST_P384;
+    }
+    
+    if (oid == OID_NIST_P521)
+    {
+        return CurveOID::NIST_P521;
+    }
+    
+    if (oid == OID_Brainpool_P256r1)
+    {
+        return CurveOID::Brainpool_P256r1;
+    }
+    
+    if (oid == OID_Brainpool_P384r1)
+    {
+        return CurveOID::Brainpool_P384r1;
+    }
+    
+    if (oid == OID_Brainpool_P512r1)
+    {
+        return CurveOID::Brainpool_P512r1;
+    }
+    
+    if (oid == OID_Ed25519)
+    {
+        return CurveOID::Ed25519;
+    }
+    
+    if (oid == OID_Curve25519)
+    {
+        return CurveOID::Curve25519;
+    }
+
+    return CurveOID::Error;
+}
+
+unvm::pgp::MPIIterable::MPIIterable(const uint8_t *first, const uint8_t *last)
+    : first(first),
+      last(last)
+{
+}
+
+unvm::pgp::MPIIterable::MPIIterable(std::span<const uint8_t> span)
+    : first(span.data()),
+      last(span.data() + span.size())
+{
+}
+
+unvm::pgp::MPIIterator unvm::pgp::MPIIterable::begin() const
+{
+    return { first };
+}
+
+unvm::pgp::MPIIterator unvm::pgp::MPIIterable::end() const
 {
     return { last };
 }
@@ -395,14 +554,14 @@ toolkit::result<std::vector<uint8_t>> digest(const EVP_MD *type, const A &... ar
 
     auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
-    if (EVP_DigestInit(ctx, type) != 1)
+    if (EVP_DigestInit(ctx, type) <= 0)
     {
         return toolkit::make_error("failed to initialize digest.");
     }
     
     auto res = (toolkit::result() & ... & [&]() -> toolkit::result<>
     {
-        if (EVP_DigestUpdate(ctx, &args, sizeof(A)) != 1)
+        if (EVP_DigestUpdate(ctx, &args, sizeof(A)) <= 0)
         {
             return toolkit::make_error("failed to update digest.");
         }
@@ -418,7 +577,7 @@ toolkit::result<std::vector<uint8_t>> digest(const EVP_MD *type, const A &... ar
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned hash_length = 0;
 
-    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) != 1)
+    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) <= 0)
     {
         return toolkit::make_error("failed to finalize digest.");
     }
@@ -675,8 +834,14 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
                 return toolkit::make_error("illegal signature packet without user or subkey.");
             }
 
-            std::cerr << "        [X] " << ToString(packet->SignatureType) << " - " << ToString(
-                packet->PublicKeyAlgorithm) << " - " << ToString(packet->HashAlgorithm) << std::endl;
+            std::cerr
+                << "        [X] "
+                << ToString(packet->SignatureType)
+                << " - "
+                << ToString(packet->PublicKeyAlgorithm)
+                << " - "
+                << ToString(packet->HashAlgorithm)
+                << std::endl;
 
             std::vector<Signature> *target;
             if (current_user)
@@ -972,19 +1137,19 @@ toolkit::result<> unvm::pgp::VerifySignature(
 
     auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
-    if (EVP_DigestVerifyInit(ctx, nullptr, md, nullptr, public_key) != 1)
+    if (EVP_DigestVerifyInit(ctx, nullptr, md, nullptr, public_key) <= 0)
     {
         return toolkit::make_error("failed to initialize digest verify.");
     }
 
-    if (EVP_DigestVerifyUpdate(ctx, buffer.data(), buffer.size()) != 1)
+    if (EVP_DigestVerifyUpdate(ctx, buffer.data(), buffer.size()) <= 0)
     {
         return toolkit::make_error("failed to update digest verify.");
     }
 
     const uint32_t signature_length = 4 + 2 + hashed_length;
 
-    if (EVP_DigestVerifyUpdate(ctx, packet, signature_length) != 1)
+    if (EVP_DigestVerifyUpdate(ctx, packet, signature_length) <= 0)
     {
         return toolkit::make_error("failed to update digest verify.");
     }
@@ -999,18 +1164,200 @@ toolkit::result<> unvm::pgp::VerifySignature(
         static_cast<uint8_t>(signature_length & 0xFF),
     };
 
-    if (EVP_DigestVerifyUpdate(ctx, trailer, sizeof(trailer)) != 1)
+    if (EVP_DigestVerifyUpdate(ctx, trailer, sizeof(trailer)) <= 0)
     {
         return toolkit::make_error("failed to update digest verify.");
     }
 
-    const auto bit_count = scalar<2>(signature->Signature);
+    auto sig = *MPIIterator(signature->Signature);
 
-    if (const auto byte_count = (bit_count + 7u) / 8u;
-        EVP_DigestVerifyFinal(ctx, signature->Signature + 2, byte_count) != 1)
+    if (auto x = EVP_DigestVerifyFinal(ctx, sig.data(), sig.size()); x <= 0)
     {
         return toolkit::make_error("failed to finalize digest verify.");
     }
 
     return {};
+}
+
+toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material)
+{
+    MPIIterator cursor(material.data());
+
+    auto n = *cursor++;
+    auto e = *cursor++;
+
+    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr);
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create context.");
+    }
+
+    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
+
+    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    {
+        return toolkit::make_error("failed to initialize public key from data.");
+    }
+    
+    OSSL_PARAM params[]
+    {
+        OSSL_PARAM_BN("n", const_cast<uint8_t *>(n.data()), n.size()),
+        OSSL_PARAM_BN("e", const_cast<uint8_t *>(e.data()), e.size()),
+        OSSL_PARAM_END,
+    };
+
+    EVP_PKEY *public_key{};
+    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    {
+        return toolkit::make_error("failed to create public key from data.");
+    }
+
+    return public_key;
+}
+
+toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EC(std::span<const uint8_t> material)
+{
+    MPIIterator cursor(material.data());
+
+    auto curve = cursor.curve();
+    auto *curve_str = ToString(curve);
+
+    auto q = *cursor++;
+
+    auto *name = (curve == CurveOID::Curve25519 || curve == CurveOID::Ed25519) ? curve_str : "EC";
+
+    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, name, nullptr);
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create context.");
+    }
+
+    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
+
+    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    {
+        return toolkit::make_error("failed to initialize public key from data.");
+    }
+
+    EVP_PKEY *public_key{};
+    
+    OSSL_PARAM params[3];
+    if (curve == CurveOID::Curve25519 || curve == CurveOID::Ed25519)
+    {
+        params[0] = OSSL_PARAM_octet_string("pub", const_cast<uint8_t *>(q.data()), q.size()),
+        params[1] = OSSL_PARAM_END;
+    }
+    else
+    {
+        params[0] = OSSL_PARAM_construct_utf8_string("group", const_cast<char *>(curve_str), 0);
+        params[1] = OSSL_PARAM_octet_string("pub", const_cast<uint8_t *>(q.data()), q.size());
+        params[2] = OSSL_PARAM_END;
+    }
+
+    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    {
+        return toolkit::make_error("failed to create public key from data.");
+    }
+
+    return public_key;
+}
+
+toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material)
+{
+    MPIIterator cursor(material.data());
+
+    // TODO: read curve oid
+
+    auto q = *cursor++;
+
+    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "ED25519", nullptr);
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create context.");
+    }
+
+    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
+
+    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    {
+        return toolkit::make_error("failed to initialize public key from data.");
+    }
+    
+    OSSL_PARAM params[]
+    {
+        OSSL_PARAM_octet_string("pub", const_cast<uint8_t *>(q.data()), q.size()),
+        OSSL_PARAM_END,
+    };
+
+    EVP_PKEY *public_key{};
+    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    {
+        return toolkit::make_error("failed to create public key from data.");
+    }
+
+    return public_key;
+}
+
+toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material)
+{
+    MPIIterator cursor(material.data());
+
+    auto p = *cursor++;
+    auto q = *cursor++;
+    auto g = *cursor++;
+    auto y = *cursor++;
+
+    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "DSA", nullptr);
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create context.");
+    }
+
+    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
+
+    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    {
+        return toolkit::make_error("failed to initialize public key from data.");
+    }
+    
+    OSSL_PARAM params[]
+    {
+        OSSL_PARAM_BN("p", const_cast<uint8_t *>(p.data()), p.size()),
+        OSSL_PARAM_BN("q", const_cast<uint8_t *>(q.data()), q.size()),
+        OSSL_PARAM_BN("g", const_cast<uint8_t *>(g.data()), g.size()),
+        OSSL_PARAM_BN("y", const_cast<uint8_t *>(y.data()), y.size()),
+        OSSL_PARAM_END,
+    };
+
+    EVP_PKEY *public_key{};
+    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    {
+        return toolkit::make_error("failed to create public key from data.");
+    }
+
+    return public_key;
+}
+
+toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey(const PublicKey &key)
+{
+    switch (key.Algorithm)
+    {
+    case PublicKeyAlgorithmID::RSA_ES:
+    case PublicKeyAlgorithmID::RSA_EO:
+    case PublicKeyAlgorithmID::RSA_SO:
+        return CreateOpenSSLPublicKey_RSA(key.Material);
+    
+    case PublicKeyAlgorithmID::ECDSA:
+    case PublicKeyAlgorithmID::ECDH:
+        return CreateOpenSSLPublicKey_EC(key.Material);
+    
+    case PublicKeyAlgorithmID::EdDSA:
+        return CreateOpenSSLPublicKey_EdDSA(key.Material);
+    
+    case PublicKeyAlgorithmID::DSA:
+        return CreateOpenSSLPublicKey_DSA(key.Material);
+    
+    default:
+        return toolkit::make_error("unsupported key algorithm {}.", key.Algorithm);
+    }
 }

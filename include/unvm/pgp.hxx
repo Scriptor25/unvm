@@ -5,7 +5,7 @@
 #include <openssl/evp.h>
 
 #include <format>
-#include <string_view>
+#include <string>
 
 namespace unvm::pgp
 {
@@ -92,15 +92,19 @@ namespace unvm::pgp
         RSA_EO = 0x02,
         RSA_SO = 0x03,
 
-        Elgamal = 0x10,
-        DSA     = 0x11,
-        ECDH    = 0x12,
-        ECDSA   = 0x13,
-
-        X25519  = 0x19,
-        X448    = 0x1A,
-        Ed25519 = 0x1B,
-        Ed448   = 0x1C,
+        Elgamal_EO    = 0x10,
+        DSA           = 0x11,
+        ECDH          = 0x12,
+        ECDSA         = 0x13,
+        Elgamal_ES    = 0x14,
+        DiffieHellman = 0x15,
+        EdDSA         = 0x16,
+        AEDH          = 0x17,
+        AEDSA         = 0x18,
+        X25519        = 0x19,
+        X448          = 0x1A,
+        Ed25519       = 0x1B,
+        Ed448         = 0x1C,
     };
 
     enum class SymmetricAlgorithmID : uint8_t
@@ -147,249 +151,50 @@ namespace unvm::pgp
         GCM = 0x03,
     };
 
-    std::string_view ToString(PacketTypeID packet_type);
-    std::string_view ToString(SubpacketTypeID subpacket_type);
-    std::string_view ToString(SignatureTypeID signature_type);
-    std::string_view ToString(PublicKeyAlgorithmID algorithm);
-    std::string_view ToString(HashAlgorithmID algorithm);
+    enum class CurveOID : uint8_t
+    {
+        Error,
 
+        NIST_P256,
+        NIST_P384,
+        NIST_P521,
+        Brainpool_P256r1,
+        Brainpool_P384r1,
+        Brainpool_P512r1,
+        Ed25519,
+        Curve25519,
+    };
+
+    constexpr std::array<uint8_t, 8> OID_NIST_P256 { 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
+    constexpr std::array<uint8_t, 5> OID_NIST_P384 { 0x2B, 0x81, 0x04, 0x00, 0x22 };
+    constexpr std::array<uint8_t, 5> OID_NIST_P521 { 0x2B, 0x81, 0x04, 0x00, 0x23 };
+    constexpr std::array<uint8_t, 9> OID_Brainpool_P256r1 { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
+    constexpr std::array<uint8_t, 9> OID_Brainpool_P384r1 { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
+    constexpr std::array<uint8_t, 9> OID_Brainpool_P512r1 { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
+    constexpr std::array<uint8_t, 9> OID_Ed25519 { 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
+    constexpr std::array<uint8_t, 10> OID_Curve25519 { 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
+
+    std::string ToString(PacketTypeID packet_type);
+    std::string ToString(SubpacketTypeID subpacket_type);
+    std::string ToString(SignatureTypeID signature_type);
+    std::string ToString(PublicKeyAlgorithmID algorithm);
+    std::string ToString(HashAlgorithmID algorithm);
+
+    const char *ToString(CurveOID curve);
+
+    std::string ToHexString(uint8_t value);
     std::string ToHexString(std::span<const uint8_t> buffer);
 
-    constexpr uint8_t SIG_MD5[]
-    {
-        0x2A,
-        0x86,
-        0x48,
-        0x86,
-        0xF7,
-        0x0D,
-        0x02,
-        0x05,
-    };
+    struct SubpacketData;
 
-    constexpr uint8_t SIG_SHA1[]
+    struct SubpacketDescriptor
     {
-        0x2B,
-        0x0E,
-        0x03,
-        0x02,
-        0x1A,
-    };
+        const uint8_t *Subpacket;
+        const uint8_t *Next;
 
-    constexpr uint8_t SIG_RIPEMD160[]
-    {
-        0x2B,
-        0x24,
-        0x03,
-        0x02,
-        0x01,
+        uint32_t Length;
+        const SubpacketData *Data;
     };
-
-    constexpr uint8_t SIG_SHA224[]
-    {
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x04,
-    };
-
-    constexpr uint8_t SIG_SHA256[]
-    {
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x01,
-    };
-
-    constexpr uint8_t SIG_SHA384[]
-    {
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x02,
-    };
-
-    constexpr uint8_t SIG_SHA512[]
-    {
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x03,
-    };
-
-    constexpr uint8_t HASH_PREFIX_MD5[]
-    {
-        0x30,
-        0x20,
-        0x30,
-        0x0C,
-        0x06,
-        0x08,
-        0x2A,
-        0x86,
-        0x48,
-        0x86,
-        0xF7,
-        0x0D,
-        0x02,
-        0x05,
-        0x05,
-        0x00,
-        0x04,
-        0x10,
-    };
-
-    constexpr uint8_t HASH_PREFIX_SHA1[]
-    {
-        0x30,
-        0x21,
-        0x30,
-        0x09,
-        0x06,
-        0x05,
-        0x2b,
-        0x0E,
-        0x03,
-        0x02,
-        0x1A,
-        0x05,
-        0x00,
-        0x04,
-        0x14,
-    };
-
-    constexpr uint8_t HASH_PREFIX_RIPEMD160[]
-    {
-        0x30,
-        0x21,
-        0x30,
-        0x09,
-        0x06,
-        0x05,
-        0x2B,
-        0x24,
-        0x03,
-        0x02,
-        0x01,
-        0x05,
-        0x00,
-        0x04,
-        0x14,
-    };
-
-    constexpr uint8_t HASH_PREFIX_SHA224[]
-    {
-        0x30,
-        0x31,
-        0x30,
-        0x0d,
-        0x06,
-        0x09,
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x04,
-        0x05,
-        0x00,
-        0x04,
-        0x1C,
-    };
-
-    constexpr uint8_t HASH_PREFIX_SHA256[]
-    {
-        0x30,
-        0x31,
-        0x30,
-        0x0d,
-        0x06,
-        0x09,
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x01,
-        0x05,
-        0x00,
-        0x04,
-        0x20,
-    };
-
-    constexpr uint8_t HASH_PREFIX_SHA384[]
-    {
-        0x30,
-        0x41,
-        0x30,
-        0x0d,
-        0x06,
-        0x09,
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x02,
-        0x05,
-        0x00,
-        0x04,
-        0x30,
-    };
-
-    constexpr uint8_t HASH_PREFIX_SHA512[]
-    {
-        0x30,
-        0x51,
-        0x30,
-        0x0d,
-        0x06,
-        0x09,
-        0x60,
-        0x86,
-        0x48,
-        0x01,
-        0x65,
-        0x03,
-        0x04,
-        0x02,
-        0x03,
-        0x05,
-        0x00,
-        0x04,
-        0x40,
-    };
-
-    struct SubpacketDescriptor;
 
     struct SubpacketIterator
     {
@@ -398,6 +203,7 @@ namespace unvm::pgp
         SubpacketDescriptor operator*() const;
 
         SubpacketIterator &operator++();
+        SubpacketIterator operator++(int);
 
         const uint8_t *ptr;
     };
@@ -409,6 +215,31 @@ namespace unvm::pgp
 
         [[nodiscard]] SubpacketIterator begin() const;
         [[nodiscard]] SubpacketIterator end() const;
+
+        const uint8_t *first, *last;
+    };
+
+    struct MPIIterator
+    {
+        bool operator!=(const MPIIterator &it) const;
+
+        std::span<const uint8_t> operator*() const;
+
+        MPIIterator &operator++();
+        MPIIterator operator++(int);
+
+        CurveOID curve();
+
+        const uint8_t *ptr;
+    };
+
+    struct MPIIterable
+    {
+        MPIIterable(const uint8_t *first, const uint8_t *last);
+        MPIIterable(std::span<const uint8_t> span);
+
+        [[nodiscard]] MPIIterator begin() const;
+        [[nodiscard]] MPIIterator end() const;
 
         const uint8_t *first, *last;
     };
@@ -1032,15 +863,6 @@ namespace unvm::pgp
         return scalar(*reinterpret_cast<const uint8_t (*)[N]>(buffer));
     }
 
-    struct SubpacketDescriptor
-    {
-        const uint8_t *Subpacket;
-        const uint8_t *Next;
-
-        uint32_t Length;
-        const SubpacketData *Data;
-    };
-
     SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
 
     struct PublicKey
@@ -1143,6 +965,13 @@ namespace unvm::pgp
         std::span<const uint8_t> buffer,
         std::span<const uint8_t> signature_buffer,
         EVP_PKEY *public_key);
+    
+    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
+    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EC(std::span<const uint8_t> material);
+    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material);
+    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material);
+    
+    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey(const PublicKey &key);
 }
 
 template<>
@@ -1233,6 +1062,25 @@ namespace std
 {
     template<typename L, typename R>
     bool operator==(const std::span<L> &left, const std::span<R> &right)
+    {
+        if (left.size() != right.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < left.size(); ++i)
+        {
+            if (left[i] != right[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template<typename L, typename R, size_t N>
+    bool operator==(const std::span<L> &left, const std::array<R, N> &right)
     {
         if (left.size() != right.size())
         {

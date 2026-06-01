@@ -126,7 +126,7 @@ static toolkit::result<std::string> get_trusted_checksum(
             return res;
         }
 
-        auto public_key = unvm::pgp::MatchPublicKey(keyring, fpr);
+        auto *public_key = unvm::pgp::MatchPublicKey(keyring, fpr);
 
         if (!public_key)
         {
@@ -147,11 +147,13 @@ static toolkit::result<std::string> get_trusted_checksum(
         }
         else
         {
-            (void) public_key->CreationTime;
-            (void) public_key->Algorithm;
-            (void) public_key->Material;
+            EVP_PKEY *pkey;
+            if (auto res = unvm::pgp::CreateOpenSSLPublicKey(*public_key) >> pkey; !res)
+            {
+                return res;
+            }
 
-            if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, nullptr); !res)
+            if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, pkey); !res)
             {
                 return res;
             }
@@ -190,7 +192,7 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
 
     auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
-    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1)
+    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) <= 0)
     {
         return toolkit::make_error("failed to initialize digest.");
     }
@@ -203,7 +205,7 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
 
         if (const auto count = stream.gcount(); count > 0)
         {
-            if (EVP_DigestUpdate(ctx, chunk.data(), count) != 1)
+            if (EVP_DigestUpdate(ctx, chunk.data(), count) <= 0)
             {
                 return toolkit::make_error("failed to update digest.");
             }
@@ -213,7 +215,7 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned hash_length = 0;
 
-    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) != 1)
+    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) <= 0)
     {
         return toolkit::make_error("failed to finalize digest.");
     }

@@ -63,6 +63,9 @@ add_dependencies(unvm cacert keyring)
 
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
+# target_compile_options(unvm PRIVATE "-fsanitize=address")
+# target_link_options(unvm PRIVATE "-fsanitize=address" "-static-libasan")
+
 target_link_libraries(unvm PRIVATE
         toolkit::core
         toolkit::json
