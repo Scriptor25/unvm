@@ -212,14 +212,16 @@ namespace unvm::pgp
 
     struct SubpacketIterable
     {
-        SubpacketIterable();
+        SubpacketIterable() = default;
         SubpacketIterable(const uint8_t *first, const uint8_t *last);
         SubpacketIterable(std::span<const uint8_t> span);
 
         [[nodiscard]] SubpacketIterator begin() const;
         [[nodiscard]] SubpacketIterator end() const;
 
-        const uint8_t *first, *last;
+        [[nodiscard]] size_t size() const;
+
+        std::span<const uint8_t> block;
     };
 
     struct MPIIterator
@@ -238,14 +240,14 @@ namespace unvm::pgp
 
     struct MPIIterable
     {
-        MPIIterable();
+        MPIIterable() = default;
         MPIIterable(const uint8_t *first, const uint8_t *last);
-        MPIIterable(std::span<const uint8_t> span);
+        MPIIterable(std::span<const uint8_t> block);
 
         [[nodiscard]] MPIIterator begin() const;
         [[nodiscard]] MPIIterator end() const;
 
-        const uint8_t *first, *last;
+        std::span<const uint8_t> block;
     };
 
 #pragma pack(push, 1)
@@ -887,6 +889,9 @@ namespace unvm::pgp
         uint32_t CreationTime;
         PublicKeyAlgorithmID Algorithm;
         std::span<const uint8_t> Material;
+
+        std::vector<uint8_t> Fingerprint;
+        std::span<const uint8_t> KeyID;
     };
 
     struct Signature
@@ -896,8 +901,8 @@ namespace unvm::pgp
         PublicKeyAlgorithmID PublicKeyAlgorithm;
         HashAlgorithmID HashAlgorithm;
 
-        std::span<const uint8_t> HashedBlock;
-        std::span<const uint8_t> UnhashedBlock;
+        SubpacketIterable HashedBlock;
+        SubpacketIterable UnhashedBlock;
 
         std::span<const uint8_t> HashLeft16Bit;
         std::span<const uint8_t> SaltMaterial;
@@ -942,9 +947,6 @@ namespace unvm::pgp
     {
         PublicKey Key;
 
-        std::vector<uint8_t> Fingerprint;
-        std::span<const uint8_t> KeyID;
-
         std::vector<User> Users;
         std::vector<Subkey> Subkeys;
     };
@@ -961,6 +963,7 @@ namespace unvm::pgp
     };
 
     toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
+    toolkit::result<PublicKey> ParsePublicKey(const PublicKeyPacket *packet, uint32_t packet_length);
     toolkit::result<Signature> ParseSignature(const SignaturePacket *packet, uint32_t packet_length);
 
     toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);

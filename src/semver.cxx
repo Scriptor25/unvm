@@ -379,7 +379,8 @@ std::string unvm::semver::Parser::Next()
                 }
 
                 std::cerr << "invalid character '" << m_Buffer << "' in stream." << std::endl;
-                throw std::runtime_error("who da hell is drivin dis bus - next");
+                m_Buffer = m_Stream.get();
+                break;
             }
             break;
 
@@ -605,7 +606,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
                 }
 
                 default:
-                    throw std::runtime_error("who da hell is drivin dis bus - is in range - invalid primitive type");
+                    throw std::runtime_error("invalid primitive type");
                 }
 
                 if (!match)
@@ -622,7 +623,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
             continue;
         }
 
-        throw std::runtime_error("who da hell is drivin dis bus - is in range - invalid range type");
+        throw std::runtime_error("invalid range type");
     }
 
     return false;
