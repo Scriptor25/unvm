@@ -187,15 +187,15 @@ namespace unvm::pgp
     std::string ToHexString(uint8_t value);
     std::string ToHexString(std::span<const uint8_t> buffer);
 
-    struct SubpacketData;
+    struct Subpacket;
 
     struct SubpacketDescriptor
     {
-        const uint8_t *Subpacket;
+        const uint8_t *Ptr;
         const uint8_t *Next;
 
         uint32_t Length;
-        const SubpacketData *Data;
+        const Subpacket *Data;
     };
 
     struct SubpacketIterator
@@ -312,7 +312,7 @@ namespace unvm::pgp
         HashAlgorithmID HashAlgorithm;
     };
 
-    struct SubpacketData
+    struct Subpacket
     {
         SubpacketTypeID Type;
         uint8_t Data[];
@@ -922,6 +922,7 @@ namespace unvm::pgp
         std::span<const HashAlgorithmID> PreferredHashAlgorithms;
         std::span<const CompressionAlgorithmID> PreferredCompressionAlgorithms;
 
+        uint8_t IssuerFingerprintKeyVersion;
         std::span<const uint8_t> IssuerFingerprint;
         std::span<const uint8_t> IssuerKeyID;
 
@@ -962,25 +963,26 @@ namespace unvm::pgp
         HashAlgorithmID HashAlgorithm;
     };
 
-    toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
-    toolkit::result<PublicKey> ParsePublicKey(const PublicKeyPacket *packet, uint32_t packet_length);
-    toolkit::result<Signature> ParseSignature(const SignaturePacket *packet, uint32_t packet_length);
+    [[nodiscard]] toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
+    [[nodiscard]] toolkit::result<PublicKey> ParsePublicKey(const PublicKeyPacket *packet, uint32_t packet_length);
+    [[nodiscard]] toolkit::result<Signature> ParseSignature(const SignaturePacket *packet, uint32_t packet_length);
+    [[nodiscard]] toolkit::result<> ParseSubpacket(const Subpacket *packet, uint32_t packet_length, Signature &signature);
 
-    toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);
+    [[nodiscard]] toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);
 
     const PublicKey *MatchPublicKey(const Keyring &keyring, const FingerprintReference &fpr, FlagsT flags);
 
-    toolkit::result<> VerifySignature(
+    [[nodiscard]] toolkit::result<> VerifySignature(
         std::span<const uint8_t> buffer,
         std::span<const uint8_t> signature_buffer,
         EVP_PKEY *public_key);
 
-    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
-    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EC(std::span<const uint8_t> material);
-    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material);
-    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EC(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material);
 
-    toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey(const PublicKey &key);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey(const PublicKey &key);
 }
 
 template<>
@@ -1108,7 +1110,7 @@ namespace std
 
         return true;
     }
-
+    
     template<typename L, typename R, size_t N>
     bool operator==(const std::span<L> &left, const std::array<R, N> &right)
     {

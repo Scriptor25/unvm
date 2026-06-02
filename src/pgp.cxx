@@ -369,10 +369,10 @@ unvm::pgp::SubpacketDescriptor unvm::pgp::DescribeSubpacket(const uint8_t *subpa
     auto *next = subpacket + length_length + subpacket_length;
 
     return {
-        .Subpacket = subpacket,
+        .Ptr = subpacket,
         .Next = next,
         .Length = subpacket_length,
-        .Data = reinterpret_cast<const SubpacketData *>(subpacket + length_length),
+        .Data = reinterpret_cast<const Subpacket *>(subpacket + length_length),
     };
 }
 
@@ -566,18 +566,18 @@ unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::end() const
     return { Data + GetLength() };
 }
 
-[[nodiscard]] static toolkit::result<> evaluate_subpacket(
-    const unvm::pgp::SubpacketData *data,
-    const uint32_t length,
+toolkit::result<> unvm::pgp::ParseSubpacket(
+    const unvm::pgp::Subpacket *packet,
+    const uint32_t packet_length,
     unvm::pgp::Signature &signature)
 {
-    switch (data->Type)
+    switch (packet->Type)
     {
     case unvm::pgp::SubpacketTypeID::KeyFlags:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::KeyFlagsSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::KeyFlagsSubpacket *>(packet);
 
-        const std::span flags(packet->Flags, length - 1);
+        const std::span flags(subpacket->Flags, packet_length - 1);
         for (size_t i = 0; i < flags.size(); ++i)
         {
             signature.KeyFlags |= flags[i] << (i * 8);
@@ -587,57 +587,63 @@ unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::end() const
     }
     case unvm::pgp::SubpacketTypeID::PrimaryUserID:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::PrimaryUserIDSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::PrimaryUserIDSubpacket *>(packet);
 
-        signature.PrimaryUserID = packet->Primary == 0x01;
+        signature.PrimaryUserID = subpacket->Primary == 0x01;
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::PreferredSymmetricAlgorithms:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::PreferredSymmetricAlgorithmsSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::PreferredSymmetricAlgorithmsSubpacket *>(packet);
 
-        signature.PreferredSymmetricAlgorithms = { packet->Algorithms, length - 1 };
+        signature.PreferredSymmetricAlgorithms = { subpacket->Algorithms, packet_length - 1 };
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::PreferredHashAlgorithms:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::PreferredHashAlgorithmsSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::PreferredHashAlgorithmsSubpacket *>(packet);
 
-        signature.PreferredHashAlgorithms = { packet->Algorithms, length - 1 };
+        signature.PreferredHashAlgorithms = { subpacket->Algorithms, packet_length - 1 };
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::PreferredCompressionAlgorithms:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::PreferredCompressionAlgorithmsSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::PreferredCompressionAlgorithmsSubpacket *>(packet);
 
-        signature.PreferredCompressionAlgorithms = { packet->Algorithms, length - 1 };
+        signature.PreferredCompressionAlgorithms = { subpacket->Algorithms, packet_length - 1 };
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::IssuerFingerprint:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::IssuerFingerprintSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::IssuerFingerprintSubpacket *>(packet);
 
         std::span<const uint8_t> fingerprint;
         std::span<const uint8_t> keyid;
 
-        switch (packet->KeyVersion)
+        switch (subpacket->KeyVersion)
         {
         case 0x04:
-            fingerprint = { packet->Fingerprint, packet->Fingerprint + 20 };
+            fingerprint = { subpacket->Fingerprint, subpacket->Fingerprint + 20 };
             keyid = fingerprint.subspan(12, 8);
             break;
         case 0x06:
-            fingerprint = { packet->Fingerprint, packet->Fingerprint + 32 };
+            fingerprint = { subpacket->Fingerprint, subpacket->Fingerprint + 32 };
             keyid = fingerprint.subspan(0, 8);
             break;
         default:
-            return toolkit::make_error("unsupported key version {:02x}", packet->KeyVersion);
+            return toolkit::make_error("unsupported key version {:02x}", subpacket->KeyVersion);
         }
 
+        if (!signature.IssuerKeyID.empty() && signature.IssuerKeyID != keyid)
+        {
+            return toolkit::make_error("issuer key id mismatch: expected '{}', got '{}'", unvm::pgp::ToHexString(signature.IssuerKeyID), unvm::pgp::ToHexString(keyid));
+        }
+
+        signature.IssuerFingerprintKeyVersion = subpacket->KeyVersion;
         signature.IssuerFingerprint = fingerprint;
         signature.IssuerKeyID = keyid;
 
@@ -645,25 +651,34 @@ unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::end() const
     }
     case unvm::pgp::SubpacketTypeID::IssuerKeyID:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::IssuerKeyIDSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::IssuerKeyIDSubpacket *>(packet);
 
-        signature.IssuerKeyID = packet->KeyID;
+        std::span keyid(subpacket->KeyID, 8);
+
+        if (signature.IssuerKeyID.empty())
+        {
+            signature.IssuerKeyID = subpacket->KeyID;
+        }
+        else if (signature.IssuerKeyID != keyid)
+        {
+            return toolkit::make_error("issuer key id mismatch: expected '{}', got '{}'", unvm::pgp::ToHexString(signature.IssuerKeyID), unvm::pgp::ToHexString(keyid));
+        }
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::SignatureCreationTime:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::SignatureCreationTimeSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::SignatureCreationTimeSubpacket *>(packet);
 
-        signature.SignatureCreationTime = unvm::pgp::scalar(packet->Time);
+        signature.SignatureCreationTime = unvm::pgp::scalar(subpacket->Time);
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::Features:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::FeaturesSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::FeaturesSubpacket *>(packet);
 
-        const std::span flags(packet->Flags, length - 1);
+        const std::span flags(subpacket->Flags, packet_length - 1);
         for (size_t i = 0; i < flags.size(); ++i)
         {
             signature.Features |= flags[i] << (i * 8);
@@ -673,9 +688,9 @@ unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::end() const
     }
     case unvm::pgp::SubpacketTypeID::KeyServerPreferences:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::KeyServerPreferencesSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::KeyServerPreferencesSubpacket *>(packet);
 
-        const std::span flags(packet->Flags, length - 1);
+        const std::span flags(subpacket->Flags, packet_length - 1);
         for (size_t i = 0; i < flags.size(); ++i)
         {
             signature.KeyServerPreferences |= flags[i] << (i * 8);
@@ -685,32 +700,32 @@ unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::end() const
     }
     case unvm::pgp::SubpacketTypeID::KeyExpirationTime:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::KeyExpirationTimeSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::KeyExpirationTimeSubpacket *>(packet);
 
-        signature.KeyExpirationTime = unvm::pgp::scalar(packet->Time);
+        signature.KeyExpirationTime = unvm::pgp::scalar(subpacket->Time);
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::EmbeddedSignature:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::EmbeddedSignatureSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::EmbeddedSignatureSubpacket *>(packet);
 
-        unvm::pgp::Signature signature;
-        if (auto res = unvm::pgp::ParseSignature(&packet->Packet, length - 1) >> signature; !res)
+        unvm::pgp::Signature embedded;
+        if (auto res = unvm::pgp::ParseSignature(&subpacket->Packet, packet_length - 1) >> embedded; !res)
         {
             return res;
         }
 
-        (void) signature;
+        (void) embedded;
 
         break;
     }
     case unvm::pgp::SubpacketTypeID::ReasonForRevocation:
     {
-        auto *packet = reinterpret_cast<const unvm::pgp::ReasonForRevocationSubpacket *>(data);
+        auto *subpacket = reinterpret_cast<const unvm::pgp::ReasonForRevocationSubpacket *>(packet);
 
-        signature.ReasonForRevocationCode = packet->Code;
-        signature.ReasonForRevocationMessage = { reinterpret_cast<const char *>(packet->Reason), length - 2 };
+        signature.ReasonForRevocationCode = subpacket->Code;
+        signature.ReasonForRevocationMessage = { reinterpret_cast<const char *>(subpacket->Reason), packet_length - 2 };
 
         break;
     }
@@ -1043,7 +1058,7 @@ toolkit::result<unvm::pgp::Signature> unvm::pgp::ParseSignature(const SignatureP
 
     for (auto desc : signature.HashedBlock)
     {
-        if (auto res = evaluate_subpacket(desc.Data, desc.Length, signature); !res)
+        if (auto res = ParseSubpacket(desc.Data, desc.Length, signature); !res)
         {
             return res;
         }
@@ -1051,7 +1066,7 @@ toolkit::result<unvm::pgp::Signature> unvm::pgp::ParseSignature(const SignatureP
 
     for (auto desc : signature.UnhashedBlock)
     {
-        if (auto res = evaluate_subpacket(desc.Data, desc.Length, signature); !res)
+        if (auto res = ParseSubpacket(desc.Data, desc.Length, signature); !res)
         {
             return res;
         }
