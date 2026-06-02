@@ -10,7 +10,6 @@
 #include <openssl/params.h>
 
 #include <cstring>
-#include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -640,7 +639,10 @@ toolkit::result<> unvm::pgp::ParseSubpacket(
 
         if (!signature.IssuerKeyID.empty() && signature.IssuerKeyID != keyid)
         {
-            return toolkit::make_error("issuer key id mismatch: expected '{}', got '{}'", unvm::pgp::ToHexString(signature.IssuerKeyID), unvm::pgp::ToHexString(keyid));
+            return toolkit::make_error(
+                "issuer key id mismatch: expected '{}', got '{}'",
+                unvm::pgp::ToHexString(signature.IssuerKeyID),
+                unvm::pgp::ToHexString(keyid));
         }
 
         signature.IssuerFingerprintKeyVersion = subpacket->KeyVersion;
@@ -661,7 +663,10 @@ toolkit::result<> unvm::pgp::ParseSubpacket(
         }
         else if (signature.IssuerKeyID != keyid)
         {
-            return toolkit::make_error("issuer key id mismatch: expected '{}', got '{}'", unvm::pgp::ToHexString(signature.IssuerKeyID), unvm::pgp::ToHexString(keyid));
+            return toolkit::make_error(
+                "issuer key id mismatch: expected '{}', got '{}'",
+                unvm::pgp::ToHexString(signature.IssuerKeyID),
+                unvm::pgp::ToHexString(keyid));
         }
 
         break;
@@ -829,7 +834,7 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
             current_subkey = {};
 
             auto *packet = reinterpret_cast<const PublicKeyPacket *>(pointer);
-            
+
             if (auto res = ParsePublicKey(packet, packet_length) >> certificate.Key; !res)
             {
                 return res;
@@ -1100,7 +1105,7 @@ toolkit::result<unvm::pgp::FingerprintReference> unvm::pgp::ParseFingerprint(
 
     auto *packet = reinterpret_cast<const SignaturePacket *>(
         reinterpret_cast<const uint8_t *>(header) + header_length);
-    
+
     Signature signature;
     if (auto res = ParseSignature(packet, packet_length) >> signature; !res)
     {

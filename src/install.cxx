@@ -90,12 +90,12 @@ static toolkit::result<std::string> get_trusted_checksum(
 {
     std::stringstream stream(std::stringstream::in | std::stringstream::out);
     if (auto res = get_file_from_repo(
-                        client,
-                        stream,
-                        entry.Version,
-                        "SHASUMS256.txt",
-                        false
-                    ); !res)
+        client,
+        stream,
+        entry.Version,
+        "SHASUMS256.txt",
+        false
+    ); !res)
     {
         return res;
     }
@@ -108,7 +108,7 @@ static toolkit::result<std::string> get_trusted_checksum(
                        entry.Version,
                        "SHASUMS256.txt.sig",
                        true
-                    ) >> has_signature; !res)
+                   ) >> has_signature; !res)
     {
         return res;
     }
