@@ -169,7 +169,7 @@ struct unvm::http::HttpClient::State
     SSL_CTX *SslCtx;
 };
 
-static toolkit::result<> load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, const int len)
+static toolkit::result<> load_cert_chain_from_shared_mem(const SSL_CTX *context, const void *buf, const int len)
 {
     if (!context)
     {
@@ -192,7 +192,7 @@ static toolkit::result<> load_cert_chain_from_shared_mem(SSL_CTX *context, const
         return toolkit::make_error("failed to create bio.");
     }
 
-    auto guard0 = toolkit::defer(BIO_free, bio);
+    auto guard_bio = toolkit::defer(BIO_free, bio);
 
     const auto infos = PEM_X509_INFO_read_bio(bio, nullptr, nullptr, nullptr);
     if (!infos)
@@ -200,7 +200,7 @@ static toolkit::result<> load_cert_chain_from_shared_mem(SSL_CTX *context, const
         return toolkit::make_error("failed to read bio.");
     }
 
-    auto guard1 = toolkit::defer(
+    auto guard_infos = toolkit::defer(
         [](auto *i)
         {
             sk_X509_INFO_pop_free(i, X509_INFO_free);
@@ -271,6 +271,11 @@ unvm::http::HttpClient::~HttpClient()
 
 toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response) const
 {
+    if (request.Location.Scheme != "http" && request.Location.Scheme != "https")
+    {
+        return toolkit::make_error("unsupported scheme '{}'", request.Location.Scheme);
+    }
+
     auto service = std::to_string(request.Location.Port);
 
     addrinfo hints{}, *info = nullptr;
@@ -324,7 +329,7 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
         },
         ssl);
 
-    if (request.Location.UseTLS)
+    if (request.Location.Scheme == "https")
     {
         ssl = SSL_new(m_State->SslCtx);
         SSL_set_fd(ssl, sock);
@@ -531,7 +536,7 @@ std::istream &operator>>(std::istream &stream, unvm::http::HttpStatusCode &statu
 std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpLocation &location)
 {
     return stream
-           << (location.UseTLS ? "https" : "http")
+           << location.Scheme
            << "://"
            << location.Host
            << ":"

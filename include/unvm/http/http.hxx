@@ -103,9 +103,9 @@ namespace unvm::http
 
     struct HttpLocation
     {
-        bool UseTLS;
+        std::string Scheme;
         std::string Host;
-        std::uint16_t Port{};
+        uint16_t Port;
         std::string Pathname;
     };
 

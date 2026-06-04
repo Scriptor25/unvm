@@ -253,7 +253,7 @@ toolkit::result<unvm::semver::Version> unvm::semver::Parser::ParseVersion()
     return version;
 }
 
-toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
+toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(uint32_t &value)
 {
     if (Skip("x", "X", "*"))
     {
@@ -268,7 +268,7 @@ toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t 
     return false;
 }
 
-toolkit::result<> unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
+toolkit::result<> unvm::semver::Parser::ParseVersionPart(uint32_t &value)
 {
     auto token = std::move(m_Token);
     m_Token = Next();
@@ -278,7 +278,7 @@ toolkit::result<> unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
         token = token.substr(1);
     }
 
-    if (auto res = ParseString<std::uint32_t>(token) >> value; !res)
+    if (auto res = ParseString<uint32_t>(token) >> value; !res)
     {
         return res;
     }
@@ -688,14 +688,14 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
         if (a_numeric && b_numeric)
         {
-            std::uint32_t a_value{}, b_value{};
+            uint32_t a_value{}, b_value{};
 
-            if (auto res = unvm::ParseString<std::uint32_t>(a_entry) >> a_value; !res)
+            if (auto res = unvm::ParseString<uint32_t>(a_entry) >> a_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }
 
-            if (auto res = unvm::ParseString<std::uint32_t>(b_entry) >> b_value; !res)
+            if (auto res = unvm::ParseString<uint32_t>(b_entry) >> b_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }

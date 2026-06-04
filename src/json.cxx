@@ -25,9 +25,8 @@ bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Con
 
     auto ok = true;
 
-    ok &= node["installed"] >> value.Installed;
     ok &= node["default"] >> value.Default;
-
+    ok &= from_data_opt(node["installed"], value.Installed);
     ok &= from_data_opt(node["fingerprints"], value.Fingerprints);
 
     return ok;

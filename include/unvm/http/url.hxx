@@ -13,7 +13,7 @@ namespace unvm::http
         const auto scheme_end = src.find("://");
         const auto scheme = src.substr(0, scheme_end);
 
-        dst.UseTLS = scheme == "https";
+        dst.Scheme = scheme;
 
         const auto host_begin = scheme_end + 3;
         const auto path_begin = src.find('/', host_begin);
@@ -31,12 +31,12 @@ namespace unvm::http
             const std::string port(host_port.substr(colon + 1));
 
             dst.Host = host_port.substr(0, colon);
-            dst.Port = static_cast<std::uint16_t>(std::stoi(port));
+            dst.Port = static_cast<uint16_t>(std::stoi(port));
         }
         else
         {
             dst.Host = host_port;
-            dst.Port = scheme == "https" ? 443 : 80;
+            dst.Port = scheme == "https" ? 443 : scheme == "http" ? 80 : 0;
         }
     }
 

@@ -33,9 +33,9 @@ namespace unvm::semver
 
     struct Version
     {
-        std::uint32_t Major{};
-        std::uint32_t Minor{};
-        std::uint32_t Patch{};
+        uint32_t Major{};
+        uint32_t Minor{};
+        uint32_t Patch{};
 
         std::vector<std::string> PreRelease;
         std::vector<std::string> Build;
@@ -90,8 +90,8 @@ namespace unvm::semver
         toolkit::result<Partial> ParsePartial();
         toolkit::result<Version> ParseVersion();
 
-        toolkit::result<bool> ParsePossibleWildcard(std::uint32_t &value);
-        toolkit::result<> ParseVersionPart(std::uint32_t &value);
+        toolkit::result<bool> ParsePossibleWildcard(uint32_t &value);
+        toolkit::result<> ParseVersionPart(uint32_t &value);
 
         [[nodiscard]] bool At(const std::set<std::string_view> &set) const;
 

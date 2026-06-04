@@ -185,7 +185,7 @@ namespace unvm::pgp
     const char *ToString(CurveOID curve);
 
     std::string ToHexString(uint8_t value);
-    std::string ToHexString(std::span<const uint8_t> buffer);
+    std::string ToHexString(std::span<const uint8_t> value);
 
     struct Subpacket;
 
@@ -200,7 +200,7 @@ namespace unvm::pgp
 
     struct SubpacketIterator
     {
-        bool operator!=(const SubpacketIterator &it) const;
+        bool operator!=(const SubpacketIterator &other) const;
 
         SubpacketDescriptor operator*() const;
 
@@ -208,13 +208,14 @@ namespace unvm::pgp
         SubpacketIterator operator++(int);
 
         const uint8_t *ptr;
+        const uint8_t *end;
     };
 
     struct SubpacketIterable
     {
         SubpacketIterable() = default;
         SubpacketIterable(const uint8_t *first, const uint8_t *last);
-        SubpacketIterable(std::span<const uint8_t> span);
+        SubpacketIterable(std::span<const uint8_t> block);
 
         [[nodiscard]] SubpacketIterator begin() const;
         [[nodiscard]] SubpacketIterator end() const;
@@ -226,7 +227,7 @@ namespace unvm::pgp
 
     struct MPIIterator
     {
-        bool operator!=(const MPIIterator &it) const;
+        bool operator!=(const MPIIterator &other) const;
 
         std::span<const uint8_t> operator*() const;
 
@@ -236,6 +237,7 @@ namespace unvm::pgp
         CurveOID curve();
 
         const uint8_t *ptr;
+        const uint8_t *end;
     };
 
     struct MPIIterable
@@ -869,7 +871,7 @@ namespace unvm::pgp
         return scalar(*reinterpret_cast<const uint8_t (*)[N]>(buffer));
     }
 
-    SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
+    SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket, const uint8_t *end);
 
     enum class KeyUsageFlag : uint8_t
     {
@@ -966,7 +968,10 @@ namespace unvm::pgp
     [[nodiscard]] toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
     [[nodiscard]] toolkit::result<PublicKey> ParsePublicKey(const PublicKeyPacket *packet, uint32_t packet_length);
     [[nodiscard]] toolkit::result<Signature> ParseSignature(const SignaturePacket *packet, uint32_t packet_length);
-    [[nodiscard]] toolkit::result<> ParseSubpacket(const Subpacket *packet, uint32_t packet_length, Signature &signature);
+    [[nodiscard]] toolkit::result<> ParseSubpacket(
+        const Subpacket *packet,
+        uint32_t packet_length,
+        Signature &signature);
 
     [[nodiscard]] toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);
 
@@ -1110,7 +1115,7 @@ namespace std
 
         return true;
     }
-    
+
     template<typename L, typename R, size_t N>
     bool operator==(const std::span<L> &left, const std::array<R, N> &right)
     {

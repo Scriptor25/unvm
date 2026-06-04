@@ -18,13 +18,13 @@ static toolkit::result<bool> get_file_from_repo(
     std::ostream &stream,
     std::string version,
     std::string filename,
-    bool optional)
+    const bool optional)
 {
     unvm::http::HttpRequest request
     {
         .Method = unvm::http::HttpMethod::Get,
         .Location = {
-            .UseTLS = true,
+            .Scheme = "https",
             .Host = "nodejs.org",
             .Port = 443,
             .Pathname = std::format("/dist/{}/{}", version, filename),
