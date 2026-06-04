@@ -127,15 +127,15 @@ static toolkit::result<std::string> get_trusted_checksum(
             return res;
         }
 
-        unvm::pgp::FingerprintReference fpr;
-        if (auto res = unvm::pgp::ParseFingerprint(signature_buffer) >> fpr; !res)
+        unvm::pgp::Signature signature;
+        if (auto res = unvm::pgp::ParseSignature(signature_buffer) >> signature; !res)
         {
             return res;
         }
 
         if (auto *key = unvm::pgp::MatchPublicKey(
             keyring,
-            fpr,
+            signature,
             static_cast<uint8_t>(unvm::pgp::KeyUsageFlag::Sign)))
         {
             EVP_PKEY *public_key;
@@ -144,14 +144,14 @@ static toolkit::result<std::string> get_trusted_checksum(
                 return res;
             }
 
-            if (auto res = unvm::pgp::VerifySignature(data_buffer, signature_buffer, public_key); !res)
+            if (auto res = unvm::pgp::VerifySignature(signature, data_buffer, public_key); !res)
             {
                 return res;
             }
         }
         else
         {
-            if (auto fingerprint = unvm::pgp::ToHexString(fpr.Fingerprint);
+            if (auto fingerprint = unvm::pgp::ToHexString(signature.IssuerFingerprint);
                 !config.Fingerprints.contains(fingerprint))
             {
                 std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;

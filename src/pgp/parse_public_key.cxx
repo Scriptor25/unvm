@@ -73,7 +73,7 @@ toolkit::result<unvm::pgp::PublicKey> unvm::pgp::ParsePublicKey(const PublicKeyP
 
         constexpr uint8_t magic = 0x99;
 
-        if (auto res = digest(EVP_sha1(), magic, static_cast<uint16_t>(packet_length), data) >> key.Fingerprint; !res)
+        if (auto res = digest(EVP_sha1(), magic, bytes<uint16_t>(packet_length), data) >> key.Fingerprint; !res)
         {
             return res;
         }
@@ -94,7 +94,7 @@ toolkit::result<unvm::pgp::PublicKey> unvm::pgp::ParsePublicKey(const PublicKeyP
 
         constexpr uint8_t magic = 0x9B;
 
-        if (auto res = digest(EVP_sha256(), magic, packet_length, data) >> key.Fingerprint; !res)
+        if (auto res = digest(EVP_sha256(), magic, bytes<uint32_t>(packet_length), data) >> key.Fingerprint; !res)
         {
             return res;
         }

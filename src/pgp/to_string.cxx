@@ -230,11 +230,10 @@ std::string unvm::pgp::ToHexString(const std::span<const uint8_t> value)
 
     for (size_t i = 0; i < value.size(); ++i)
     {
-        const auto fst = static_cast<char>(value[i] >> 4 & 0xF);
-        const auto snd = static_cast<char>(value[i] & 0xF);
+        constexpr char lookup[]{ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-        buffer[i * 2 + 0] = fst + (fst < 10 ? '0' : 'A' - 10);
-        buffer[i * 2 + 1] = snd + (snd < 10 ? '0' : 'A' - 10);
+        buffer[i * 2 + 0] = lookup[value[i] >> 4 & 0xF];
+        buffer[i * 2 + 1] = lookup[value[i] & 0xF];
     }
 
     return { buffer.begin(), buffer.end() };

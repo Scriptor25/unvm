@@ -17,11 +17,7 @@ std::string unvm::GetSSLErrorStack()
     std::string message;
     for (auto it = stack.begin(); it != stack.end(); ++it)
     {
-        if (it != stack.begin())
-        {
-            message += ": ";
-        }
-
+        message += '\n';
         message += *it;
     }
 

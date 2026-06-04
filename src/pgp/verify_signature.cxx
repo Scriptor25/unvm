@@ -3,74 +3,201 @@
 
 #include <toolkit/defer.hxx>
 
-static const std::unordered_map<unvm::pgp::HashAlgorithmID, const EVP_MD *> hash_algorithms
+#include <openssl/dsa.h>
+#include <openssl/ec.h>
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+
+static toolkit::result<> verify_signature_md(
+    unvm::pgp::HashAlgorithmID hash_algorithm,
+    const std::span<const uint8_t> hash_left_16_bit,
+    unvm::pgp::PublicKeyAlgorithmID public_key_algorithm,
+    EVP_PKEY *public_key,
+    const std::span<const uint8_t> signature,
+    const std::span<const uint8_t> data)
 {
-    { unvm::pgp::HashAlgorithmID::MD5, EVP_md5() },
-    { unvm::pgp::HashAlgorithmID::SHA1, EVP_sha1() },
-    { unvm::pgp::HashAlgorithmID::RIPEMD160, EVP_ripemd160() },
-    { unvm::pgp::HashAlgorithmID::SHA256, EVP_sha256() },
-    { unvm::pgp::HashAlgorithmID::SHA384, EVP_sha384() },
-    { unvm::pgp::HashAlgorithmID::SHA512, EVP_sha512() },
-    { unvm::pgp::HashAlgorithmID::SHA224, EVP_sha224() },
-    { unvm::pgp::HashAlgorithmID::SHA3_256, EVP_sha3_256() },
-    { unvm::pgp::HashAlgorithmID::SHA3_512, EVP_sha3_512() },
-};
+    const EVP_MD *md;
+    std::vector<uint8_t> em;
+
+    switch (hash_algorithm)
+    {
+    case unvm::pgp::HashAlgorithmID::MD5:
+        md = EVP_md5();
+        em = { unvm::pgp::PREFIX_MD5.begin(), unvm::pgp::PREFIX_MD5.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA1:
+        md = EVP_sha1();
+        em = { unvm::pgp::PREFIX_SHA1.begin(), unvm::pgp::PREFIX_SHA1.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::RIPEMD160:
+        md = EVP_ripemd160();
+        em = { unvm::pgp::PREFIX_RIPEMD160.begin(), unvm::pgp::PREFIX_RIPEMD160.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA256:
+        md = EVP_sha256();
+        em = { unvm::pgp::PREFIX_SHA256.begin(), unvm::pgp::PREFIX_SHA256.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA384:
+        md = EVP_sha384();
+        em = { unvm::pgp::PREFIX_SHA384.begin(), unvm::pgp::PREFIX_SHA384.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA512:
+        md = EVP_sha512();
+        em = { unvm::pgp::PREFIX_SHA512.begin(), unvm::pgp::PREFIX_SHA512.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA224:
+        md = EVP_sha224();
+        em = { unvm::pgp::PREFIX_SHA224.begin(), unvm::pgp::PREFIX_SHA224.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA3_256:
+        md = EVP_sha3_256();
+        em = { unvm::pgp::PREFIX_SHA3_256.begin(), unvm::pgp::PREFIX_SHA3_256.end() };
+        break;
+
+    case unvm::pgp::HashAlgorithmID::SHA3_512:
+        md = EVP_sha3_512();
+        em = { unvm::pgp::PREFIX_SHA3_512.begin(), unvm::pgp::PREFIX_SHA3_512.end() };
+        break;
+
+    default:
+        return toolkit::make_error("unsupported hash algorithm {}.", hash_algorithm);
+    }
+
+    auto *md_ctx = EVP_MD_CTX_new();
+    if (!md_ctx)
+    {
+        return toolkit::make_error("failed to create md context: {}", unvm::GetSSLErrorStack());
+    }
+
+    auto guard_md_ctx = toolkit::defer(EVP_MD_CTX_free, md_ctx);
+
+    // EVP_PKEY_CTX *pk_ctx;
+    // if (EVP_DigestVerifyInit(md_ctx, &pk_ctx, md, nullptr, public_key) <= 0)
+    // {
+    //     return toolkit::make_error("failed to initialize verify digest: {}", unvm::GetSSLErrorStack());
+    // }
+
+    // if (EVP_DigestVerify(md_ctx, signature.data(), signature.size(), data.data(), data.size()) <= 0)
+    // {
+    //     return toolkit::make_error("failed to verify digest: {}", unvm::GetSSLErrorStack());
+    // }
+
+    if (EVP_DigestInit_ex(md_ctx, md, nullptr) <= 0)
+    {
+        return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
+    }
+
+    if (EVP_DigestUpdate(md_ctx, data.data(), data.size()) <= 0)
+    {
+        return toolkit::make_error("failed to update digest: {}", unvm::GetSSLErrorStack());
+    }
+
+    unsigned char hash_buffer[EVP_MAX_MD_SIZE];
+    unsigned int hash_length;
+
+    if (EVP_DigestFinal_ex(md_ctx, hash_buffer, &hash_length) <= 0)
+    {
+        return toolkit::make_error("failed to finalize digest: {}", unvm::GetSSLErrorStack());
+    }
+
+    const std::span hash(hash_buffer, hash_length);
+
+    if (hash_left_16_bit != hash.subspan(0, 2))
+    {
+        return toolkit::make_error(
+            "hash left 16 bit do not match: {}, {}.",
+            unvm::pgp::ToHexString(hash_left_16_bit),
+            unvm::pgp::ToHexString(hash));
+    }
+
+    em.insert(em.end(), hash.begin(), hash.end());
+
+    switch (public_key_algorithm)
+    {
+    case unvm::pgp::PublicKeyAlgorithmID::RSA_EO:
+    case unvm::pgp::PublicKeyAlgorithmID::RSA_SO:
+    case unvm::pgp::PublicKeyAlgorithmID::RSA_ES:
+    {
+        auto *rsa = EVP_PKEY_get1_RSA(public_key);
+        if (!rsa)
+        {
+            return toolkit::make_error("failed to get rsa from public key: {}", unvm::GetSSLErrorStack());
+        }
+
+        auto guard_rsa = toolkit::defer(RSA_free, rsa);
+
+        std::vector<uint8_t> decrypted(RSA_size(rsa));
+
+        const auto decrypted_length = RSA_public_decrypt(
+            static_cast<int>(signature.size()),
+            signature.data(),
+            decrypted.data(),
+            rsa,
+            RSA_PKCS1_PADDING);
+
+        if (decrypted_length <= 0)
+        {
+            return toolkit::make_error("failed to decrypt using rsa public key: {}", unvm::GetSSLErrorStack());
+        }
+
+        decrypted.resize(decrypted_length);
+
+        if (decrypted != em)
+        {
+            return toolkit::make_error("signature mismatch.");
+        }
+
+        return {};
+    }
+
+    default:
+    {
+        auto *ctx = EVP_MD_CTX_new();
+        if (!ctx)
+        {
+            return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
+        }
+
+        auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
+
+        if (public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::EdDSA)
+        {
+            md = nullptr;
+        }
+
+        EVP_PKEY_CTX *pctx;
+        if (EVP_DigestVerifyInit(ctx, &pctx, md, nullptr, public_key) <= 0)
+        {
+            return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
+        }
+
+        if (EVP_DigestVerify(ctx, signature.data(), signature.size(), data.data(), data.size()) <= 0)
+        {
+            return toolkit::make_error("failed to verify digest: {}", unvm::GetSSLErrorStack());
+        }
+
+        return {};
+    }
+    }
+}
 
 toolkit::result<> unvm::pgp::VerifySignature(
-    const std::span<const uint8_t> buffer,
-    const std::span<const uint8_t> signature_buffer,
+    const Signature &signature,
+    const std::span<const uint8_t> data,
     EVP_PKEY *public_key)
 {
-    auto *ptr = signature_buffer.data();
-    auto *header = reinterpret_cast<const PacketHeader *>(ptr);
-
-    PacketTypeID packet_type;
-    uint32_t packet_length;
-    uint8_t header_length;
-    bool partial;
-
-    header->Parse(packet_type, packet_length, header_length, partial);
-
-    if (partial)
+    std::vector<uint8_t> buffer;
+    auto update = [&buffer](std::span<const uint8_t> block)
     {
-        return toolkit::make_error("partial packets are not supported.");
-    }
-
-    if (packet_type != PacketTypeID::SignaturePacket)
-    {
-        return toolkit::make_error("unsupported packet type {}", packet_type);
-    }
-
-    auto *packet = reinterpret_cast<const SignaturePacket *>(ptr + header_length);
-
-    Signature signature;
-    if (auto res = ParseSignature(packet, packet_length) >> signature; !res)
-    {
-        return res;
-    }
-
-    const EVP_MD *md;
-    if (const auto it = hash_algorithms.find(signature.HashAlgorithm); it != hash_algorithms.end())
-    {
-        md = it->second;
-    }
-    else
-    {
-        return toolkit::make_error("unsupported hash algorithm {}", signature.HashAlgorithm);
-    }
-
-    auto *ctx = EVP_MD_CTX_new();
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context: {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
-
-    if (EVP_DigestVerifyInit(ctx, nullptr, md, nullptr, public_key) <= 0)
-    {
-        return toolkit::make_error("failed to initialize digest verify: {}", GetSSLErrorStack());
-    }
+        buffer.insert(buffer.end(), block.begin(), block.end());
+    };
 
     uint8_t length_length;
     switch (signature.Version)
@@ -81,11 +208,8 @@ toolkit::result<> unvm::pgp::VerifySignature(
         break;
 
     case 0x06:
+        update(signature.SaltMaterial);
         length_length = 4;
-        if (EVP_DigestVerifyUpdate(ctx, signature.SaltMaterial.data(), signature.SaltMaterial.size()) <= 0)
-        {
-            return toolkit::make_error("failed to update digest verify: {}", GetSSLErrorStack());
-        }
         break;
 
     default:
@@ -95,44 +219,61 @@ toolkit::result<> unvm::pgp::VerifySignature(
     switch (signature.SignatureType)
     {
     case SignatureTypeID::Binary:
-        if (EVP_DigestVerifyUpdate(ctx, buffer.data(), buffer.size()) <= 0)
-        {
-            return toolkit::make_error("failed to update digest verify: {}", GetSSLErrorStack());
-        }
+        update(data);
         break;
 
     default:
         return toolkit::make_error("unsupported signature type {}", signature.SignatureType);
     }
 
-    const uint32_t signature_length = 4 + length_length + signature.HashedBlock.size();
+    update(
+        std::array
+        {
+            signature.Version,
+            static_cast<uint8_t>(signature.SignatureType),
+            static_cast<uint8_t>(signature.PublicKeyAlgorithm),
+            static_cast<uint8_t>(signature.HashAlgorithm),
+        });
 
-    if (EVP_DigestVerifyUpdate(ctx, packet, signature_length) <= 0)
+    switch (signature.Version)
     {
-        return toolkit::make_error("failed to update digest verify: {}", GetSSLErrorStack());
+    case 0x04:
+        update(bytes<uint16_t>(signature.HashedBlock.size()));
+        break;
+
+    case 0x06:
+        update(bytes<uint32_t>(signature.HashedBlock.size()));
+        break;
+
+    default:
+        return toolkit::make_error("unsupported signature version {:02x}", signature.Version);
     }
 
-    const uint8_t trailer[]
-    {
-        signature.Version,
-        0xFF,
-        static_cast<uint8_t>(signature_length >> 24 & 0xFF),
-        static_cast<uint8_t>(signature_length >> 16 & 0xFF),
-        static_cast<uint8_t>(signature_length >> 8 & 0xFF),
-        static_cast<uint8_t>(signature_length & 0xFF),
-    };
+    update(signature.HashedBlock.block);
 
-    if (EVP_DigestVerifyUpdate(ctx, trailer, sizeof(trailer)) <= 0)
-    {
-        return toolkit::make_error("failed to update digest verify: {}", GetSSLErrorStack());
-    }
+    update(
+        std::array
+        {
+            signature.Version,
+            static_cast<uint8_t>(0xFF)
+        });
+
+    const auto signature_length = 4 + length_length + signature.HashedBlock.size();
+    update(bytes<uint32_t>(signature_length));
 
     const auto sig = *signature.SignatureMaterial.begin();
 
-    if (EVP_DigestVerifyFinal(ctx, sig.data(), sig.size()) <= 0)
+    std::vector<uint8_t> sig_norm;
+    if (auto res = NormalizeMPI(sig, EVP_PKEY_get_size(public_key)) >> sig_norm; !res)
     {
-        return toolkit::make_error("failed to finalize digest verify: {}", GetSSLErrorStack());
+        return res;
     }
 
-    return {};
+    return verify_signature_md(
+        signature.HashAlgorithm,
+        signature.HashLeft16Bit,
+        signature.PublicKeyAlgorithm,
+        public_key,
+        sig_norm,
+        buffer);
 }

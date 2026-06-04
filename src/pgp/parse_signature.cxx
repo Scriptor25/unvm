@@ -102,3 +102,31 @@ toolkit::result<unvm::pgp::Signature> unvm::pgp::ParseSignature(const SignatureP
 
     return signature;
 }
+
+toolkit::result<unvm::pgp::Signature> unvm::pgp::ParseSignature(
+    const std::span<const uint8_t> buffer)
+{
+    auto *pointer = buffer.data();
+    auto *header = reinterpret_cast<const PacketHeader *>(pointer);
+
+    PacketTypeID packet_type;
+    uint32_t packet_length;
+    uint8_t header_length;
+    bool partial;
+
+    header->Parse(packet_type, packet_length, header_length, partial);
+
+    if (partial)
+    {
+        return toolkit::make_error("partial packets are not supported.");
+    }
+
+    if (packet_type != PacketTypeID::SignaturePacket)
+    {
+        return toolkit::make_error("unsupported packet type {}", packet_type);
+    }
+
+    auto *packet = reinterpret_cast<const SignaturePacket *>(pointer + header_length);
+
+    return ParseSignature(packet, packet_length);
+}

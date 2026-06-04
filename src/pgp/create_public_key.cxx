@@ -108,7 +108,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::s
     MPIIterator cursor(material.data());
 
     const auto curve = cursor.curve();
-    (void) curve;
+    auto *group = ToString(curve);
 
     auto q = *cursor++;
 
@@ -125,8 +125,19 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::s
         return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
     }
 
+    if (!q.empty() && q[0] == 0x40)
+    {
+        q = q.subspan(1);
+    }
+
+    if (q.size() != 0x20)
+    {
+        return toolkit::make_error("invalid key size: {}", q.size());
+    }
+
     OSSL_PARAM params[]
     {
+        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, const_cast<char *>(group), strlen(group)),
         OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
         OSSL_PARAM_END,
     };

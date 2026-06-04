@@ -12,10 +12,10 @@ unvm::pgp::MPIIterable::MPIIterable(const std::span<const uint8_t> block)
 
 unvm::pgp::MPIIterator unvm::pgp::MPIIterable::begin() const
 {
-    return { block.data(), block.data() + block.size() };
+    return { block.data() };
 }
 
 unvm::pgp::MPIIterator unvm::pgp::MPIIterable::end() const
 {
-    return { block.data() + block.size(), block.data() + block.size() };
+    return { block.data() + block.size() };
 }

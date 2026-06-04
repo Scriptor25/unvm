@@ -12,12 +12,12 @@ unvm::pgp::SubpacketIterable::SubpacketIterable(const std::span<const uint8_t> b
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterable::begin() const
 {
-    return { block.data(), block.data() + block.size() };
+    return { block.data() };
 }
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterable::end() const
 {
-    return { block.data() + block.size(), block.data() + block.size() };
+    return { block.data() + block.size() };
 }
 
 size_t unvm::pgp::SubpacketIterable::size() const

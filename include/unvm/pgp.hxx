@@ -174,6 +174,204 @@ namespace unvm::pgp
     constexpr std::array<uint8_t, 9> OID_Ed25519 = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
     constexpr std::array<uint8_t, 10> OID_Curve25519 = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
 
+    constexpr std::array<uint8_t, 18> PREFIX_MD5
+    {
+        0x30,
+        0x20,
+        0x30,
+        0x0C,
+        0x06,
+        0x08,
+        0x2A,
+        0x86,
+        0x48,
+        0x86,
+        0xF7,
+        0x0D,
+        0x02,
+        0x05,
+        0x05,
+        0x00,
+        0x04,
+        0x10,
+    };
+
+    constexpr std::array<uint8_t, 15> PREFIX_SHA1
+    {
+        0x30,
+        0x21,
+        0x30,
+        0x09,
+        0x06,
+        0x05,
+        0x2B,
+        0x0E,
+        0x03,
+        0x02,
+        0x1A,
+        0x05,
+        0x00,
+        0x04,
+        0x14,
+    };
+
+    constexpr std::array<uint8_t, 15> PREFIX_RIPEMD160
+    {
+        0x30,
+        0x21,
+        0x30,
+        0x09,
+        0x06,
+        0x05,
+        0x2B,
+        0x24,
+        0x03,
+        0x02,
+        0x01,
+        0x05,
+        0x00,
+        0x04,
+        0x14,
+    };
+
+    constexpr std::array<uint8_t, 19> PREFIX_SHA256
+    {
+        0x30,
+        0x31,
+        0x30,
+        0x0D,
+        0x06,
+        0x09,
+        0x60,
+        0x86,
+        0x48,
+        0x01,
+        0x65,
+        0x03,
+        0x04,
+        0x02,
+        0x01,
+        0x05,
+        0x00,
+        0x04,
+        0x20,
+    };
+
+    constexpr std::array<uint8_t, 19> PREFIX_SHA384
+    {
+        0x30,
+        0x41,
+        0x30,
+        0x0D,
+        0x06,
+        0x09,
+        0x60,
+        0x86,
+        0x48,
+        0x01,
+        0x65,
+        0x03,
+        0x04,
+        0x02,
+        0x02,
+        0x05,
+        0x00,
+        0x04,
+        0x30,
+    };
+
+    constexpr std::array<uint8_t, 19> PREFIX_SHA512
+    {
+        0x30,
+        0x51,
+        0x30,
+        0x0D,
+        0x06,
+        0x09,
+        0x60,
+        0x86,
+        0x48,
+        0x01,
+        0x65,
+        0x03,
+        0x04,
+        0x02,
+        0x03,
+        0x05,
+        0x00,
+        0x04,
+        0x40,
+    };
+
+    constexpr std::array<uint8_t, 19> PREFIX_SHA224
+    {
+        0x30,
+        0x2D,
+        0x30,
+        0x0D,
+        0x06,
+        0x09,
+        0x60,
+        0x86,
+        0x48,
+        0x01,
+        0x65,
+        0x03,
+        0x04,
+        0x02,
+        0x04,
+        0x05,
+        0x00,
+        0x04,
+        0x1C,
+    };
+
+    constexpr std::array<uint8_t, 19> PREFIX_SHA3_256
+    {
+        0x30,
+        0x31,
+        0x30,
+        0x0D,
+        0x06,
+        0x09,
+        0x60,
+        0x86,
+        0x48,
+        0x01,
+        0x65,
+        0x03,
+        0x04,
+        0x02,
+        0x08,
+        0x05,
+        0x00,
+        0x04,
+        0x20,
+    };
+
+    constexpr std::array<uint8_t, 19> PREFIX_SHA3_512
+    {
+        0x30,
+        0x51,
+        0x30,
+        0x0D,
+        0x06,
+        0x09,
+        0x60,
+        0x86,
+        0x48,
+        0x01,
+        0x65,
+        0x03,
+        0x04,
+        0x02,
+        0x0a,
+        0x05,
+        0x00,
+        0x04,
+        0x40,
+    };
+
     std::string ToString(PacketTypeID packet_type);
     std::string ToString(SubpacketTypeID subpacket_type);
     std::string ToString(SignatureTypeID signature_type);
@@ -208,7 +406,6 @@ namespace unvm::pgp
         SubpacketIterator operator++(int);
 
         const uint8_t *ptr;
-        const uint8_t *end;
     };
 
     struct SubpacketIterable
@@ -237,7 +434,6 @@ namespace unvm::pgp
         CurveOID curve();
 
         const uint8_t *ptr;
-        const uint8_t *end;
     };
 
     struct MPIIterable
@@ -842,7 +1038,7 @@ namespace unvm::pgp
     template<size_t N>
     auto scalar(const uint8_t (&buffer)[N])
     {
-        using T = std::conditional_t<
+        using S = std::conditional_t<
             N == 1, uint8_t,
             std::conditional_t<
                 N == 2, uint16_t,
@@ -855,11 +1051,11 @@ namespace unvm::pgp
             >
         >;
 
-        T s{};
+        S s{};
 
         for (size_t i = 0; i < N; ++i)
         {
-            s |= static_cast<T>(buffer[i]) << ((N - i - 1) * 8);
+            s |= static_cast<S>(buffer[i]) << ((N - i - 1) * 8);
         }
 
         return s;
@@ -871,7 +1067,22 @@ namespace unvm::pgp
         return scalar(*reinterpret_cast<const uint8_t (*)[N]>(buffer));
     }
 
-    SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket, const uint8_t *end);
+    template<typename S>
+    auto bytes(const S &s)
+    {
+        constexpr auto N = sizeof(S);
+
+        std::array<uint8_t, N> buffer;
+
+        for (size_t i = 0; i < N; ++i)
+        {
+            buffer[i] = s >> ((N - i - 1) * 8) & 0xFF;
+        }
+
+        return buffer;
+    }
+
+    SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
 
     enum class KeyUsageFlag : uint8_t
     {
@@ -956,15 +1167,6 @@ namespace unvm::pgp
 
     using Keyring = std::vector<Certificate>;
 
-    struct FingerprintReference
-    {
-        std::span<const uint8_t> Fingerprint;
-        std::span<const uint8_t> KeyID;
-
-        SignatureTypeID SignatureType;
-        HashAlgorithmID HashAlgorithm;
-    };
-
     [[nodiscard]] toolkit::result<Keyring> ParseKeyring(std::span<const uint8_t> buffer);
     [[nodiscard]] toolkit::result<PublicKey> ParsePublicKey(const PublicKeyPacket *packet, uint32_t packet_length);
     [[nodiscard]] toolkit::result<Signature> ParseSignature(const SignaturePacket *packet, uint32_t packet_length);
@@ -973,13 +1175,17 @@ namespace unvm::pgp
         uint32_t packet_length,
         Signature &signature);
 
-    [[nodiscard]] toolkit::result<FingerprintReference> ParseFingerprint(std::span<const uint8_t> signature_buffer);
+    [[nodiscard]] toolkit::result<Signature> ParseSignature(std::span<const uint8_t> buffer);
 
-    const PublicKey *MatchPublicKey(const Keyring &keyring, const FingerprintReference &fpr, FlagsT flags);
+    const PublicKey *MatchPublicKey(const Keyring &keyring, const Signature &signature, FlagsT flags);
+
+    [[nodiscard]] toolkit::result<std::vector<uint8_t>> NormalizeMPI(
+        std::span<const uint8_t> mpi,
+        size_t max_size);
 
     [[nodiscard]] toolkit::result<> VerifySignature(
-        std::span<const uint8_t> buffer,
-        std::span<const uint8_t> signature_buffer,
+        const Signature &signature,
+        std::span<const uint8_t> data,
         EVP_PKEY *public_key);
 
     [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
@@ -1095,43 +1301,16 @@ struct std::formatter<unvm::pgp::HashAlgorithmID>
     }
 };
 
-namespace std
+template<typename T>
+concept iterable = requires(T t)
 {
-    template<typename L, typename R>
-    bool operator==(const std::span<L> &left, const std::span<R> &right)
-    {
-        if (left.size() != right.size())
-        {
-            return false;
-        }
+    { t.size() };
+    { t.begin() };
+    { t.end() };
+};
 
-        for (size_t i = 0; i < left.size(); ++i)
-        {
-            if (left[i] != right[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    template<typename L, typename R, size_t N>
-    bool operator==(const std::span<L> &left, const std::array<R, N> &right)
-    {
-        if (left.size() != right.size())
-        {
-            return false;
-        }
-
-        for (size_t i = 0; i < left.size(); ++i)
-        {
-            if (left[i] != right[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+template<iterable L, iterable R>
+bool operator==(const L &left, const R &right)
+{
+    return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin());
 }

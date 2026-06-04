@@ -1,12 +1,7 @@
 #include <unvm/pgp.hxx>
 
-unvm::pgp::SubpacketDescriptor unvm::pgp::DescribeSubpacket(const uint8_t *subpacket, const uint8_t *end)
+unvm::pgp::SubpacketDescriptor unvm::pgp::DescribeSubpacket(const uint8_t *subpacket)
 {
-    if (subpacket + 1 > end)
-    {
-        return {};
-    }
-
     uint32_t subpacket_length;
     uint8_t length_length;
 
@@ -17,11 +12,6 @@ unvm::pgp::SubpacketDescriptor unvm::pgp::DescribeSubpacket(const uint8_t *subpa
     }
     else if (fst < 0xFF)
     {
-        if (subpacket + 2 > end)
-        {
-            return {};
-        }
-
         const auto snd = subpacket[1];
 
         subpacket_length = ((fst - 0xC0) << 8) + snd + 0xC0;
@@ -29,21 +19,11 @@ unvm::pgp::SubpacketDescriptor unvm::pgp::DescribeSubpacket(const uint8_t *subpa
     }
     else // if (fst == 0xFF)
     {
-        if (subpacket + 5 > end)
-        {
-            return {};
-        }
-
         subpacket_length = scalar<4>(&subpacket[1]);
         length_length = 5;
     }
 
     auto *next = subpacket + length_length + subpacket_length;
-
-    if (next > end)
-    {
-        return {};
-    }
 
     return {
         .Ptr = subpacket,

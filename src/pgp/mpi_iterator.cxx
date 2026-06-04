@@ -7,18 +7,8 @@ bool unvm::pgp::MPIIterator::operator!=(const MPIIterator &other) const
 
 std::span<const uint8_t> unvm::pgp::MPIIterator::operator*() const
 {
-    if (ptr + 2 > end)
-    {
-        return {};
-    }
-
     const auto bit_count = scalar<2>(ptr);
     auto byte_count = (bit_count + 7u) / 8u;
-
-    if (ptr + 2 + byte_count > end)
-    {
-        return {};
-    }
 
     return { ptr + 2, byte_count };
 }
@@ -47,18 +37,7 @@ unvm::pgp::MPIIterator unvm::pgp::MPIIterator::operator++(int)
 
 unvm::pgp::CurveOID unvm::pgp::MPIIterator::curve()
 {
-    if (ptr + 1 > end)
-    {
-        return CurveOID::Error;
-    }
-
     const auto len = *ptr;
-
-    if (ptr + 1 + len > end)
-    {
-        return CurveOID::Error;
-    }
-
     const std::span oid(ptr + 1, len);
 
     ptr += 1 + len;
