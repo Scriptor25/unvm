@@ -10,16 +10,10 @@
 #include <openssl/params.h>
 
 #include <cstring>
-
-#undef PRINT_SETTABLE_PARAMS
-
-#ifdef PRINT_SETTABLE_PARAMS
 #include <iostream>
-#endif
 
 static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
 {
-#ifdef PRINT_SETTABLE_PARAMS
     auto settable = EVP_PKEY_fromdata_settable(ctx, EVP_PKEY_PUBLIC_KEY);
     if (!settable)
     {
@@ -71,7 +65,32 @@ static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
             std::cerr << "(no size limit)" << std::endl;
         }
     }
-#endif
+}
+
+static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARAM params[])
+{
+    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, name, nullptr);
+    if (!ctx)
+    {
+        return toolkit::make_error("failed to create context for name '{}': {}", name, unvm::GetSSLErrorStack());
+    }
+
+    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
+
+    // print_settable_params(ctx, name);
+
+    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    {
+        return toolkit::make_error("failed to initialize public key from data: {}", unvm::GetSSLErrorStack());
+    }
+
+    EVP_PKEY *public_key{};
+    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    {
+        return toolkit::make_error("failed to create public key from data: {}", unvm::GetSSLErrorStack());
+    }
+
+    return public_key;
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_RSA(const std::span<const uint8_t> material)
@@ -81,21 +100,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_RSA(const std::spa
     auto n = cursor.mpi();
     auto e = cursor.mpi();
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'RSA': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "RSA");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, const_cast<uint8_t *>(n.data()), n.size()),
@@ -103,13 +107,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_RSA(const std::spa
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("RSA", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_DSA(const std::span<const uint8_t> material)
@@ -121,21 +119,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_DSA(const std::spa
     auto g = cursor.mpi();
     auto y = cursor.mpi();
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "DSA", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'DSA': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "DSA");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_BN(OSSL_PKEY_PARAM_FFC_P, const_cast<uint8_t *>(p.data()), p.size()),
@@ -145,13 +128,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_DSA(const std::spa
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("DSA", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Elgamal(std::span<const uint8_t> material)
@@ -162,21 +139,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Elgamal(std::span<
     auto g = cursor.mpi();
     auto y = cursor.mpi();
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "Elgamal", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'Elgamal': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "Elgamal");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_BN("p", const_cast<uint8_t *>(p.data()), p.size()),
@@ -185,13 +147,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Elgamal(std::span<
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("Elgamal", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDSA(const std::span<const uint8_t> material)
@@ -213,21 +169,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDSA(const std::s
 
     auto *group = ToString(curve);
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'EC (DSA)': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "EC (DSA)");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, const_cast<char *>(group), strlen(group)),
@@ -235,13 +176,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDSA(const std::s
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("EC", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::span<const uint8_t> material)
@@ -263,34 +198,13 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::s
 
     auto *group = ToString(curve);
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, group, nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name '{} (EdDSA)': {}", group, GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, group);
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key(group, params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDH(const std::span<const uint8_t> material)
@@ -313,21 +227,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDH(const std::sp
 
     auto *group = ToString(curve);
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'EC (DH)': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "EC (DH)");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, const_cast<char *>(group), strlen(group)),
@@ -335,13 +234,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDH(const std::sp
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("EC", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X25519(const std::span<const uint8_t> material)
@@ -350,34 +243,13 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X25519(const std::
 
     auto q = cursor.bytes(32);
 
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "X25519", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'X25519': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "X25519");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
-
     OSSL_PARAM params[]
     {
         OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("X25519", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X448(const std::span<const uint8_t> material)
@@ -385,21 +257,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X448(const std::sp
     MPIIterator cursor(material.data());
 
     auto q = cursor.bytes(56);
-    
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "X448", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'X448': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "X448");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
 
     OSSL_PARAM params[]
     {
@@ -407,13 +264,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X448(const std::sp
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("X448", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed25519(const std::span<const uint8_t> material)
@@ -421,21 +272,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed25519(const std:
     MPIIterator cursor(material.data());
 
     auto q = cursor.bytes(32);
-    
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "ED25519", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'ED25519': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "ED25519");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
 
     OSSL_PARAM params[]
     {
@@ -443,13 +279,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed25519(const std:
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("ED25519", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed448(const std::span<const uint8_t> material)
@@ -457,21 +287,6 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed448(const std::s
     MPIIterator cursor(material.data());
 
     auto q = cursor.bytes(57);
-    
-    auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "ED448", nullptr);
-    if (!ctx)
-    {
-        return toolkit::make_error("failed to create context for name 'ED448': {}", GetSSLErrorStack());
-    }
-
-    auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
-
-    print_settable_params(ctx, "ED448");
-
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
-    {
-        return toolkit::make_error("failed to initialize public key from data: {}", GetSSLErrorStack());
-    }
 
     OSSL_PARAM params[]
     {
@@ -479,13 +294,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed448(const std::s
         OSSL_PARAM_END,
     };
 
-    EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
-    {
-        return toolkit::make_error("failed to create public key from data: {}", GetSSLErrorStack());
-    }
-
-    return public_key;
+    return create_public_key("ED448", params);
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey(const PublicKey &key)

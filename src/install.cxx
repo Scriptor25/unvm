@@ -100,7 +100,7 @@ static toolkit::result<std::string> get_trusted_checksum(
         return res;
     }
 
-#undef USE_SIGNATURE
+#define USE_SIGNATURE
 
 #ifdef USE_SIGNATURE
 
