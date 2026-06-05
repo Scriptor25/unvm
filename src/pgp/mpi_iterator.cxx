@@ -35,6 +35,27 @@ unvm::pgp::MPIIterator unvm::pgp::MPIIterator::operator++(int)
     return { pre };
 }
 
+std::span<const uint8_t> unvm::pgp::MPIIterator::bytes(size_t n)
+{
+    auto *p = ptr;
+
+    ptr += n;
+
+    return { p, n };
+}
+
+std::span<const uint8_t> unvm::pgp::MPIIterator::mpi()
+{
+    const auto count = scalar<2>(ptr);
+    auto n = (count + 7u) / 8u;
+
+    auto *p = ptr + 2;
+
+    ptr += 2 + n;
+
+    return { p, n };
+}
+
 unvm::pgp::CurveOID unvm::pgp::MPIIterator::curve()
 {
     const auto len = *ptr;
@@ -83,4 +104,19 @@ unvm::pgp::CurveOID unvm::pgp::MPIIterator::curve()
     }
 
     return CurveOID::Error;
+}
+
+unvm::pgp::KDF unvm::pgp::MPIIterator::kdf()
+{
+    const auto len = ptr[0];
+    const auto ao = ptr[1];
+    const auto ha = ptr[2];
+    const auto sa = ptr[3];
+
+    ptr += 1 + len;
+
+    return {
+        .HashAlgorithm = static_cast<HashAlgorithmID>(ha),
+        .SymmetricAlgorithm = static_cast<SymmetricAlgorithmID>(sa),
+    };
 }

@@ -17,53 +17,53 @@ static toolkit::result<> verify_signature_md(
     const std::span<const uint8_t> data)
 {
     const EVP_MD *md;
-    std::vector<uint8_t> em;
 
+    std::span<const uint8_t> prefix;
     switch (hash_algorithm)
     {
     case unvm::pgp::HashAlgorithmID::MD5:
         md = EVP_md5();
-        em = { unvm::pgp::PREFIX_MD5.begin(), unvm::pgp::PREFIX_MD5.end() };
+        prefix = unvm::pgp::PREFIX_MD5;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA1:
         md = EVP_sha1();
-        em = { unvm::pgp::PREFIX_SHA1.begin(), unvm::pgp::PREFIX_SHA1.end() };
+        prefix = unvm::pgp::PREFIX_SHA1;
         break;
 
     case unvm::pgp::HashAlgorithmID::RIPEMD160:
         md = EVP_ripemd160();
-        em = { unvm::pgp::PREFIX_RIPEMD160.begin(), unvm::pgp::PREFIX_RIPEMD160.end() };
+        prefix = unvm::pgp::PREFIX_RIPEMD160;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA256:
         md = EVP_sha256();
-        em = { unvm::pgp::PREFIX_SHA256.begin(), unvm::pgp::PREFIX_SHA256.end() };
+        prefix = unvm::pgp::PREFIX_SHA256;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA384:
         md = EVP_sha384();
-        em = { unvm::pgp::PREFIX_SHA384.begin(), unvm::pgp::PREFIX_SHA384.end() };
+        prefix = unvm::pgp::PREFIX_SHA384;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA512:
         md = EVP_sha512();
-        em = { unvm::pgp::PREFIX_SHA512.begin(), unvm::pgp::PREFIX_SHA512.end() };
+        prefix = unvm::pgp::PREFIX_SHA512;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA224:
         md = EVP_sha224();
-        em = { unvm::pgp::PREFIX_SHA224.begin(), unvm::pgp::PREFIX_SHA224.end() };
+        prefix = unvm::pgp::PREFIX_SHA224;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA3_256:
         md = EVP_sha3_256();
-        em = { unvm::pgp::PREFIX_SHA3_256.begin(), unvm::pgp::PREFIX_SHA3_256.end() };
+        prefix = unvm::pgp::PREFIX_SHA3_256;
         break;
 
     case unvm::pgp::HashAlgorithmID::SHA3_512:
         md = EVP_sha3_512();
-        em = { unvm::pgp::PREFIX_SHA3_512.begin(), unvm::pgp::PREFIX_SHA3_512.end() };
+        prefix = unvm::pgp::PREFIX_SHA3_512;
         break;
 
     default:
@@ -117,75 +117,31 @@ static toolkit::result<> verify_signature_md(
             unvm::pgp::ToHexString(hash));
     }
 
-    em.insert(em.end(), hash.begin(), hash.end());
-
-    switch (public_key_algorithm)
+    auto *ctx = EVP_MD_CTX_new();
+    if (!ctx)
     {
-    case unvm::pgp::PublicKeyAlgorithmID::RSA_EO:
-    case unvm::pgp::PublicKeyAlgorithmID::RSA_SO:
-    case unvm::pgp::PublicKeyAlgorithmID::RSA_ES:
-    {
-        auto *rsa = EVP_PKEY_get1_RSA(public_key);
-        if (!rsa)
-        {
-            return toolkit::make_error("failed to get rsa from public key: {}", unvm::GetSSLErrorStack());
-        }
-
-        auto guard_rsa = toolkit::defer(RSA_free, rsa);
-
-        std::vector<uint8_t> decrypted(RSA_size(rsa));
-
-        const auto decrypted_length = RSA_public_decrypt(
-            static_cast<int>(signature.size()),
-            signature.data(),
-            decrypted.data(),
-            rsa,
-            RSA_PKCS1_PADDING);
-
-        if (decrypted_length <= 0)
-        {
-            return toolkit::make_error("failed to decrypt using rsa public key: {}", unvm::GetSSLErrorStack());
-        }
-
-        decrypted.resize(decrypted_length);
-
-        if (decrypted != em)
-        {
-            return toolkit::make_error("signature mismatch.");
-        }
-
-        return {};
+        return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
     }
 
-    default:
+    auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
+
+    if (public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::EdDSA)
     {
-        auto *ctx = EVP_MD_CTX_new();
-        if (!ctx)
-        {
-            return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
-        }
-
-        auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
-
-        if (public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::EdDSA)
-        {
-            md = nullptr;
-        }
-
-        EVP_PKEY_CTX *pctx;
-        if (EVP_DigestVerifyInit(ctx, &pctx, md, nullptr, public_key) <= 0)
-        {
-            return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
-        }
-
-        if (EVP_DigestVerify(ctx, signature.data(), signature.size(), data.data(), data.size()) <= 0)
-        {
-            return toolkit::make_error("failed to verify digest: {}", unvm::GetSSLErrorStack());
-        }
-
-        return {};
+        md = nullptr; // TODO: find all algorithms that do not use a hash algorithm
     }
+
+    EVP_PKEY_CTX *pctx;
+    if (EVP_DigestVerifyInit(ctx, &pctx, md, nullptr, public_key) <= 0)
+    {
+        return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
     }
+
+    if (EVP_DigestVerify(ctx, signature.data(), signature.size(), data.data(), data.size()) <= 0)
+    {
+        return toolkit::make_error("failed to verify digest: {}", unvm::GetSSLErrorStack());
+    }
+
+    return {};
 }
 
 toolkit::result<> unvm::pgp::VerifySignature(

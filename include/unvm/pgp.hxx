@@ -165,16 +165,16 @@ namespace unvm::pgp
         Curve25519,
     };
 
-    constexpr std::array<uint8_t, 8> OID_NIST_P256 = { 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
-    constexpr std::array<uint8_t, 5> OID_NIST_P384 = { 0x2B, 0x81, 0x04, 0x00, 0x22 };
-    constexpr std::array<uint8_t, 5> OID_NIST_P521 = { 0x2B, 0x81, 0x04, 0x00, 0x23 };
-    constexpr std::array<uint8_t, 9> OID_Brainpool_P256r1 = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
-    constexpr std::array<uint8_t, 9> OID_Brainpool_P384r1 = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
-    constexpr std::array<uint8_t, 9> OID_Brainpool_P512r1 = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
-    constexpr std::array<uint8_t, 9> OID_Ed25519 = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
-    constexpr std::array<uint8_t, 10> OID_Curve25519 = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
+    constexpr uint8_t OID_NIST_P256[] = { 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07 };
+    constexpr uint8_t OID_NIST_P384[] = { 0x2B, 0x81, 0x04, 0x00, 0x22 };
+    constexpr uint8_t OID_NIST_P521[] = { 0x2B, 0x81, 0x04, 0x00, 0x23 };
+    constexpr uint8_t OID_Brainpool_P256r1[] = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x07 };
+    constexpr uint8_t OID_Brainpool_P384r1[] = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0B };
+    constexpr uint8_t OID_Brainpool_P512r1[] = { 0x2B, 0x24, 0x03, 0x03, 0x02, 0x08, 0x01, 0x01, 0x0D };
+    constexpr uint8_t OID_Ed25519[] = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01 };
+    constexpr uint8_t OID_Curve25519[] = { 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01 };
 
-    constexpr std::array<uint8_t, 18> PREFIX_MD5
+    constexpr uint8_t PREFIX_MD5[]
     {
         0x30,
         0x20,
@@ -196,7 +196,7 @@ namespace unvm::pgp
         0x10,
     };
 
-    constexpr std::array<uint8_t, 15> PREFIX_SHA1
+    constexpr uint8_t PREFIX_SHA1[]
     {
         0x30,
         0x21,
@@ -215,7 +215,7 @@ namespace unvm::pgp
         0x14,
     };
 
-    constexpr std::array<uint8_t, 15> PREFIX_RIPEMD160
+    constexpr uint8_t PREFIX_RIPEMD160[]
     {
         0x30,
         0x21,
@@ -234,7 +234,7 @@ namespace unvm::pgp
         0x14,
     };
 
-    constexpr std::array<uint8_t, 19> PREFIX_SHA256
+    constexpr uint8_t PREFIX_SHA256[]
     {
         0x30,
         0x31,
@@ -257,7 +257,7 @@ namespace unvm::pgp
         0x20,
     };
 
-    constexpr std::array<uint8_t, 19> PREFIX_SHA384
+    constexpr uint8_t PREFIX_SHA384[]
     {
         0x30,
         0x41,
@@ -280,7 +280,7 @@ namespace unvm::pgp
         0x30,
     };
 
-    constexpr std::array<uint8_t, 19> PREFIX_SHA512
+    constexpr uint8_t PREFIX_SHA512[]
     {
         0x30,
         0x51,
@@ -303,7 +303,7 @@ namespace unvm::pgp
         0x40,
     };
 
-    constexpr std::array<uint8_t, 19> PREFIX_SHA224
+    constexpr uint8_t PREFIX_SHA224[]
     {
         0x30,
         0x2D,
@@ -326,7 +326,7 @@ namespace unvm::pgp
         0x1C,
     };
 
-    constexpr std::array<uint8_t, 19> PREFIX_SHA3_256
+    constexpr uint8_t PREFIX_SHA3_256[]
     {
         0x30,
         0x31,
@@ -349,7 +349,7 @@ namespace unvm::pgp
         0x20,
     };
 
-    constexpr std::array<uint8_t, 19> PREFIX_SHA3_512
+    constexpr uint8_t PREFIX_SHA3_512[]
     {
         0x30,
         0x51,
@@ -422,6 +422,12 @@ namespace unvm::pgp
         std::span<const uint8_t> block;
     };
 
+    struct KDF
+    {
+        HashAlgorithmID HashAlgorithm;
+        SymmetricAlgorithmID SymmetricAlgorithm;
+    };
+
     struct MPIIterator
     {
         bool operator!=(const MPIIterator &other) const;
@@ -431,7 +437,10 @@ namespace unvm::pgp
         MPIIterator &operator++();
         MPIIterator operator++(int);
 
+        std::span<const uint8_t> bytes(size_t n);
+        std::span<const uint8_t> mpi();
         CurveOID curve();
+        KDF kdf();
 
         const uint8_t *ptr;
     };
@@ -1189,9 +1198,15 @@ namespace unvm::pgp
         EVP_PKEY *public_key);
 
     [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
-    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EC(std::span<const uint8_t> material);
-    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material);
     [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_Elgamal(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_ECDSA(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_EdDSA(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_ECDH(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_X25519(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_X448(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_Ed25519(std::span<const uint8_t> material);
+    [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_Ed448(std::span<const uint8_t> material);
 
     [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey(const PublicKey &key);
 }
@@ -1313,4 +1328,36 @@ template<iterable L, iterable R>
 bool operator==(const L &left, const R &right)
 {
     return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin());
+}
+
+template<typename T>
+struct array_traits : std::false_type
+{
+};
+
+template<typename T, size_t N>
+struct array_traits<T[N]> : std::true_type
+{
+    using type = T;
+    
+    static constexpr auto count = N;
+};
+
+template<typename T>
+concept array = array_traits<T>::value;
+
+template<iterable L, array R>
+bool operator==(const L &left, const R &right)
+{
+    using traits = array_traits<R>;
+
+    return left.size() == traits::count && std::equal(left.begin(), left.end(), right);
+}
+
+template<array L, iterable R>
+bool operator==(const L &left, const R &right)
+{
+    using traits = array_traits<L>;
+
+    return traits::count == right.size() && std::equal(left, left + traits::count, right.begin());
 }

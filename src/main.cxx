@@ -209,13 +209,14 @@ int main(const int argc, char **argv)
     }
 
     std::optional<std::string> maybe_active;
-    if (auto res = unvm::FindActiveVersion(maybe_active); !res)
+    unvm::VersionType type{};
+    if (auto res = unvm::FindActiveVersion(maybe_active, &type); !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;
     }
 
-    if (!maybe_active && config.Default)
+    if (type == unvm::VersionType::Default && config.Default)
     {
         maybe_active = *config.Default;
     }

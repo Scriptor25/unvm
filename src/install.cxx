@@ -100,6 +100,10 @@ static toolkit::result<std::string> get_trusted_checksum(
         return res;
     }
 
+#undef USE_SIGNATURE
+
+#ifdef USE_SIGNATURE
+
     bool has_signature;
     std::stringstream signature_stream(std::stringstream::in | std::stringstream::out | std::stringstream::binary);
     if (auto res = get_file_from_repo(
@@ -124,13 +128,13 @@ static toolkit::result<std::string> get_trusted_checksum(
         unvm::pgp::Keyring keyring;
         if (auto res = unvm::pgp::ParseKeyring(unvm::data::keyring) >> keyring; !res)
         {
-            return res;
+            return toolkit::make_error("failed to parse keyring: {}", res.error());
         }
 
         unvm::pgp::Signature signature;
         if (auto res = unvm::pgp::ParseSignature(signature_buffer) >> signature; !res)
         {
-            return res;
+            return toolkit::make_error("failed to parse signature: {}", res.error());
         }
 
         if (auto *key = unvm::pgp::MatchPublicKey(
@@ -141,12 +145,12 @@ static toolkit::result<std::string> get_trusted_checksum(
             EVP_PKEY *public_key;
             if (auto res = unvm::pgp::CreateOpenSSLPublicKey(*key) >> public_key; !res)
             {
-                return res;
+                return toolkit::make_error("failed to create public key: {}", res.error());
             }
 
             if (auto res = unvm::pgp::VerifySignature(signature, data_buffer, public_key); !res)
             {
-                return res;
+                return toolkit::make_error("failed to verify signature: {}", res.error());
             }
         }
         else
@@ -175,6 +179,8 @@ static toolkit::result<std::string> get_trusted_checksum(
             return toolkit::make_error("version '{}' does not have a signature file.", entry.Version);
         }
     }
+
+#endif
 
     for (std::string line; std::getline(stream, line);)
     {
