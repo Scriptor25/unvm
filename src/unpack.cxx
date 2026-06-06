@@ -58,8 +58,9 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
     while (!((err = archive_read_next_header(arc, &entry))))
     {
         auto pathname = directory / archive_entry_pathname(entry);
+        auto pathname_string = pathname.string();
 
-        archive_entry_set_pathname(entry, pathname.c_str());
+        archive_entry_set_pathname(entry, pathname_string.c_str());
 
         if (const auto error = archive_write_header(ext, entry))
         {

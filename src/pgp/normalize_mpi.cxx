@@ -18,7 +18,7 @@ toolkit::result<std::vector<uint8_t>> unvm::pgp::NormalizeMPI(const std::span<co
 
     std::vector<uint8_t> buffer(max_size);
 
-    std::copy_n(data, size, buffer.data() + max_size - size);
+    std::copy(data, data + size, buffer.data() + max_size - size);
 
     return buffer;
 }
