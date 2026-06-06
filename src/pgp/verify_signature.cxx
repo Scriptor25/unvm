@@ -6,6 +6,7 @@
 #include <openssl/dsa.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
 
 #include <iostream>
 
@@ -109,31 +110,45 @@ static toolkit::result<> verify_signature(
             unvm::pgp::ToHexString(hash));
     }
 
+    auto type = EVP_PKEY_base_id(public_key);
+    auto bits = EVP_PKEY_bits(public_key);
+
+    std::cerr << "type = " << type << " (should be " << EVP_PKEY_RSA << ")" << std::endl;
+    std::cerr << "bits = " << bits << std::endl;
+
+    const BIGNUM *n, *e;
+    auto *rsa = EVP_PKEY_get0_RSA(public_key);
+    RSA_get0_key(rsa, &n, &e, nullptr);
+
+    std::cerr << "n bits = " << BN_num_bits(n) << std::endl;
+    std::cerr << "e bits = " << BN_num_bits(e) << std::endl;
+    std::cerr << "n = " << BN_bn2dec(n) << std::endl;
+    std::cerr << "e = " << BN_bn2dec(e) << std::endl;
+
+    auto check = RSA_check_key(rsa);
+
+    std::cerr << "check = " << check << std::endl;
+
     if (public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::EdDSALegacy
         || public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::Ed25519
         || public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::Ed448)
     {
-        if (auto type = EVP_PKEY_id(public_key); type != EVP_PKEY_ED25519 && type != EVP_PKEY_ED448)
-        {
-            return toolkit::make_error("invalid public key, is not EdDSA (type: {}).", type);
-        }
-
-        auto *ctx = EVP_PKEY_CTX_new(public_key, nullptr);
+        auto *ctx = EVP_MD_CTX_new();
         if (!ctx)
         {
-            return toolkit::make_error("failed to create public key context: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
         }
 
-        auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
+        auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
-        if (EVP_PKEY_verify_init(ctx) <= 0)
+        if (EVP_DigestVerifyInit(ctx, nullptr, nullptr, nullptr, public_key) <= 0)
         {
-            return toolkit::make_error("failed to initialize public key context: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
         }
 
-        if (EVP_PKEY_verify(ctx, signature.data(), signature.size(), data.data(), data.size()) <= 0)
+        if (EVP_DigestVerify(ctx, signature.data(), signature.size(), hash.data(), hash.size()) <= 0)
         {
-            return toolkit::make_error("failed to verify public key: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to finalize verify digest: {}", unvm::GetSSLErrorStack());
         }
     }
     else
@@ -283,8 +298,8 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
         const auto raw_r = *mpi++;
         const auto raw_s = *mpi++;
 
-        auto *r = BN_bin2bn(raw_r.data(), raw_r.size(), nullptr);
-        auto *s = BN_bin2bn(raw_s.data(), raw_s.size(), nullptr);
+        auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
+        auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
 
         auto guard_r = toolkit::defer(BN_free, r);
         auto guard_s = toolkit::defer(BN_free, s);
@@ -329,8 +344,8 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
         const auto raw_r = *mpi++;
         const auto raw_s = *mpi++;
 
-        auto *r = BN_bin2bn(raw_r.data(), raw_r.size(), nullptr);
-        auto *s = BN_bin2bn(raw_s.data(), raw_s.size(), nullptr);
+        auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
+        auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
 
         auto guard_r = toolkit::defer(BN_free, r);
         auto guard_s = toolkit::defer(BN_free, s);
@@ -375,8 +390,8 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
         const auto raw_r = *mpi++;
         const auto raw_s = *mpi++;
 
-        sig.insert(sig.end(), raw_r.rbegin(), raw_r.rend());
-        sig.insert(sig.end(), raw_s.rbegin(), raw_s.rend());
+        sig.insert(sig.end(), raw_r.begin(), raw_r.end());
+        sig.insert(sig.end(), raw_s.begin(), raw_s.end());
         break;
     }
 
