@@ -1,14 +1,20 @@
 #pragma once
 
-#include <unvm/http/http.hxx>
-
 #include <cstdint>
 #include <string>
 #include <string_view>
 
 namespace unvm::http
 {
-    constexpr void ParseUrl(HttpLocation &dst, std::string_view src)
+    struct URL
+    {
+        std::string Scheme;
+        std::string Host;
+        uint16_t Port{};
+        std::string Pathname;
+    };
+
+    constexpr void ParseURL(URL &dst, std::string_view src)
     {
         const auto scheme_end = src.find("://");
         const auto scheme = src.substr(0, scheme_end);
@@ -40,10 +46,10 @@ namespace unvm::http
         }
     }
 
-    constexpr HttpLocation ParseUrl(const std::string_view src)
+    constexpr URL ParseURL(const std::string_view src)
     {
-        HttpLocation dst;
-        ParseUrl(dst, src);
+        URL dst;
+        ParseURL(dst, src);
         return dst;
     }
 }

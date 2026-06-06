@@ -7,6 +7,7 @@
 #include <toolkit/string.hxx>
 
 #include <openssl/evp.h>
+#include <openssl/provider.h>
 
 #include <filesystem>
 #include <fstream>
@@ -119,6 +120,8 @@ static toolkit::result<std::string> get_trusted_checksum(
 
     if (has_signature)
     {
+        OSSL_PROVIDER_load(nullptr, "default");
+
         const auto data_string = stream.str();
         const auto signature_string = signature_stream.str();
 
@@ -137,6 +140,12 @@ static toolkit::result<std::string> get_trusted_checksum(
             return toolkit::make_error("failed to parse signature: {}", res.error());
         }
 
+        std::vector<uint8_t> buffer;
+        if (auto res = unvm::pgp::BuildSignatureBuffer(signature, data_buffer) >> buffer; !res)
+        {
+            return toolkit::make_error("failed to build signature buffer: {}", res.error());
+        }
+
         if (auto *key = unvm::pgp::MatchPublicKey(
             keyring,
             signature,
@@ -148,7 +157,11 @@ static toolkit::result<std::string> get_trusted_checksum(
                 return toolkit::make_error("failed to create public key: {}", res.error());
             }
 
-            if (auto res = unvm::pgp::VerifySignature(signature, data_buffer, public_key); !res)
+            if (auto res = unvm::pgp::VerifySignature(
+                signature,
+                data_buffer,
+                public_key,
+                EVP_PKEY_get_size(public_key)); !res)
             {
                 return toolkit::make_error("failed to verify signature: {}", res.error());
             }

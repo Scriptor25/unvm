@@ -78,6 +78,7 @@ static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARA
     auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
 
     // print_settable_params(ctx, name);
+    (void) print_settable_params;
 
     if (EVP_PKEY_fromdata_init(ctx) <= 0)
     {
@@ -154,7 +155,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDSA(const std::s
 {
     MPIIterator cursor(material.data());
 
-    auto curve = cursor.curve();
+    const auto curve = cursor.curve();
     auto q = cursor.mpi();
 
     if (!q.empty() && q[0] == 0x40)
@@ -183,7 +184,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::s
 {
     MPIIterator cursor(material.data());
 
-    auto curve = cursor.curve();
+    const auto curve = cursor.curve();
     auto q = cursor.mpi();
 
     if (!q.empty() && q[0] == 0x40)
@@ -211,9 +212,11 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDH(const std::sp
 {
     MPIIterator cursor(material.data());
 
-    auto curve = cursor.curve();
+    const auto curve = cursor.curve();
     auto q = cursor.mpi();
-    auto kdf = cursor.kdf();
+    const auto kdf = cursor.kdf();
+
+    (void) kdf;
 
     if (!q.empty() && q[0] == 0x40)
     {
@@ -310,13 +313,12 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey(const PublicKey &k
         return CreateOpenSSLPublicKey_DSA(key.Material);
 
     case PublicKeyAlgorithmID::Elgamal_EO:
-    case PublicKeyAlgorithmID::Elgamal_ES:
         return CreateOpenSSLPublicKey_Elgamal(key.Material);
-    
+
     case PublicKeyAlgorithmID::ECDSA:
         return CreateOpenSSLPublicKey_ECDSA(key.Material);
 
-    case PublicKeyAlgorithmID::EdDSA:
+    case PublicKeyAlgorithmID::EdDSALegacy:
         return CreateOpenSSLPublicKey_EdDSA(key.Material);
 
     case PublicKeyAlgorithmID::ECDH:

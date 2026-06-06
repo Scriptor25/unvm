@@ -34,7 +34,7 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
         http::HttpRequest request
         {
             .Method = http::HttpMethod::Get,
-            .Location = http::ParseUrl("https://nodejs.org/dist/index.json"),
+            .Location = http::ParseURL("https://nodejs.org/dist/index.json"),
         };
         http::HttpResponse response
         {

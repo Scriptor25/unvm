@@ -485,7 +485,7 @@ toolkit::result<> unvm::http::HttpClient::FetchWithRedirects(HttpRequest request
 
         if (location.find("://") != std::string::npos)
         {
-            request.Location = ParseUrl(location);
+            request.Location = ParseURL(location);
         }
         else if (location.starts_with("/"))
         {
@@ -533,7 +533,7 @@ std::istream &operator>>(std::istream &stream, unvm::http::HttpStatusCode &statu
     return stream;
 }
 
-std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpLocation &location)
+std::ostream &operator<<(std::ostream &stream, const unvm::http::URL &location)
 {
     return stream
            << location.Scheme

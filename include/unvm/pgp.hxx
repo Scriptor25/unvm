@@ -92,19 +92,15 @@ namespace unvm::pgp
         RSA_EO = 0x02,
         RSA_SO = 0x03,
 
-        Elgamal_EO    = 0x10,
-        DSA           = 0x11,
-        ECDH          = 0x12,
-        ECDSA         = 0x13,
-        Elgamal_ES    = 0x14,
-        DiffieHellman = 0x15,
-        EdDSA         = 0x16,
-        AEDH          = 0x17,
-        AEDSA         = 0x18,
-        X25519        = 0x19,
-        X448          = 0x1A,
-        Ed25519       = 0x1B,
-        Ed448         = 0x1C,
+        Elgamal_EO  = 0x10,
+        DSA         = 0x11,
+        ECDH        = 0x12,
+        ECDSA       = 0x13,
+        EdDSALegacy = 0x16,
+        X25519      = 0x19,
+        X448        = 0x1A,
+        Ed25519     = 0x1B,
+        Ed448       = 0x1C,
     };
 
     enum class SymmetricAlgorithmID : uint8_t
@@ -1195,7 +1191,18 @@ namespace unvm::pgp
     [[nodiscard]] toolkit::result<> VerifySignature(
         const Signature &signature,
         std::span<const uint8_t> data,
-        EVP_PKEY *public_key);
+        EVP_PKEY *public_key,
+        size_t public_key_size);
+
+    [[nodiscard]] toolkit::result<std::vector<uint8_t>> BuildSignatureBuffer(
+        const Signature &signature,
+        std::span<const uint8_t> data);
+
+    [[nodiscard]] toolkit::result<> VerifySignatureBuffer(
+        const Signature &signature,
+        std::span<const uint8_t> buffer,
+        EVP_PKEY *public_key,
+        size_t public_key_size);
 
     [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_RSA(std::span<const uint8_t> material);
     [[nodiscard]] toolkit::result<EVP_PKEY *> CreateOpenSSLPublicKey_DSA(std::span<const uint8_t> material);
@@ -1339,7 +1346,7 @@ template<typename T, size_t N>
 struct array_traits<T[N]> : std::true_type
 {
     using type = T;
-    
+
     static constexpr auto count = N;
 };
 

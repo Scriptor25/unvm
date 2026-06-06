@@ -104,18 +104,14 @@ std::string unvm::pgp::ToString(const PublicKeyAlgorithmID algorithm)
 {
     static const std::unordered_map<PublicKeyAlgorithmID, const char *> map
     {
-        { PublicKeyAlgorithmID::RSA_ES, "RSA (Encrypt and Signature)" },
+        { PublicKeyAlgorithmID::RSA_ES, "RSA (Encrypt or Sign)" },
         { PublicKeyAlgorithmID::RSA_EO, "RSA (Encrypt Only)" },
-        { PublicKeyAlgorithmID::RSA_SO, "RSA (Signature Only)" },
+        { PublicKeyAlgorithmID::RSA_SO, "RSA (Sign Only)" },
         { PublicKeyAlgorithmID::Elgamal_EO, "Elgamal (Encrypt Only)" },
         { PublicKeyAlgorithmID::DSA, "DSA" },
         { PublicKeyAlgorithmID::ECDH, "ECDH" },
         { PublicKeyAlgorithmID::ECDSA, "ECDSA" },
-        { PublicKeyAlgorithmID::Elgamal_ES, "Elgamal (Encrypt and Signature)" },
-        { PublicKeyAlgorithmID::DiffieHellman, "Diffie-Hellman" },
-        { PublicKeyAlgorithmID::EdDSA, "EdDSA" },
-        { PublicKeyAlgorithmID::AEDH, "AEDH" },
-        { PublicKeyAlgorithmID::AEDSA, "AEDSA" },
+        { PublicKeyAlgorithmID::EdDSALegacy, "EdDSALegacy" },
         { PublicKeyAlgorithmID::X25519, "X25519" },
         { PublicKeyAlgorithmID::X448, "X448" },
         { PublicKeyAlgorithmID::Ed25519, "Ed25519" },

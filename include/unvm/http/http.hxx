@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unvm/http/url.hxx>
+
 #include <toolkit/result.hxx>
 
 #include <cstdint>
@@ -101,20 +103,12 @@ namespace unvm::http
         return 500 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 599;
     }
 
-    struct HttpLocation
-    {
-        std::string Scheme;
-        std::string Host;
-        uint16_t Port;
-        std::string Pathname;
-    };
-
     using HttpHeaders = std::map<std::string, std::string>;
 
     struct HttpRequest
     {
         HttpMethod Method;
-        HttpLocation Location;
+        URL Location;
         HttpHeaders Headers;
         std::istream *Body;
     };
@@ -158,7 +152,7 @@ std::ostream &operator<<(std::ostream &stream, unvm::http::HttpMethod method);
 std::ostream &operator<<(std::ostream &stream, unvm::http::HttpStatusCode status_code);
 std::istream &operator>>(std::istream &stream, unvm::http::HttpStatusCode &status_code);
 
-std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpLocation &location);
+std::ostream &operator<<(std::ostream &stream, const unvm::http::URL &location);
 
 template<>
 struct std::formatter<unvm::http::HttpStatusCode> : std::formatter<int>
