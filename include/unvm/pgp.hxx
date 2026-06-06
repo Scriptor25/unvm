@@ -1042,20 +1042,23 @@ namespace unvm::pgp
 #pragma pack(pop)
 
     template<size_t N>
+    using scalar_t = std::conditional_t<
+        N == 1, uint8_t,
+        std::conditional_t<
+            N == 2, uint16_t,
+            std::conditional_t<
+                N == 4, uint32_t,
+                std::conditional_t<
+                    N == 8, uint64_t,
+                    void>
+            >
+        >
+    >;
+
+    template<size_t N>
     auto scalar(const uint8_t (&buffer)[N])
     {
-        using S = std::conditional_t<
-            N == 1, uint8_t,
-            std::conditional_t<
-                N == 2, uint16_t,
-                std::conditional_t<
-                    N == 4, uint32_t,
-                    std::conditional_t<
-                        N == 8, uint64_t,
-                        void>
-                >
-            >
-        >;
+        using S = scalar_t<N>;
 
         S s{};
 
@@ -1070,7 +1073,16 @@ namespace unvm::pgp
     template<size_t N>
     auto scalar(const uint8_t *buffer)
     {
-        return scalar(*reinterpret_cast<const uint8_t (*)[N]>(buffer));
+        using S = scalar_t<N>;
+
+        S s{};
+
+        for (size_t i = 0; i < N; ++i)
+        {
+            s |= static_cast<S>(buffer[i]) << ((N - i - 1) * 8);
+        }
+
+        return s;
     }
 
     template<typename S>
