@@ -115,7 +115,7 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_DSA(const std::spa
 {
     MPIIterator cursor(material.data());
 
-    auto p = cursor.mpi();tlen+7)/8 slices that
+    auto p = cursor.mpi();
     auto q = cursor.mpi();
     auto g = cursor.mpi();
     auto y = cursor.mpi();

@@ -6,7 +6,6 @@
 #include <openssl/dsa.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
-#include <openssl/rsa.h>
 
 #include <iostream>
 
@@ -109,25 +108,6 @@ static toolkit::result<> verify_signature(
             unvm::pgp::ToHexString(hash_left_16_bit),
             unvm::pgp::ToHexString(hash));
     }
-
-    auto type = EVP_PKEY_base_id(public_key);
-    auto bits = EVP_PKEY_bits(public_key);
-
-    std::cerr << "type = " << type << " (should be " << EVP_PKEY_RSA << ")" << std::endl;
-    std::cerr << "bits = " << bits << std::endl;
-
-    const BIGNUM *n, *e;
-    auto *rsa = EVP_PKEY_get0_RSA(public_key);
-    RSA_get0_key(rsa, &n, &e, nullptr);
-
-    std::cerr << "n bits = " << BN_num_bits(n) << std::endl;
-    std::cerr << "e bits = " << BN_num_bits(e) << std::endl;
-    std::cerr << "n = " << BN_bn2dec(n) << std::endl;
-    std::cerr << "e = " << BN_bn2dec(e) << std::endl;
-
-    auto check = RSA_check_key(rsa);
-
-    std::cerr << "check = " << check << std::endl;
 
     if (public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::EdDSALegacy
         || public_key_algorithm == unvm::pgp::PublicKeyAlgorithmID::Ed25519
