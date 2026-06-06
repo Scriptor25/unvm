@@ -5,6 +5,7 @@
 #include <openssl/evp.h>
 
 #include <format>
+#include <span>
 #include <string>
 
 namespace unvm::pgp
@@ -557,7 +558,7 @@ namespace unvm::pgp
 
     struct SignatureBlock
     {
-        uint8_t Signature[];
+        uint8_t Signature[1];
     };
 
     /**

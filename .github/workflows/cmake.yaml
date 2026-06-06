@@ -160,11 +160,9 @@ jobs:
       - name: Test (list)
         run: |
           ./build/install/bin/unvm list
-          ./build/install/bin/unvm list available
+          ./build/install/bin/unvm list --available
           ./build/install/bin/unvm l
-          ./build/install/bin/unvm l available
-          ./build/install/bin/unvm ls
-          ./build/install/bin/unvm la
+          ./build/install/bin/unvm l --available
         shell: bash
 
       - name: Test (integration, global)
