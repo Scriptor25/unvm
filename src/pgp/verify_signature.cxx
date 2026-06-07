@@ -76,27 +76,27 @@ static toolkit::result<> verify_signature(
     auto *md_ctx = EVP_MD_CTX_new();
     if (!md_ctx)
     {
-        return toolkit::make_error("failed to create md context: {}", unvm::GetSSLErrorStack());
+        return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
     }
 
     auto guard_md_ctx = toolkit::defer(EVP_MD_CTX_free, md_ctx);
 
-    if (EVP_DigestInit_ex(md_ctx, digest, nullptr) <= 0)
+    if (EVP_DigestInit(md_ctx, digest) <= 0)
     {
-        return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
+        return toolkit::make_error("failed to initialize context: {}", unvm::GetSSLErrorStack());
     }
 
     if (EVP_DigestUpdate(md_ctx, data.data(), data.size()) <= 0)
     {
-        return toolkit::make_error("failed to update digest: {}", unvm::GetSSLErrorStack());
+        return toolkit::make_error("failed to update context: {}", unvm::GetSSLErrorStack());
     }
 
     unsigned char hash_buffer[EVP_MAX_MD_SIZE];
     unsigned int hash_length;
 
-    if (EVP_DigestFinal_ex(md_ctx, hash_buffer, &hash_length) <= 0)
+    if (EVP_DigestFinal(md_ctx, hash_buffer, &hash_length) <= 0)
     {
-        return toolkit::make_error("failed to finalize digest: {}", unvm::GetSSLErrorStack());
+        return toolkit::make_error("failed to finalize context: {}", unvm::GetSSLErrorStack());
     }
 
     const std::span hash(hash_buffer, hash_length);
@@ -123,12 +123,12 @@ static toolkit::result<> verify_signature(
 
         if (EVP_DigestVerifyInit(ctx, nullptr, nullptr, nullptr, public_key) <= 0)
         {
-            return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to initialize context: {}", unvm::GetSSLErrorStack());
         }
 
         if (EVP_DigestVerify(ctx, signature.data(), signature.size(), hash.data(), hash.size()) <= 0)
         {
-            return toolkit::make_error("failed to finalize verify digest: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to finalize context: {}", unvm::GetSSLErrorStack());
         }
     }
     else
@@ -143,17 +143,17 @@ static toolkit::result<> verify_signature(
 
         if (EVP_DigestVerifyInit(ctx, nullptr, digest, nullptr, public_key) <= 0)
         {
-            return toolkit::make_error("failed to initialize digest: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to initialize context: {}", unvm::GetSSLErrorStack());
         }
 
         if (EVP_DigestVerifyUpdate(ctx, data.data(), data.size()) <= 0)
         {
-            return toolkit::make_error("failed to update verify digest: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to update context: {}", unvm::GetSSLErrorStack());
         }
 
         if (EVP_DigestVerifyFinal(ctx, signature.data(), signature.size()) <= 0)
         {
-            return toolkit::make_error("failed to finalize verify digest: {}", unvm::GetSSLErrorStack());
+            return toolkit::make_error("failed to finalize context: {}", unvm::GetSSLErrorStack());
         }
     }
 

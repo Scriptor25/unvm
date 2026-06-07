@@ -54,9 +54,9 @@ std::ostream &unvm::Table::Print(std::ostream &stream) const
     }
     stream << std::endl;
 
-    for (std::size_t j = 0; j < m_Entries.size(); j += m_Columns.size())
+    for (size_t j = 0; j < m_Entries.size(); j += m_Columns.size())
     {
-        for (std::size_t i = 0; i < m_Columns.size(); ++i)
+        for (size_t i = 0; i < m_Columns.size(); ++i)
         {
             auto &column = m_Columns.at(i);
             if (!column.Width)

@@ -208,14 +208,14 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
     auto *ctx = EVP_MD_CTX_new();
     if (!ctx)
     {
-        return toolkit::make_error("failed to create context.");
+        return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
     }
 
     auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
-    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) <= 0)
+    if (EVP_DigestInit(ctx, EVP_sha256()) <= 0)
     {
-        return toolkit::make_error("failed to initialize digest.");
+        return toolkit::make_error("failed to initialize context: {}", unvm::GetSSLErrorStack());
     }
 
     std::array<char, 8192> chunk{};
@@ -228,7 +228,7 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
         {
             if (EVP_DigestUpdate(ctx, chunk.data(), count) <= 0)
             {
-                return toolkit::make_error("failed to update digest.");
+                return toolkit::make_error("failed to update context: {}", unvm::GetSSLErrorStack());
             }
         }
     }
@@ -236,9 +236,9 @@ static toolkit::result<std::string> get_file_checksum(std::istream &stream)
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned hash_length = 0;
 
-    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) <= 0)
+    if (EVP_DigestFinal(ctx, hash, &hash_length) <= 0)
     {
-        return toolkit::make_error("failed to finalize digest.");
+        return toolkit::make_error("failed to finalize context: {}", unvm::GetSSLErrorStack());
     }
 
     std::ostringstream os;

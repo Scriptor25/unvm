@@ -1,4 +1,5 @@
 #include <unvm/pgp.hxx>
+#include <unvm/util.hxx>
 
 #include <toolkit/defer.hxx>
 
@@ -8,14 +9,14 @@ toolkit::result<std::vector<uint8_t>> digest(const EVP_MD *type, const A &... ar
     auto *ctx = EVP_MD_CTX_new();
     if (!ctx)
     {
-        return toolkit::make_error("failed to create context.");
+        return toolkit::make_error("failed to create context: {}", unvm::GetSSLErrorStack());
     }
 
     auto guard_ctx = toolkit::defer(EVP_MD_CTX_free, ctx);
 
     if (EVP_DigestInit(ctx, type) <= 0)
     {
-        return toolkit::make_error("failed to initialize digest.");
+        return toolkit::make_error("failed to initialize context: {}", unvm::GetSSLErrorStack());
     }
 
     auto res = (toolkit::result() & ... & [&]() -> toolkit::result<>
@@ -24,14 +25,14 @@ toolkit::result<std::vector<uint8_t>> digest(const EVP_MD *type, const A &... ar
         {
             if (EVP_DigestUpdate(ctx, args.data(), args.size()) <= 0)
             {
-                return toolkit::make_error("failed to update digest.");
+                return toolkit::make_error("failed to update context: {}", unvm::GetSSLErrorStack());
             }
         }
         else
         {
             if (EVP_DigestUpdate(ctx, &args, sizeof(A)) <= 0)
             {
-                return toolkit::make_error("failed to update digest.");
+                return toolkit::make_error("failed to update context: {}", unvm::GetSSLErrorStack());
             }
         }
 
@@ -46,9 +47,9 @@ toolkit::result<std::vector<uint8_t>> digest(const EVP_MD *type, const A &... ar
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned hash_length = 0;
 
-    if (EVP_DigestFinal_ex(ctx, hash, &hash_length) <= 0)
+    if (EVP_DigestFinal(ctx, hash, &hash_length) <= 0)
     {
-        return toolkit::make_error("failed to finalize digest.");
+        return toolkit::make_error("failed to finalize context: {}", unvm::GetSSLErrorStack());
     }
 
     return std::vector(hash, hash + hash_length);

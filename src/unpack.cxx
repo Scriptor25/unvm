@@ -51,7 +51,7 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
 
     archive_entry *entry;
     const void *buf;
-    std::size_t len;
+    size_t len;
     la_int64_t off;
 
     int err;

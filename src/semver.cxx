@@ -678,7 +678,7 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
     const auto count = std::min(a.size(), b.size());
 
-    for (std::size_t i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         auto &a_entry = a.at(i);
         auto &b_entry = b.at(i);

@@ -128,8 +128,8 @@ namespace unvm::http
     {
         virtual ~HttpTransport() = default;
 
-        virtual int write(const char *buf, std::size_t len) = 0;
-        virtual int read(char *buf, std::size_t len) = 0;
+        virtual int write(std::span<const char> buffer) = 0;
+        virtual int read(std::span<char> buffer) = 0;
     };
 
     class HttpClient
