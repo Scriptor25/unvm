@@ -150,8 +150,6 @@ namespace unvm::pgp
 
     enum class CurveOID : uint8_t
     {
-        Error,
-
         NIST_P256,
         NIST_P384,
         NIST_P521,
@@ -386,8 +384,7 @@ namespace unvm::pgp
 
     struct SubpacketDescriptor
     {
-        const uint8_t *Ptr;
-        const uint8_t *Next;
+        std::span<const uint8_t> Next;
 
         uint32_t Length;
         const Subpacket *Data;
@@ -395,6 +392,8 @@ namespace unvm::pgp
 
     struct SubpacketIterator
     {
+        SubpacketIterator(std::span<const uint8_t> block);
+
         bool operator!=(const SubpacketIterator &other) const;
 
         SubpacketDescriptor operator*() const;
@@ -402,13 +401,12 @@ namespace unvm::pgp
         SubpacketIterator &operator++();
         SubpacketIterator operator++(int);
 
-        const uint8_t *ptr;
+        std::span<const uint8_t> block;
     };
 
     struct SubpacketIterable
     {
         SubpacketIterable() = default;
-        SubpacketIterable(const uint8_t *first, const uint8_t *last);
         SubpacketIterable(std::span<const uint8_t> block);
 
         [[nodiscard]] SubpacketIterator begin() const;
@@ -427,6 +425,8 @@ namespace unvm::pgp
 
     struct MPIIterator
     {
+        MPIIterator(std::span<const uint8_t> block);
+
         bool operator!=(const MPIIterator &other) const;
 
         std::span<const uint8_t> operator*() const;
@@ -434,18 +434,17 @@ namespace unvm::pgp
         MPIIterator &operator++();
         MPIIterator operator++(int);
 
-        std::span<const uint8_t> bytes(size_t n);
-        std::span<const uint8_t> mpi();
-        CurveOID curve();
-        KDF kdf();
+        toolkit::result<std::span<const uint8_t>> bytes(size_t byte_count);
+        toolkit::result<std::span<const uint8_t>> mpi();
+        toolkit::result<CurveOID> curve();
+        toolkit::result<KDF> kdf();
 
-        const uint8_t *ptr;
+        std::span<const uint8_t> block;
     };
 
     struct MPIIterable
     {
         MPIIterable() = default;
-        MPIIterable(const uint8_t *first, const uint8_t *last);
         MPIIterable(std::span<const uint8_t> block);
 
         [[nodiscard]] MPIIterator begin() const;
@@ -1085,6 +1084,26 @@ namespace unvm::pgp
         return s;
     }
 
+    template<size_t N>
+    auto scalar(std::span<const uint8_t> buffer)
+    {
+        using S = scalar_t<N>;
+
+        if (buffer.size() < N)
+        {
+            return toolkit::result<S>(toolkit::make_error("buffer is too small."));
+        }
+
+        S s{};
+
+        for (size_t i = 0; i < N; ++i)
+        {
+            s |= static_cast<S>(buffer[i]) << ((N - i - 1) * 8);
+        }
+
+        return toolkit::result<S>(s);
+    }
+
     template<typename S>
     auto bytes(const S &s)
     {
@@ -1100,7 +1119,7 @@ namespace unvm::pgp
         return buffer;
     }
 
-    SubpacketDescriptor DescribeSubpacket(const uint8_t *subpacket);
+    toolkit::result<SubpacketDescriptor> DescribeSubpacket(std::span<const uint8_t> buffer);
 
     enum class KeyUsageFlag : uint8_t
     {

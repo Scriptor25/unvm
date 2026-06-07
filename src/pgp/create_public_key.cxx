@@ -8,9 +8,65 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/params.h>
+#include <openssl/param_build.h>
 
 #include <cstring>
 #include <iostream>
+
+class ParamBuilder
+{
+public:
+    ParamBuilder()
+    {
+        bld = OSSL_PARAM_BLD_new();
+    }
+
+    ~ParamBuilder()
+    {
+        OSSL_PARAM_BLD_free(bld);
+        OSSL_PARAM_free(param);
+
+        for (auto *bn : bns)
+        {
+            BN_free(bn);
+        }
+    }
+
+    void PushBN(const char *key, const std::span<const uint8_t> buffer)
+    {
+        auto *bn = BN_new();
+        BN_bin2bn(buffer.data(), static_cast<int>(buffer.size()), bn);
+
+        bns.push_back(bn);
+        OSSL_PARAM_BLD_push_BN(bld, key, bn);
+    }
+
+    void PushUTF8String(const char *key, const char *str, size_t len = 0)
+    {
+        if (!len)
+        {
+            len = strlen(str);
+        }
+
+        OSSL_PARAM_BLD_push_utf8_string(bld, key, str, len);
+    }
+
+    void PushOctetString(const char *key, const std::span<const uint8_t> buffer)
+    {
+        OSSL_PARAM_BLD_push_octet_string(bld, key, buffer.data(), buffer.size());
+    }
+
+    OSSL_PARAM *Build()
+    {
+        return param = OSSL_PARAM_BLD_to_param(bld);
+    }
+
+private:
+    OSSL_PARAM_BLD *bld;
+    OSSL_PARAM *param{};
+
+    std::vector<BIGNUM *> bns;
+};
 
 static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
 {
@@ -67,7 +123,7 @@ static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
     }
 }
 
-static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARAM params[])
+static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARAM param[])
 {
     auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, name, nullptr);
     if (!ctx)
@@ -86,7 +142,7 @@ static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARA
     }
 
     EVP_PKEY *public_key{};
-    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    if (EVP_PKEY_fromdata(ctx, &public_key, EVP_PKEY_PUBLIC_KEY, param) <= 0)
     {
         return toolkit::make_error("failed to create public key from data: {}", unvm::GetSSLErrorStack());
     }
@@ -96,67 +152,107 @@ static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARA
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_RSA(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto n = cursor.mpi();
-    auto e = cursor.mpi();
+    std::span<const uint8_t> n, e;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.mpi() >> n; !res)
     {
-        OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_N, const_cast<uint8_t *>(n.data()), n.size()),
-        OSSL_PARAM_BN(OSSL_PKEY_PARAM_RSA_E, const_cast<uint8_t *>(e.data()), e.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("RSA", params);
+    if (auto res = cursor.mpi() >> e; !res)
+    {
+        return res;
+    }
+
+    ParamBuilder pb;
+    pb.PushBN(OSSL_PKEY_PARAM_RSA_N, n);
+    pb.PushBN(OSSL_PKEY_PARAM_RSA_E, e);
+
+    return create_public_key("RSA", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_DSA(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto p = cursor.mpi();
-    auto q = cursor.mpi();
-    auto g = cursor.mpi();
-    auto y = cursor.mpi();
+    std::span<const uint8_t> p, q, g, y;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.mpi() >> p; !res)
     {
-        OSSL_PARAM_BN(OSSL_PKEY_PARAM_FFC_P, const_cast<uint8_t *>(p.data()), p.size()),
-        OSSL_PARAM_BN(OSSL_PKEY_PARAM_FFC_Q, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_BN(OSSL_PKEY_PARAM_FFC_G, const_cast<uint8_t *>(g.data()), g.size()),
-        OSSL_PARAM_BN(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(y.data()), y.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("DSA", params);
+    if (auto res = cursor.mpi() >> q; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.mpi() >> g; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.mpi() >> y; !res)
+    {
+        return res;
+    }
+
+    ParamBuilder pb;
+    pb.PushBN(OSSL_PKEY_PARAM_FFC_P, p);
+    pb.PushBN(OSSL_PKEY_PARAM_FFC_Q, q);
+    pb.PushBN(OSSL_PKEY_PARAM_FFC_G, g);
+    pb.PushBN(OSSL_PKEY_PARAM_PUB_KEY, y);
+
+    return create_public_key("DSA", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Elgamal(std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto p = cursor.mpi();
-    auto g = cursor.mpi();
-    auto y = cursor.mpi();
+    std::span<const uint8_t> p, g, y;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.mpi() >> p; !res)
     {
-        OSSL_PARAM_BN("p", const_cast<uint8_t *>(p.data()), p.size()),
-        OSSL_PARAM_BN("g", const_cast<uint8_t *>(g.data()), g.size()),
-        OSSL_PARAM_BN("y", const_cast<uint8_t *>(y.data()), y.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("Elgamal", params);
+    if (auto res = cursor.mpi() >> g; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.mpi() >> y; !res)
+    {
+        return res;
+    }
+
+    ParamBuilder pb;
+    pb.PushBN("p", p);
+    pb.PushBN("g", g);
+    pb.PushBN("y", y);
+
+    return create_public_key("Elgamal", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDSA(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    const auto curve = cursor.curve();
-    auto q = cursor.mpi();
+    CurveOID curve;
+    std::span<const uint8_t> q;
+
+    if (auto res = cursor.curve() >> curve; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.mpi() >> q; !res)
+    {
+        return res;
+    }
 
     if (!q.empty() && q[0] == 0x40)
     {
@@ -170,22 +266,29 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDSA(const std::s
 
     auto *group = ToString(curve);
 
-    OSSL_PARAM params[]
-    {
-        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, const_cast<char *>(group), strlen(group)),
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+    ParamBuilder pb;
+    pb.PushUTF8String(OSSL_PKEY_PARAM_GROUP_NAME, group);
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
 
-    return create_public_key("EC", params);
+    return create_public_key("EC", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    const auto curve = cursor.curve();
-    auto q = cursor.mpi();
+    CurveOID curve;
+    std::span<const uint8_t> q;
+
+    if (auto res = cursor.curve() >> curve; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.mpi() >> q; !res)
+    {
+        return res;
+    }
 
     if (!q.empty() && q[0] == 0x40)
     {
@@ -199,22 +302,34 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_EdDSA(const std::s
 
     auto *group = ToString(curve);
 
-    OSSL_PARAM params[]
-    {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+    ParamBuilder pb;
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
 
-    return create_public_key(group, params);
+    return create_public_key(group, pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDH(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    const auto curve = cursor.curve();
-    auto q = cursor.mpi();
-    const auto kdf = cursor.kdf();
+    CurveOID curve;
+    std::span<const uint8_t> q;
+    KDF kdf{};
+
+    if (auto res = cursor.curve() >> curve; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.mpi() >> q; !res)
+    {
+        return res;
+    }
+
+    if (auto res = cursor.kdf() >> kdf; !res)
+    {
+        return res;
+    }
 
     (void) kdf;
 
@@ -230,74 +345,79 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_ECDH(const std::sp
 
     auto *group = ToString(curve);
 
-    OSSL_PARAM params[]
-    {
-        OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, const_cast<char *>(group), strlen(group)),
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+    ParamBuilder pb;
+    pb.PushUTF8String(OSSL_PKEY_PARAM_GROUP_NAME, group);
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
 
-    return create_public_key("EC", params);
+    return create_public_key("EC", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X25519(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto q = cursor.bytes(32);
+    std::span<const uint8_t> q;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.bytes(32) >> q; !res)
     {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("X25519", params);
+    ParamBuilder pb;
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
+
+    return create_public_key("X25519", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_X448(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto q = cursor.bytes(56);
+    std::span<const uint8_t> q;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.bytes(56) >> q; !res)
     {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("X448", params);
+    ParamBuilder pb;
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
+
+    return create_public_key("X448", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed25519(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto q = cursor.bytes(32);
+    std::span<const uint8_t> q;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.bytes(32) >> q; !res)
     {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("ED25519", params);
+    ParamBuilder pb;
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
+
+    return create_public_key("ED25519", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey_Ed448(const std::span<const uint8_t> material)
 {
-    MPIIterator cursor(material.data());
+    MPIIterator cursor(material);
 
-    auto q = cursor.bytes(57);
+    std::span<const uint8_t> q;
 
-    OSSL_PARAM params[]
+    if (auto res = cursor.bytes(57) >> q; !res)
     {
-        OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_PUB_KEY, const_cast<uint8_t *>(q.data()), q.size()),
-        OSSL_PARAM_END,
-    };
+        return res;
+    }
 
-    return create_public_key("ED448", params);
+    ParamBuilder pb;
+    pb.PushOctetString(OSSL_PKEY_PARAM_PUB_KEY, q);
+
+    return create_public_key("ED448", pb.Build());
 }
 
 toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey(const PublicKey &key)

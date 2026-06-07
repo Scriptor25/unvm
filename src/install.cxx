@@ -7,7 +7,6 @@
 #include <toolkit/string.hxx>
 
 #include <openssl/evp.h>
-#include <openssl/provider.h>
 
 #include <filesystem>
 #include <fstream>
@@ -89,7 +88,9 @@ static toolkit::result<std::string> get_trusted_checksum(
     const unvm::VersionEntry &entry,
     const std::string &with_extension)
 {
-    std::stringstream stream(std::stringstream::in | std::stringstream::out);
+    constexpr auto flags = std::stringstream::in | std::stringstream::out | std::stringstream::binary;
+
+    std::stringstream stream(flags);
     if (auto res = get_file_from_repo(
         client,
         stream,
@@ -101,12 +102,8 @@ static toolkit::result<std::string> get_trusted_checksum(
         return res;
     }
 
-#define USE_SIGNATURE
-
-#ifdef USE_SIGNATURE
-
     bool has_signature;
-    std::stringstream signature_stream(std::stringstream::in | std::stringstream::out | std::stringstream::binary);
+    std::stringstream signature_stream(flags);
     if (auto res = get_file_from_repo(
                        client,
                        signature_stream,
@@ -120,9 +117,6 @@ static toolkit::result<std::string> get_trusted_checksum(
 
     if (has_signature)
     {
-        OSSL_PROVIDER_load(nullptr, "default");
-        OSSL_PROVIDER_load(nullptr, "legacy");
-
         const auto data_string = stream.str();
         const auto signature_string = signature_stream.str();
 
@@ -187,8 +181,6 @@ static toolkit::result<std::string> get_trusted_checksum(
             return toolkit::make_error("version '{}' does not have a signature file.", entry.Version);
         }
     }
-
-#endif
 
     for (std::string line; std::getline(stream, line);)
     {

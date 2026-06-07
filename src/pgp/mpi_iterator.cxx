@@ -1,67 +1,141 @@
 #include <unvm/pgp.hxx>
 
+unvm::pgp::MPIIterator::MPIIterator(const std::span<const uint8_t> block)
+    : block(block)
+{
+}
+
 bool unvm::pgp::MPIIterator::operator!=(const MPIIterator &other) const
 {
-    return ptr != other.ptr;
+    return block.size() != other.block.size() || block.data() != other.block.data();
 }
 
 std::span<const uint8_t> unvm::pgp::MPIIterator::operator*() const
 {
-    const auto bit_count = scalar<2>(ptr);
-    auto byte_count = (bit_count + 7u) / 8u;
+    if (block.empty())
+    {
+        throw std::runtime_error("block is empty.");
+    }
 
-    return { ptr + 2, byte_count };
+    uint16_t bit_count;
+    if (auto res = scalar<2>(block) >> bit_count; !res)
+    {
+        throw std::runtime_error(res.error());
+    }
+
+    const auto byte_count = (bit_count + 7u) / 8u;
+
+    if (block.size() < 2 + byte_count)
+    {
+        throw std::runtime_error("block is too small.");
+    }
+
+    return block.subspan(2, byte_count);
 }
 
 unvm::pgp::MPIIterator &unvm::pgp::MPIIterator::operator++()
 {
-    const auto bit_count = scalar<2>(ptr);
+    if (block.empty())
+    {
+        throw std::runtime_error("block is empty.");
+    }
+
+    uint16_t bit_count;
+    if (auto res = scalar<2>(block) >> bit_count; !res)
+    {
+        throw std::runtime_error(res.error());
+    }
+
     const auto byte_count = (bit_count + 7u) / 8u;
 
-    ptr += 2 + byte_count;
+    if (block.size() < 2 + byte_count)
+    {
+        throw std::runtime_error("block is too small.");
+    }
 
+    block = block.subspan(2 + byte_count);
     return *this;
 }
 
 unvm::pgp::MPIIterator unvm::pgp::MPIIterator::operator++(int)
 {
-    const auto bit_count = scalar<2>(ptr);
+    if (block.empty())
+    {
+        throw std::runtime_error("block is empty.");
+    }
+
+    uint16_t bit_count;
+    if (auto res = scalar<2>(block) >> bit_count; !res)
+    {
+        throw std::runtime_error(res.error());
+    }
+
     const auto byte_count = (bit_count + 7u) / 8u;
 
-    auto *pre = ptr;
+    if (block.size() < 2 + byte_count)
+    {
+        throw std::runtime_error("block is too small.");
+    }
 
-    ptr += 2 + byte_count;
-
-    return { pre };
+    const auto pre = block;
+    block = block.subspan(2 + byte_count);
+    return pre;
 }
 
-std::span<const uint8_t> unvm::pgp::MPIIterator::bytes(size_t n)
+toolkit::result<std::span<const uint8_t>> unvm::pgp::MPIIterator::bytes(const size_t byte_count)
 {
-    auto *p = ptr;
+    if (block.size() < byte_count)
+    {
+        return toolkit::make_error("block is too small.");
+    }
 
-    ptr += n;
-
-    return { p, n };
+    const auto data = block.subspan(0, byte_count);
+    block = block.subspan(byte_count);
+    return data;
 }
 
-std::span<const uint8_t> unvm::pgp::MPIIterator::mpi()
+toolkit::result<std::span<const uint8_t>> unvm::pgp::MPIIterator::mpi()
 {
-    const auto count = scalar<2>(ptr);
-    auto n = (count + 7u) / 8u;
+    if (block.empty())
+    {
+        return toolkit::make_error("block is empty.");
+    }
 
-    auto *p = ptr + 2;
+    uint16_t bit_count;
+    if (auto res = scalar<2>(block) >> bit_count; !res)
+    {
+        return res;
+    }
 
-    ptr += 2 + n;
+    const auto byte_count = (bit_count + 7u) / 8u;
 
-    return { p, n };
+    if (block.size() < 2 + byte_count)
+    {
+        return toolkit::make_error("block is too small.");
+    }
+
+    const auto data = block.subspan(2, byte_count);
+    block = block.subspan(2 + byte_count);
+    return data;
 }
 
-unvm::pgp::CurveOID unvm::pgp::MPIIterator::curve()
+toolkit::result<unvm::pgp::CurveOID> unvm::pgp::MPIIterator::curve()
 {
-    const auto len = *ptr;
-    const std::span oid(ptr + 1, len);
+    if (block.empty())
+    {
+        return toolkit::make_error("block is empty.");
+    }
 
-    ptr += 1 + len;
+    const auto byte_count = block[0];
+
+    if (block.size() < 1 + byte_count)
+    {
+        return toolkit::make_error("block is too small.");
+    }
+
+    const auto oid = block.subspan(1, byte_count);
+
+    block = block.subspan(1 + byte_count);
 
     if (oid == OID_NIST_P256)
     {
@@ -103,19 +177,31 @@ unvm::pgp::CurveOID unvm::pgp::MPIIterator::curve()
         return CurveOID::Curve25519;
     }
 
-    return CurveOID::Error;
+    return toolkit::make_error("unsupported curve oid '{}'.", ToHexString(oid));
 }
 
-unvm::pgp::KDF unvm::pgp::MPIIterator::kdf()
+toolkit::result<unvm::pgp::KDF> unvm::pgp::MPIIterator::kdf()
 {
-    const auto len = ptr[0];
-    const auto ao = ptr[1];
-    const auto ha = ptr[2];
-    const auto sa = ptr[3];
+    if (block.empty())
+    {
+        return toolkit::make_error("block is empty.");
+    }
 
-    ptr += 1 + len;
+    const auto byte_count = block[0];
 
-    return {
+    if (block.size() < 1 + byte_count)
+    {
+        return toolkit::make_error("block is too small.");
+    }
+
+    const auto ao = block[1];
+    const auto ha = block[2];
+    const auto sa = block[3];
+
+    block = block.subspan(1 + byte_count);
+
+    return KDF
+    {
         .HashAlgorithm = static_cast<HashAlgorithmID>(ha),
         .SymmetricAlgorithm = static_cast<SymmetricAlgorithmID>(sa),
     };

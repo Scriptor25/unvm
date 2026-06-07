@@ -255,7 +255,7 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 {
     std::vector<uint8_t> sig;
 
-    auto mpi = signature.SignatureMaterial.begin();
+    auto it = signature.SignatureMaterial.begin();
 
     switch (signature.PublicKeyAlgorithm)
     {
@@ -263,7 +263,12 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
     case PublicKeyAlgorithmID::RSA_SO:
     case PublicKeyAlgorithmID::RSA_ES:
     {
-        const auto raw = *mpi++;
+        std::span<const uint8_t> raw;
+
+        if (auto res = it.mpi() >> raw; !res)
+        {
+            return res;
+        }
 
         if (auto res = NormalizeMPI(raw, public_key_size) >> sig; !res)
         {
@@ -275,8 +280,17 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 
     case PublicKeyAlgorithmID::DSA:
     {
-        const auto raw_r = *mpi++;
-        const auto raw_s = *mpi++;
+        std::span<const uint8_t> raw_r, raw_s;
+
+        if (auto res = it.mpi() >> raw_r; !res)
+        {
+            return res;
+        }
+
+        if (auto res = it.mpi() >> raw_s; !res)
+        {
+            return res;
+        }
 
         auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
         auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
@@ -321,8 +335,17 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 
     case PublicKeyAlgorithmID::ECDSA:
     {
-        const auto raw_r = *mpi++;
-        const auto raw_s = *mpi++;
+        std::span<const uint8_t> raw_r, raw_s;
+
+        if (auto res = it.mpi() >> raw_r; !res)
+        {
+            return res;
+        }
+
+        if (auto res = it.mpi() >> raw_s; !res)
+        {
+            return res;
+        }
 
         auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
         auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
@@ -367,8 +390,17 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 
     case PublicKeyAlgorithmID::EdDSALegacy:
     {
-        const auto raw_r = *mpi++;
-        const auto raw_s = *mpi++;
+        std::span<const uint8_t> raw_r, raw_s;
+
+        if (auto res = it.mpi() >> raw_r; !res)
+        {
+            return res;
+        }
+
+        if (auto res = it.mpi() >> raw_s; !res)
+        {
+            return res;
+        }
 
         sig.insert(sig.end(), raw_r.begin(), raw_r.end());
         sig.insert(sig.end(), raw_s.begin(), raw_s.end());
@@ -377,7 +409,12 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 
     case PublicKeyAlgorithmID::Ed25519:
     {
-        const auto raw = mpi.bytes(64);
+        std::span<const uint8_t> raw;
+
+        if (auto res = it.bytes(64) >> raw; !res)
+        {
+            return res;
+        }
 
         sig = { raw.begin(), raw.end() };
         break;
@@ -385,7 +422,12 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 
     case PublicKeyAlgorithmID::Ed448:
     {
-        const auto raw = mpi.bytes(114);
+        std::span<const uint8_t> raw;
+
+        if (auto res = it.bytes(114) >> raw; !res)
+        {
+            return res;
+        }
 
         sig = { raw.begin(), raw.end() };
         break;

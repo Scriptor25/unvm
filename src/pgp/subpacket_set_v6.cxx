@@ -7,10 +7,10 @@ uint32_t unvm::pgp::SubpacketSetV6::GetLength() const
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::begin() const
 {
-    return { Data };
+    return std::span(Data, GetLength());
 }
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketSetV6::end() const
 {
-    return { Data + GetLength() };
+    return std::span(Data + GetLength(), 0);
 }

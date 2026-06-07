@@ -1,10 +1,5 @@
 #include <unvm/pgp.hxx>
 
-unvm::pgp::SubpacketIterable::SubpacketIterable(const uint8_t *first, const uint8_t *last)
-    : block(first, last)
-{
-}
-
 unvm::pgp::SubpacketIterable::SubpacketIterable(const std::span<const uint8_t> block)
     : block(block)
 {
@@ -12,12 +7,12 @@ unvm::pgp::SubpacketIterable::SubpacketIterable(const std::span<const uint8_t> b
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterable::begin() const
 {
-    return { block.data() };
+    return block;
 }
 
 unvm::pgp::SubpacketIterator unvm::pgp::SubpacketIterable::end() const
 {
-    return { block.data() + block.size() };
+    return block.subspan(block.size());
 }
 
 size_t unvm::pgp::SubpacketIterable::size() const
