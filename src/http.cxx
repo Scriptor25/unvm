@@ -1,12 +1,14 @@
+#include <unvm/data.hxx>
 #include <unvm/util.hxx>
 #include <unvm/http/http.hxx>
 #include <unvm/http/url.hxx>
 
+#include <toolkit/defer.hxx>
+#include <toolkit/string.hxx>
+
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-
-#include <ssl/ca-bundle.h>
 
 #include <iostream>
 #include <istream>
@@ -45,17 +47,17 @@ inline int socket_close(const platform_socket_t s)
 
 static toolkit::result<> read_until(unvm::http::HttpTransport *transport, std::string &dst, const char *delim)
 {
-    char buf[1024];
+    char chunk[1024];
 
     while (dst.find(delim) == std::string::npos)
     {
-        const auto len = transport->read(buf, sizeof(buf));
+        const auto len = transport->read(chunk);
         if (len <= 0)
         {
             return toolkit::make_error("failed to read chunk.");
         }
 
-        dst.append(buf, len);
+        dst.insert(dst.end(), chunk, chunk + len);
     }
 
     return {};
@@ -63,7 +65,7 @@ static toolkit::result<> read_until(unvm::http::HttpTransport *transport, std::s
 
 static void set_header_if_missing(unvm::http::HttpHeaders &headers, const std::string &key, const std::string &val)
 {
-    if (headers.contains(key) || headers.contains(unvm::Lower(key)))
+    if (headers.contains(key) || headers.contains(toolkit::lowercase(key)))
     {
         return;
     }
@@ -71,9 +73,12 @@ static void set_header_if_missing(unvm::http::HttpHeaders &headers, const std::s
     headers.emplace(key, val);
 }
 
-toolkit::result<> unvm::http::ParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message)
+toolkit::result<> unvm::http::ParseStatus(
+    std::istream &stream,
+    HttpStatusCode &status_code,
+    std::string &status_message)
 {
-    std::string http_version; // TODO: check if version is supported
+    std::string http_version;
     stream >> http_version;
 
     if (http_version != "HTTP/1.1")
@@ -84,7 +89,7 @@ toolkit::result<> unvm::http::ParseStatus(std::istream &stream, HttpStatusCode &
     stream >> status_code;
     GetLine(stream, status_message, EOL);
 
-    status_message = Trim(std::move(status_message));
+    status_message = toolkit::trim(std::move(status_message));
     return {};
 }
 
@@ -109,10 +114,10 @@ void unvm::http::ParseHeaders(std::istream &stream, HttpHeaders &headers)
         auto key = line.substr(0, colon);
         auto val = line.substr(colon + 1);
 
-        key = Trim(std::move(key));
-        val = Trim(std::move(val));
+        key = toolkit::trim(std::move(key));
+        val = toolkit::trim(std::move(val));
 
-        headers.emplace(Lower(std::move(key)), std::move(val));
+        headers.emplace(toolkit::lowercase(std::move(key)), std::move(val));
     }
 }
 
@@ -123,14 +128,14 @@ struct HttpTcpTransport final : unvm::http::HttpTransport
     {
     }
 
-    int write(const char *buf, const std::size_t len) override
+    int write(const std::span<const char> buffer) override
     {
-        return static_cast<int>(send(sock, buf, len, 0));
+        return static_cast<int>(send(sock, buffer.data(), buffer.size(), 0));
     }
 
-    int read(char *buf, const std::size_t len) override
+    int read(const std::span<char> buffer) override
     {
-        return static_cast<int>(recv(sock, buf, len, 0));
+        return static_cast<int>(recv(sock, buffer.data(), buffer.size(), 0));
     }
 
     platform_socket_t sock;
@@ -143,14 +148,14 @@ struct HttpTlsTransport final : unvm::http::HttpTransport
     {
     }
 
-    int write(const char *buf, const std::size_t len) override
+    int write(const std::span<const char> buffer) override
     {
-        return SSL_write(ssl, buf, static_cast<int>(len));
+        return SSL_write(ssl, buffer.data(), static_cast<int>(buffer.size()));
     }
 
-    int read(char *buf, const std::size_t len) override
+    int read(const std::span<char> buffer) override
     {
-        return SSL_read(ssl, buf, static_cast<int>(len));
+        return SSL_read(ssl, buffer.data(), static_cast<int>(buffer.size()));
     }
 
     SSL *ssl;
@@ -159,49 +164,48 @@ struct HttpTlsTransport final : unvm::http::HttpTransport
 struct unvm::http::HttpClient::State
 {
 #ifdef SYSTEM_WINDOWS
-    WSADATA WsaData;
+    WSADATA wsa;
 #endif
-    SSL_CTX *SslCtx;
+    SSL_CTX *ssl;
 };
 
-static toolkit::result<> load_cert_chain_from_shared_mem(SSL_CTX *context, const void *buf, const int len)
+static toolkit::result<> load_vendor_certificates(const SSL_CTX *context, const std::span<const uint8_t> buffer)
 {
     if (!context)
     {
-        return toolkit::make_error("ssl context is null.");
+        return toolkit::make_error("context is null.");
     }
 
-    if (!buf)
+    if (buffer.empty())
     {
-        return toolkit::make_error("buffer is null.");
+        return toolkit::make_error("buffer is empty.");
     }
 
-    if (len <= 0)
-    {
-        return toolkit::make_error("length is not greater than 0.");
-    }
-
-    const auto bio = BIO_new_mem_buf(buf, len);
+    const auto bio = BIO_new_mem_buf(buffer.data(), static_cast<int>(buffer.size()));
     if (!bio)
     {
-        return toolkit::make_error("failed to create bio.");
+        return toolkit::make_error("failed to create bio: {}", unvm::GetSSLErrorStack());
     }
+
+    auto guard_bio = toolkit::defer(BIO_free, bio);
 
     const auto infos = PEM_X509_INFO_read_bio(bio, nullptr, nullptr, nullptr);
     if (!infos)
     {
-        BIO_free(bio);
-
-        return toolkit::make_error("failed to read bio.");
+        return toolkit::make_error("failed to read bio: {}", unvm::GetSSLErrorStack());
     }
+
+    auto guard_infos = toolkit::defer(
+        [](auto *i)
+        {
+            sk_X509_INFO_pop_free(i, X509_INFO_free);
+        },
+        infos);
 
     const auto store = SSL_CTX_get_cert_store(context);
     if (!store)
     {
-        sk_X509_INFO_pop_free(infos, X509_INFO_free);
-        BIO_free(bio);
-
-        return toolkit::make_error("failed to get certificate store for ssl context.");
+        return toolkit::make_error("failed to get certificate store for context: {}", unvm::GetSSLErrorStack());
     }
 
     for (auto i = 0; i < sk_X509_INFO_num(infos); ++i)
@@ -210,16 +214,11 @@ static toolkit::result<> load_cert_chain_from_shared_mem(SSL_CTX *context, const
         {
             if (!X509_STORE_add_cert(store, info->x509))
             {
-                sk_X509_INFO_pop_free(infos, X509_INFO_free);
-                BIO_free(bio);
-
-                return toolkit::make_error("failed to add certificate to store.");
+                return toolkit::make_error("failed to add certificate to store: {}", unvm::GetSSLErrorStack());
             }
         }
     }
 
-    sk_X509_INFO_pop_free(infos, X509_INFO_free);
-    BIO_free(bio);
     return {};
 }
 
@@ -228,19 +227,14 @@ unvm::http::HttpClient::HttpClient()
     m_State = new State();
 
 #ifdef SYSTEM_WINDOWS
-    WSAStartup(MAKEWORD(2, 2), &m_State->WsaData);
+    WSAStartup(MAKEWORD(2, 2), &m_State->wsa);
 #endif
 
-    SSL_library_init();
-    SSL_load_error_strings();
-    OpenSSL_add_ssl_algorithms();
+    m_State->ssl = SSL_CTX_new(TLS_client_method());
+    SSL_CTX_set_min_proto_version(m_State->ssl, TLS1_2_VERSION);
+    SSL_CTX_set_verify(m_State->ssl, SSL_VERIFY_PEER, nullptr);
 
-    m_State->SslCtx = SSL_CTX_new(TLS_client_method());
-    SSL_CTX_set_min_proto_version(m_State->SslCtx, TLS1_2_VERSION);
-
-    SSL_CTX_set_verify(m_State->SslCtx, SSL_VERIFY_PEER, nullptr);
-
-    if (auto res = load_cert_chain_from_shared_mem(m_State->SslCtx, ca_bundle_data, static_cast<int>(ca_bundle_data_len)); !res)
+    if (auto res = load_vendor_certificates(m_State->ssl, data::cacert); !res)
     {
         std::cerr << "failed to load vendor certificates: " << res.error() << std::endl;
         return;
@@ -249,10 +243,7 @@ unvm::http::HttpClient::HttpClient()
 
 unvm::http::HttpClient::~HttpClient()
 {
-    SSL_CTX_free(m_State->SslCtx);
-    ERR_free_strings();
-    EVP_cleanup();
-    CRYPTO_cleanup_all_ex_data();
+    SSL_CTX_free(m_State->ssl);
 
 #ifdef SYSTEM_WINDOWS
     WSACleanup();
@@ -262,8 +253,13 @@ unvm::http::HttpClient::~HttpClient()
     m_State = nullptr;
 }
 
-toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response)
+toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpResponse &response) const
 {
+    if (request.Location.Scheme != "http" && request.Location.Scheme != "https")
+    {
+        return toolkit::make_error("unsupported scheme '{}'", request.Location.Scheme);
+    }
+
     auto service = std::to_string(request.Location.Port);
 
     addrinfo hints{}, *info = nullptr;
@@ -304,11 +300,22 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
     }
 
     std::unique_ptr<HttpTransport> transport;
-    SSL *ssl = nullptr;
+    SSL *ssl{};
 
-    if (request.Location.UseTLS)
+    auto guard0 = toolkit::defer(socket_close, sock);
+    auto guard1 = toolkit::defer(
+        [](auto *s)
+        {
+            if (s)
+            {
+                SSL_free(s);
+            }
+        },
+        ssl);
+
+    if (request.Location.Scheme == "https")
     {
-        ssl = SSL_new(m_State->SslCtx);
+        ssl = SSL_new(m_State->ssl);
         SSL_set_fd(ssl, sock);
 
         SSL_set_tlsext_host_name(ssl, request.Location.Host.c_str());
@@ -317,19 +324,11 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
 
         if (auto result = SSL_connect(ssl); result <= 0)
         {
-            SSL_free(ssl);
-
-            socket_close(sock);
-            
             return toolkit::make_error("TLS handshake failed.");
         }
 
         if (SSL_get_verify_result(ssl) != X509_V_OK)
         {
-            SSL_free(ssl);
-
-            socket_close(sock);
-
             return toolkit::make_error("TLS certificate verification failed.");
         }
 
@@ -353,43 +352,29 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
     }
     packet << EOL;
 
-    if (transport->write(packet.str().data(), packet.str().size()) < 0)
+    if (transport->write(packet.str()) < 0)
     {
-        if (ssl)
-        {
-            SSL_free(ssl);
-        }
-
-        socket_close(sock);
-
         return toolkit::make_error("failed to send header.");
     }
 
-    char buf[4096];
+    char chunk[4096];
 
     if (request.Body)
     {
-        std::size_t count = 0;
+        size_t count = 0;
 
         while (true)
         {
-            request.Body->read(buf, sizeof(buf));
-            const auto len = request.Body->gcount();
+            request.Body->read(chunk, sizeof(chunk));
+            const size_t len = request.Body->gcount();
 
             if (len <= 0)
             {
                 break;
             }
 
-            if (transport->write(buf, len) < 0)
+            if (transport->write({ chunk, len }) < 0)
             {
-                if (ssl)
-                {
-                    SSL_free(ssl);
-                }
-
-                socket_close(sock);
-
                 return toolkit::make_error("failed to send chunk.");
             }
 
@@ -400,13 +385,6 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
     std::string header_block;
     if (auto res = read_until(transport.get(), header_block, EOL2); !res)
     {
-        if (ssl)
-        {
-            SSL_free(ssl);
-        }
-
-        socket_close(sock);
-        
         return toolkit::make_error("failed to read header block: {}", res.error());
     }
 
@@ -422,66 +400,64 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
     std::istringstream status_stream(status_line);
     if (auto res = ParseStatus(status_stream, response.StatusCode, response.StatusMessage); !res)
     {
-        if (ssl)
-        {
-            SSL_free(ssl);
-        }
-
-        socket_close(sock);
-
         return toolkit::make_error("failed to parse status line: {}", res.error());
     }
 
     ParseHeaders(headers_stream, response.Headers);
 
-    std::size_t content_length = ~0ULL;
+    auto content_length = ~size_t();
     if (auto it = response.Headers.find("content-length"); it != response.Headers.end())
     {
-        if (auto res = ParseString<std::size_t>(it->second) >> content_length; !res)
+        if (auto res = ParseString<size_t>(it->second) >> content_length; !res)
         {
-            if (ssl)
-            {
-                SSL_free(ssl);
-            }
-
-            socket_close(sock);
-
             return res;
         }
     }
 
-    if (response.Body && response.Body->good())
+    if (response.Body)
     {
         response.Body->write(body_prefetch.data(), static_cast<long>(body_prefetch.size()));
     }
 
     auto count = body_prefetch.size();
-    while (content_length == ~0ULL || count < content_length)
+    while (content_length == ~size_t() || count < content_length)
     {
-        auto len = transport->read(buf, sizeof(buf));
+        auto len = transport->read(chunk);
         if (len <= 0)
         {
             break;
         }
 
-        if (response.Body && response.Body->good())
+        if (response.Body)
         {
-            response.Body->write(buf, len);
+            response.Body->write(chunk, len);
         }
 
         count += len;
     }
 
-    if (ssl)
-    {
-        SSL_free(ssl);
-    }
+    return {};
+}
 
-    socket_close(sock);
+toolkit::result<> unvm::http::HttpClient::FetchWithRedirects(HttpRequest request, HttpResponse &response) const
+{
+    bool is_redirect;
 
-    if (IsRedirect(response.StatusCode))
+    do
     {
-        auto it = response.Headers.find("location");
+        if (auto res = Fetch(request, response); !res)
+        {
+            return res;
+        }
+
+        is_redirect = IsRedirect(response.StatusCode);
+
+        if (!is_redirect)
+        {
+            continue;
+        }
+
+        const auto it = response.Headers.find("location");
         if (it == response.Headers.end())
         {
             std::cerr << response.Headers << std::endl;
@@ -489,11 +465,11 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
             return toolkit::make_error("missing location header in redirect response.");
         }
 
-        auto location = it->second;
+        const auto &location = it->second;
 
         if (location.find("://") != std::string::npos)
         {
-            request.Location = ParseUrl(location);
+            request.Location = ParseURL(location);
         }
         else if (location.starts_with("/"))
         {
@@ -505,8 +481,8 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
         }
 
         std::cerr << "redirect to " << location << " --> " << request.Location << std::endl;
-        return Fetch(std::move(request), response);
     }
+    while (is_redirect);
 
     return {};
 }
@@ -541,10 +517,10 @@ std::istream &operator>>(std::istream &stream, unvm::http::HttpStatusCode &statu
     return stream;
 }
 
-std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpLocation &location)
+std::ostream &operator<<(std::ostream &stream, const unvm::http::URL &location)
 {
     return stream
-           << (location.UseTLS ? "https" : "http")
+           << location.Scheme
            << "://"
            << location.Host
            << ":"

@@ -19,7 +19,7 @@ namespace unvm
             }
 
             std::string Label;
-            std::size_t Width;
+            size_t Width;
             bool Left;
         };
 

@@ -1,5 +1,7 @@
 #include <unvm/unvm.hxx>
 
+#include <toolkit/defer.hxx>
+
 #include <archive.h>
 #include <archive_entry.h>
 
@@ -29,6 +31,9 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
     const auto arc = archive_read_new();
     const auto ext = archive_write_disk_new();
 
+    auto guard0 = toolkit::defer(archive_read_free, arc);
+    auto guard1 = toolkit::defer(archive_write_free, ext);
+
     archive_read_support_format_all(arc);
     archive_read_support_filter_all(arc);
 
@@ -41,16 +46,12 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
 
     if (const auto error = archive_read_open(arc, &stream, nullptr, read_callback, nullptr))
     {
-        auto res = toolkit::make_error("failed to open archive: {} ({}).", archive_error_string(arc), error);
-
-        archive_read_free(arc);
-        archive_write_free(ext);
-        return res;
+        return toolkit::make_error("failed to open archive: {} ({}).", archive_error_string(arc), error);
     }
 
     archive_entry *entry;
     const void *buf;
-    std::size_t len;
+    size_t len;
     la_int64_t off;
 
     int err;
@@ -58,15 +59,15 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
     {
         auto pathname = directory / archive_entry_pathname(entry);
         auto pathname_string = pathname.string();
+
         archive_entry_set_pathname(entry, pathname_string.c_str());
 
         if (const auto error = archive_write_header(ext, entry))
         {
-            auto res = toolkit::make_error("failed to write archive header: {} ({}).", archive_error_string(ext), error);
-
-            archive_read_free(arc);
-            archive_write_free(ext);
-            return res;
+            return toolkit::make_error(
+                "failed to write archive header: {} ({}).",
+                archive_error_string(ext),
+                error);
         }
 
         while (true)
@@ -78,34 +79,29 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
                     break;
                 }
 
-                auto res = toolkit::make_error("failed to read archive data block: {} ({}).", archive_error_string(arc), error);
-
-                archive_read_free(arc);
-                archive_write_free(ext);
-                return res;
+                return toolkit::make_error(
+                    "failed to read archive data block: {} ({}).",
+                    archive_error_string(arc),
+                    error);
             }
 
             if (const auto error = archive_write_data_block(ext, buf, len, off))
             {
-                auto res = toolkit::make_error("failed to write archive data block: {} ({}).", archive_error_string(ext), error);
-
-                archive_read_free(arc);
-                archive_write_free(ext);
-                return res;
+                return toolkit::make_error(
+                    "failed to write archive data block: {} ({}).",
+                    archive_error_string(ext),
+                    error);
             }
         }
     }
 
     if (err != ARCHIVE_EOF)
     {
-        auto res = toolkit::make_error("failed to read archive header: {} ({}).", archive_error_string(arc), err);
-
-        archive_read_free(arc);
-        archive_write_free(ext);
-        return res;
+        return toolkit::make_error(
+            "failed to read archive header: {} ({}).",
+            archive_error_string(arc),
+            err);
     }
 
-    archive_read_free(arc);
-    archive_write_free(ext);
     return {};
 }

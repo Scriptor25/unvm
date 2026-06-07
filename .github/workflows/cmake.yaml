@@ -3,7 +3,7 @@ name: CMake Multi-Platform Build
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
   push:
     branches:
       - main
@@ -120,14 +120,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          ./vcpkg/vcpkg install libarchive openssl --triplet ${{ matrix.triplet }}-release
+          ./vcpkg/vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
         shell: bash
         if: runner.os != 'Windows'
 
       - name: Install dependencies (Windows)
         run: |
           set VCPKG_BUILD_TYPE=release
-          .\vcpkg\vcpkg install libarchive openssl --triplet ${{ matrix.triplet }}-release
+          .\vcpkg\vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
         if: runner.os == 'Windows'
 
       - name: Configure cmake
@@ -160,11 +160,9 @@ jobs:
       - name: Test (list)
         run: |
           ./build/install/bin/unvm list
-          ./build/install/bin/unvm list available
+          ./build/install/bin/unvm list --available
           ./build/install/bin/unvm l
-          ./build/install/bin/unvm l available
-          ./build/install/bin/unvm ls
-          ./build/install/bin/unvm la
+          ./build/install/bin/unvm l --available
         shell: bash
 
       - name: Test (integration, global)
@@ -179,9 +177,9 @@ jobs:
       - name: Test (integration, local)
         run: |
           ./build/install/bin/unvm install latest
-          ./build/install/bin/unvm use latest local
+          ./build/install/bin/unvm use latest --local
           ./build/install/bin/node --version
-          ./build/install/bin/unvm use none local
+          ./build/install/bin/unvm use none --local
           ./build/install/bin/unvm remove latest
         shell: bash
 

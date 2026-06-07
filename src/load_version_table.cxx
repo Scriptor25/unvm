@@ -34,21 +34,25 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
         http::HttpRequest request
         {
             .Method = http::HttpMethod::Get,
-            .Location = http::ParseUrl("https://nodejs.org/dist/index.json"),
+            .Location = http::ParseURL("https://nodejs.org/dist/index.json"),
         };
         http::HttpResponse response
         {
             .Body = &stream,
         };
 
-        if (auto res = client.Fetch(std::move(request), response); !res)
+        if (auto res = client.FetchWithRedirects(std::move(request), response); !res)
         {
             return toolkit::make_error("failed to get file: {}", res.error());
         }
 
         if (!IsSuccess(response.StatusCode))
         {
-            return toolkit::make_error("failed to get file: {}, {}\n{}", response.StatusCode, response.StatusMessage, stream.str());
+            return toolkit::make_error(
+                "failed to get file: {}, {}\n{}",
+                response.StatusCode,
+                response.StatusMessage,
+                stream.str());
         }
 
         json::Node node;

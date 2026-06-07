@@ -13,9 +13,10 @@ set(PROJECT_BUILD_DATE "${BUILD_DATE}")
 
 ### Find dependencies ###
 
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto SSL)
 find_package(LibArchive REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(LibLZMA REQUIRED)
 
 ### Options ###
 
@@ -38,32 +39,45 @@ add_subdirectory(deps/toolkit)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CA_BUNDLE_INPUT ${CMAKE_SOURCE_DIR}/ssl/ca-bundle.crt)
-set(CA_BUNDLE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ssl/ca-bundle.h)
+function(add_xxd NAME SRC DST)
 
-add_custom_command(
-        OUTPUT ${CA_BUNDLE_OUTPUT}
-        COMMAND xxd -i -n ca_bundle_data ${CA_BUNDLE_INPUT} ${CA_BUNDLE_OUTPUT}
-        DEPENDS ${CA_BUNDLE_INPUT}
-        COMMENT "embedding ca-bundle.crt with xxd"
-)
-add_custom_target(ca_bundle_h DEPENDS ${CA_BUNDLE_OUTPUT})
+    add_custom_command(
+            OUTPUT "${DST}"
+            COMMAND xxd -i -n "${NAME}" "${SRC}" "${DST}"
+            DEPENDS "${SRC}"
+            COMMENT "embedding ${NAME} with xxd"
+    )
+    add_custom_target(${NAME} DEPENDS "${DST}")
+
+endfunction()
+
+add_xxd(cacert "${CMAKE_SOURCE_DIR}/ssl/cacert.pem" "${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h")
+add_xxd(keyring "${CMAKE_SOURCE_DIR}/ssl/keyring.pgp" "${CMAKE_CURRENT_BINARY_DIR}/ssl/keyring.h")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 
 file(GLOB_RECURSE SRC "src/*.cxx")
 add_executable(unvm ${SRC})
 
-add_dependencies(unvm ca_bundle_h)
+add_dependencies(unvm cacert keyring)
 
 target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
+# target_compile_options(unvm PRIVATE "-fsanitize=address")
+# target_link_options(unvm PRIVATE "-fsanitize=address" "-static-libasan")
+
 target_link_libraries(unvm PRIVATE
+        toolkit::core
         toolkit::json
-        OpenSSL::SSL
+
         OpenSSL::Crypto
+        OpenSSL::SSL
+
         LibArchive::LibArchive
+
         ZLIB::ZLIB
+
+        LibLZMA::LibLZMA
 )
 
 target_compile_definitions(unvm PRIVATE

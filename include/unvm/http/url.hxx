@@ -1,19 +1,25 @@
 #pragma once
 
-#include <unvm/http/http.hxx>
-
 #include <cstdint>
 #include <string>
 #include <string_view>
 
 namespace unvm::http
 {
-    constexpr void ParseUrl(HttpLocation &dst, std::string_view src)
+    struct URL
+    {
+        std::string Scheme;
+        std::string Host;
+        uint16_t Port{};
+        std::string Pathname;
+    };
+
+    constexpr void ParseURL(URL &dst, std::string_view src)
     {
         const auto scheme_end = src.find("://");
         const auto scheme = src.substr(0, scheme_end);
 
-        dst.UseTLS = scheme == "https";
+        dst.Scheme = scheme;
 
         const auto host_begin = scheme_end + 3;
         const auto path_begin = src.find('/', host_begin);
@@ -31,19 +37,19 @@ namespace unvm::http
             const std::string port(host_port.substr(colon + 1));
 
             dst.Host = host_port.substr(0, colon);
-            dst.Port = static_cast<std::uint16_t>(std::stoi(port));
+            dst.Port = static_cast<uint16_t>(std::stoi(port));
         }
         else
         {
             dst.Host = host_port;
-            dst.Port = scheme == "https" ? 443 : 80;
+            dst.Port = scheme == "https" ? 443 : scheme == "http" ? 80 : 0;
         }
     }
 
-    constexpr HttpLocation ParseUrl(const std::string_view src)
+    constexpr URL ParseURL(const std::string_view src)
     {
-        HttpLocation dst;
-        ParseUrl(dst, src);
+        URL dst;
+        ParseURL(dst, src);
         return dst;
     }
 }

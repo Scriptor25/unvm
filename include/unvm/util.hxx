@@ -34,12 +34,6 @@ namespace unvm
 
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
 
-    std::string Trim(std::string string);
-    std::string Lower(std::string string);
-
-    std::vector<std::string> Split(const std::string &str, char delim);
-    std::string Join(const std::vector<std::string> &vec, char delim);
-
     toolkit::result<> ReadConfigFile(Config &config);
     toolkit::result<> WriteConfigFile(const Config &config);
 
@@ -50,7 +44,7 @@ namespace unvm
     toolkit::result<> ReadVersionFile(std::optional<std::string> &version);
     toolkit::result<> WriteVersionFile(const std::string &version);
     toolkit::result<> RemoveVersionFile();
-    
+
     template<typename T>
     toolkit::result<T> ParseString(const std::string &str)
     {
@@ -62,6 +56,8 @@ namespace unvm
         }
         return value;
     }
+
+    std::string GetSSLErrorStack();
 }
 
 template<typename K, typename V>

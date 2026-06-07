@@ -1,10 +1,12 @@
 #pragma once
 
+#include <unvm/http/url.hxx>
+
 #include <toolkit/result.hxx>
 
-#include <cstdint>
 #include <format>
 #include <map>
+#include <span>
 #include <string>
 
 namespace unvm::http
@@ -101,20 +103,12 @@ namespace unvm::http
         return 500 <= static_cast<int>(status_code) && static_cast<int>(status_code) <= 599;
     }
 
-    struct HttpLocation
-    {
-        bool UseTLS;
-        std::string Host;
-        std::uint16_t Port{};
-        std::string Pathname;
-    };
-
     using HttpHeaders = std::map<std::string, std::string>;
 
     struct HttpRequest
     {
         HttpMethod Method;
-        HttpLocation Location;
+        URL Location;
         HttpHeaders Headers;
         std::istream *Body;
     };
@@ -134,8 +128,8 @@ namespace unvm::http
     {
         virtual ~HttpTransport() = default;
 
-        virtual int write(const char *buf, std::size_t len) = 0;
-        virtual int read(char *buf, std::size_t len) = 0;
+        virtual int write(std::span<const char> buffer) = 0;
+        virtual int read(std::span<char> buffer) = 0;
     };
 
     class HttpClient
@@ -144,7 +138,8 @@ namespace unvm::http
         HttpClient();
         ~HttpClient();
 
-        toolkit::result<> Fetch(HttpRequest request, HttpResponse &response);
+        toolkit::result<> Fetch(HttpRequest request, HttpResponse &response) const;
+        toolkit::result<> FetchWithRedirects(HttpRequest request, HttpResponse &response) const;
 
     private:
         struct State;
@@ -157,7 +152,7 @@ std::ostream &operator<<(std::ostream &stream, unvm::http::HttpMethod method);
 std::ostream &operator<<(std::ostream &stream, unvm::http::HttpStatusCode status_code);
 std::istream &operator>>(std::istream &stream, unvm::http::HttpStatusCode &status_code);
 
-std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpLocation &location);
+std::ostream &operator<<(std::ostream &stream, const unvm::http::URL &location);
 
 template<>
 struct std::formatter<unvm::http::HttpStatusCode> : std::formatter<int>

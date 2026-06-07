@@ -1,6 +1,6 @@
 This product includes third-party software.
 
-----------------------------------------
+--------------------------------------------------------------------------------
 
 Component: OpenSSL
 Website: https://www.openssl.org
@@ -184,11 +184,53 @@ License: Apache License 2.0
 
    END OF TERMS AND CONDITIONS
 
-----------------------------------------
+--------------------------------------------------------------------------------
 
 Component: libarchive
 Website: https://www.libarchive.org
-License: BSD 2-Clause License
+License: New BSD License
+
+The libarchive distribution as a whole is Copyright by Tim Kientzle
+and is subject to the copyright notice reproduced at the bottom of
+this file.
+
+Each individual file in this distribution should have a clear
+copyright/licensing statement at the beginning of the file.  If any do
+not, please let me know and I will rectify it.  The following is
+intended to summarize the copyright status of the individual files;
+the actual statements in the files are controlling.
+
+* Except as listed below, all C sources (including .c and .h files)
+  and documentation files are subject to the copyright notice reproduced
+  at the bottom of this file.
+
+* The following source files are also subject in whole or in part to
+  a 3-clause UC Regents copyright; please read the individual source
+  files for details:
+   libarchive/archive_read_support_filter_compress.c
+   libarchive/archive_write_add_filter_compress.c
+   libarchive/mtree.5
+
+* The following source files are in the public domain:
+   libarchive/archive_parse_date.c
+
+* The following source files are triple-licensed with the ability to choose
+  from CC0 1.0 Universal, OpenSSL or Apache 2.0 licenses:
+   libarchive/archive_blake2.h
+   libarchive/archive_blake2_impl.h
+   libarchive/archive_blake2s_ref.c
+   libarchive/archive_blake2sp_ref.c
+
+* The build files---including Makefiles, configure scripts,
+  and auxiliary scripts used as part of the compile process---have
+  widely varying licensing terms.  Please check individual files before
+  distributing them to see if those restrictions apply to you.
+
+I intend for all new source code to use the license below and hope over
+time to replace code with other licenses with new implementations that
+do use the license below.  The varying licensing of the build scripts
+seems to be an unavoidable mess.
+
 
 Copyright (c) 2003-2018 <author(s)>
 All rights reserved.
@@ -214,13 +256,16 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-----------------------------------------
+--------------------------------------------------------------------------------
 
 Component: zlib
 Website: https://zlib.net
 License: zlib License
 
-Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
+zlib.h -- interface of the 'zlib' general purpose compression library
+version 1.3.2, February 17th, 2026
+
+Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -231,11 +276,11 @@ including commercial applications, and to alter it and redistribute it
 freely, subject to the following restrictions:
 
 1. The origin of this software must not be misrepresented; you must not
-    claim that you wrote the original software. If you use this software
-    in a product, an acknowledgment in the product documentation would be
-    appreciated but is not required.
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
 2. Altered source versions must be plainly marked as such, and must not be
-    misrepresented as being the original software.
+   misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 
 Jean-loup Gailly        Mark Adler

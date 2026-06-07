@@ -1,7 +1,9 @@
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
-const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, std::string_view version)
+#include <toolkit/string.hxx>
+
+const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, const std::string_view version)
 {
     // latest
     if (version == "latest")
@@ -10,9 +12,12 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
         {
             return &table.front();
         }
+
+        return nullptr;
     }
+
     // latest lts
-    else if (version == "lts")
+    if (version == "lts")
     {
         for (auto &entry : table)
         {
@@ -21,18 +26,19 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
                 return &entry;
             }
         }
+
+        return nullptr;
     }
+
     // version by pattern
-    else if (isdigit(version.front()))
+    if (isdigit(version.front()))
     {
-        auto segments = Split(std::string(version), '.');
-        switch (segments.size())
+        switch (const auto segments = toolkit::split(version, '.'); segments.size())
         {
         case 1:
         case 2:
-        {
-            const auto pattern = 'v' + std::string(version) + '.';
-            for (auto &entry : table)
+            for (const auto pattern = 'v' + std::string(version) + '.';
+                 auto &entry : table)
             {
                 if (entry.Version.starts_with(pattern))
                 {
@@ -40,12 +46,10 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
                 }
             }
             break;
-        }
 
         case 3:
-        {
-            const auto pattern = 'v' + std::string(version);
-            for (auto &entry : table)
+            for (const auto pattern = 'v' + std::string(version);
+                 auto &entry : table)
             {
                 if (entry.Version == pattern)
                 {
@@ -53,22 +57,54 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
                 }
             }
             break;
-        }
 
         default:
             break;
         }
+
+        return nullptr;
     }
-    // lts by name
-    else
+
+    if (version.front() == 'v')
     {
-        const auto name = Lower(std::string(version));
-        for (auto &entry : table)
+        switch (const auto segments = toolkit::split(version, '.'); segments.size())
         {
-            if (entry.Lts && Lower(*entry.Lts) == name)
+        case 1:
+        case 2:
+            for (const auto pattern = std::string(version) + '.';
+                 auto &entry : table)
             {
-                return &entry;
+                if (entry.Version.starts_with(pattern))
+                {
+                    return &entry;
+                }
             }
+            break;
+
+        case 3:
+            for (auto &entry : table)
+            {
+                if (entry.Version == version)
+                {
+                    return &entry;
+                }
+            }
+            break;
+
+        default:
+            break;
+        }
+
+        return nullptr;
+    }
+
+    // lts by name
+    const auto name = toolkit::lowercase(std::string(version));
+    for (auto &entry : table)
+    {
+        if (entry.Lts && toolkit::lowercase(*entry.Lts) == name)
+        {
+            return &entry;
         }
     }
 

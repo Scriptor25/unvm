@@ -218,7 +218,7 @@ toolkit::result<unvm::semver::Version> unvm::semver::Parser::ParseVersion()
     {
         return res;
     }
-    
+
     if (!At("-", "+"))
     {
         return version;
@@ -253,7 +253,7 @@ toolkit::result<unvm::semver::Version> unvm::semver::Parser::ParseVersion()
     return version;
 }
 
-toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t &value)
+toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(uint32_t &value)
 {
     if (Skip("x", "X", "*"))
     {
@@ -268,7 +268,7 @@ toolkit::result<bool> unvm::semver::Parser::ParsePossibleWildcard(std::uint32_t 
     return false;
 }
 
-toolkit::result<> unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
+toolkit::result<> unvm::semver::Parser::ParseVersionPart(uint32_t &value)
 {
     auto token = std::move(m_Token);
     m_Token = Next();
@@ -278,7 +278,7 @@ toolkit::result<> unvm::semver::Parser::ParseVersionPart(std::uint32_t &value)
         token = token.substr(1);
     }
 
-    if (auto res = ParseString<std::uint32_t>(token) >> value; !res)
+    if (auto res = ParseString<uint32_t>(token) >> value; !res)
     {
         return res;
     }
@@ -379,7 +379,8 @@ std::string unvm::semver::Parser::Next()
                 }
 
                 std::cerr << "invalid character '" << m_Buffer << "' in stream." << std::endl;
-                throw std::runtime_error("who da hell is drivin dis bus - next");
+                m_Buffer = m_Stream.get();
+                break;
             }
             break;
 
@@ -448,7 +449,7 @@ toolkit::result<bool> unvm::semver::IsInRange(const RangeSet &set, const std::st
     std::istringstream stream(str);
 
     Parser parser(stream);
-    
+
     Version parsed;
     if (auto res = parser.ParseVersion() >> parsed; !res)
     {
@@ -605,7 +606,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
                 }
 
                 default:
-                    throw std::runtime_error("who da hell is drivin dis bus - is in range - invalid primitive type");
+                    throw std::runtime_error("invalid primitive type");
                 }
 
                 if (!match)
@@ -622,7 +623,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
             continue;
         }
 
-        throw std::runtime_error("who da hell is drivin dis bus - is in range - invalid range type");
+        throw std::runtime_error("invalid range type");
     }
 
     return false;
@@ -677,7 +678,7 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
     const auto count = std::min(a.size(), b.size());
 
-    for (std::size_t i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         auto &a_entry = a.at(i);
         auto &b_entry = b.at(i);
@@ -687,14 +688,14 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
         if (a_numeric && b_numeric)
         {
-            std::uint32_t a_value{}, b_value{};
+            uint32_t a_value{}, b_value{};
 
-            if (auto res = unvm::ParseString<std::uint32_t>(a_entry) >> a_value; !res)
+            if (auto res = unvm::ParseString<uint32_t>(a_entry) >> a_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }
-            
-            if (auto res = unvm::ParseString<std::uint32_t>(b_entry) >> b_value; !res)
+
+            if (auto res = unvm::ParseString<uint32_t>(b_entry) >> b_value; !res)
             {
                 std::cerr << "warning: " << res.error() << std::endl;
             }

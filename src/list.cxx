@@ -1,10 +1,61 @@
 #include <unvm/table.hxx>
 #include <unvm/unvm.hxx>
 
+#include <toolkit/string.hxx>
+
 #include <iostream>
 
-toolkit::result<> unvm::List(const Config &config, http::HttpClient &client, const bool available)
+toolkit::result<> unvm::List(
+    const Config &config,
+    http::HttpClient &client,
+    const bool available,
+    const bool flat)
 {
+    VersionTable table;
+    if (auto res = LoadVersionTable(client, table, available); !res)
+    {
+        return res;
+    }
+
+    if (flat)
+    {
+        std::unordered_set<std::string> versions;
+
+        for (auto &entry : table)
+        {
+            if (available || config.Installed.contains(entry.Version))
+            {
+                for (size_t pos = 0; (pos = entry.Version.find('.', pos)), true; ++pos)
+                {
+                    auto str = entry.Version.substr(0, pos);
+
+                    versions.insert(str);
+
+                    if (str.front() == 'v')
+                    {
+                        versions.insert(str.substr(1));
+                    }
+
+                    if (pos == std::string::npos)
+                        break;
+                }
+
+                if (entry.Lts && !versions.contains(*entry.Lts))
+                {
+                    versions.insert(*entry.Lts);
+                    versions.insert(toolkit::lowercase(*entry.Lts));
+                }
+            }
+        }
+
+        for (const auto &version : versions)
+        {
+            std::cout << version << ' ';
+        }
+
+        return {};
+    }
+
     Table out(
         {
             { {}, false },
@@ -14,12 +65,6 @@ toolkit::result<> unvm::List(const Config &config, http::HttpClient &client, con
             { "Date", true },
             { "Modules", false }
         });
-
-    VersionTable table;
-    if (auto res = LoadVersionTable(client, table, available); !res)
-    {
-        return res;
-    }
 
     for (auto &entry : table)
     {
@@ -41,6 +86,6 @@ toolkit::result<> unvm::List(const Config &config, http::HttpClient &client, con
         return {};
     }
 
-    std::cerr << out;
+    std::cout << out;
     return {};
 }

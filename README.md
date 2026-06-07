@@ -1,3 +1,6 @@
+https://datatracker.ietf.org/doc/html/rfc9580
+https://github.com/nodejs/release-keys
+
 # UNVM - Universal Node Version Manager
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Scriptor25/unvm/cmake.yaml?style=flat-square)
@@ -8,24 +11,24 @@
 
 ## About
 
-UNVM is a user-mode Node.js version manager. It does **not require administrative/root permissions**, which is useful for:
+UNVM is a user-mode Node.js version manager. It does **not require administrative/root permissions**, which is useful
+for:
 
 - Work devices with restricted access
 - Non-rooted mobile environments (e.g., Android with Termux)
 
 ## From 0 to running
 
-0. You can either choose to use one of the prebuild binaries, or build your own.
-
-1. Once you have the main binary, `unvm` (or `unvm.exe` on Windows), put it somewhere and add the directory to your `PATH` variable (or environment on Windows).
-
-2. Then, if not already installed with the binary, create three symlinks (or hardlinks) to `unvm`:
-
+1. You can either choose to use one of the prebuild binaries, or build your own.
+2. Once you have the main binary, `unvm` (or `unvm.exe` on Windows), put it somewhere and add the directory to your
+   `PATH` variable (or environment on Windows).
+3. Then, if not already installed with the binary, create three symlinks (or hardlinks) to `unvm`:
     - `node`
     - `npm`
     - `npx`
-
-3. Now, if all of these are also on your `PATH`, you should be able to just execute `node`, `npm` and `npx` as normal, with the core difference that they are only shims, which point to `unvm`. Then, a lot of dark magic happens, like finding the version for the current directory or project, before running the actual executables.
+4. Now, if all of these are also on your `PATH`, you should be able to just execute `node`, `npm` and `npx` as normal,
+   with the core difference that they are only shims, which point to `unvm`. Then, a lot of dark magic happens, like
+   finding the version for the current directory or project, before running the actual executables.
 
 ## Build
 
@@ -48,6 +51,7 @@ Make sure the following libraries are installed:
 - `OpenSSL`
 - `LibArchive`
 - `ZLib`
+- `RNP`
 
 ### Build using CMake
 
@@ -75,45 +79,53 @@ unvm
 
 ### Version Names
 
-- `latest` — latest version
-- `lts` — latest long-term-support version
-- `<major>[.<minor>[.<patch>]]` — specific version
+- `latest` - latest version
+- `lts` - latest long-term-support version
+- `[v]<major>[.<minor>[.<patch>]]` - specific version
 - LTS by name, e.g., `Krypton` (case-insensitive)
 
 ### Commands
 
-| Command                         | Description                                                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `list [available]`              | List installed or available versions. `*` marks the active version in the current context.                    |
-| `install <version>`             | Install the specified Node.js version.                                                                        |
-| `remove <version>`              | Remove the specified Node.js version.                                                                         |
-| `use <version> \| none [local]` | Set active Node.js version, or `none` to deactivate. Use `local` to only apply to the current directory tree. |
+| Command                 | Description                                                                                                                                                                                       |
+|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `list`                  | List installed versions. Use `-a` or `--available` to list online available versions. Use `-f` or `--flat` to print a flat list of versions. `*` marks the active version in the current context. |
+| `install <version>`     | Install the specified Node.js version.                                                                                                                                                            |
+| `remove <version>`      | Remove the specified Node.js version.                                                                                                                                                             |
+| `use <version> \| none` | Set active Node.js version, or `none` to deactivate. Use `-l` or `--local` to only apply to the current directory tree.                                                                           |
+| `complete ...`          | Print a flat list of auto-complete options for the specified command line.                                                                                                                        |
 
 ### Active Version
 
 UNVM determines the active version for the current context using following steps:
 
-1.  if the current directory contains a file named `.unvm`, read it and use the exact version specified.
-2.  if the current directory contains a file named `package.json`, read it, parse the semver version specification from `engines.node`, and use the latest matching version.
-3.  if the current directory has a parent directory, move up one level and continue with step `1`
-4.  otherwise we have reached the file system root, so the global default version is used.
+1. if the current directory contains a file named `.unvm`, read it and use the exact version specified.
+2. if the current directory contains a file named `package.json`, read it, parse the `semver` version specification from
+   `engines.node`, and use the latest matching version.
+3. if the current directory has a parent directory, move up one level and continue with step `1`
+4. otherwise we have reached the file system root, so the global default version is used.
 
-> The `.unvm` file will only be created if you call `unvm use ... local` to manually use a specific version for a directory tree.
+> The `.unvm` file will only be created if you call `unvm use ... local` to manually use a specific version for a
+> directory tree.
 
 ## Files
 
 UNVM generates a configuration file to track installed and active versions:
 
 | Platform     | Path                                                                                               |
-| ------------ | -------------------------------------------------------------------------------------------------- |
+|--------------|----------------------------------------------------------------------------------------------------|
 | Windows      | `%APPDATA%\unvm\config.json`                                                                       |
 | Linux / Unix | `$XDG_CONFIG_HOME/unvm/config.json`, `$HOME/.config/unvm/config.json`, or `$PWD/.unvm/config.json` |
 
-In the same directory, a local copy of the file at https://nodejs.org/dist/index.json is stored to avoid having to stream it every time a version check happens. Also, the data directory contains a directory with the files for each installed version.
+In the same directory, a local copy of the file at https://nodejs.org/dist/index.json is stored to avoid having to
+stream it every time a version check happens. Also, the data directory contains a directory with the files for each
+installed version.
 
 ## How does UNVM work
 
-The core mechanic used by UNVM are shims. It installs with symlinks or hardlinks for `node`, `npm` and `npx`, pointing to the `unvm` executable. Then, when they are executed, UNVM determines the active version for the current context and executes the real executable for that version. Also, the version will be installed automatically if it is not yet installed.
+The core mechanic used by UNVM are shims. It installs with symlinks or hardlinks for `node`, `npm` and `npx`, pointing
+to the `unvm` executable. Then, when they are executed, UNVM determines the active version for the current context and
+executes the real executable for that version. Also, the version will be installed automatically if it is not yet
+installed.
 
 ## License
 
@@ -127,8 +139,8 @@ See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file for fu
 
 Included libraries:
 
-- **OpenSSL** — Apache License 2.0
-- **LibArchive** — BSD 2-Clause License
-- **ZLib** — zlib License
+- **OpenSSL**: Apache License 2.0
+- **LibArchive**: New BSD License
+- **ZLib**: zlib License
 
-These notices are included in the install package to comply with each project's license requirements.
+These notices are included in the installation package to comply with each project's license requirements.
