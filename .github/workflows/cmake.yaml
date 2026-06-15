@@ -181,8 +181,11 @@ jobs:
         run: |
           ./build/install/bin/unvm install latest
           ./build/install/bin/unvm use latest
+          echo "Execute node"
           ./build/install/bin/node --version
+          echo "Execute npm"
           ./build/install/bin/npm --version
+          echo "Execute npx"
           ./build/install/bin/npx --version
           ./build/install/bin/unvm use none
           ./build/install/bin/unvm remove latest
@@ -191,8 +194,11 @@ jobs:
         run: |
           ./build/install/bin/unvm install latest
           ./build/install/bin/unvm use latest --local
+          echo "Execute node"
           ./build/install/bin/node --version
+          echo "Execute npm"
           ./build/install/bin/npm --version
+          echo "Execute npx"
           ./build/install/bin/npx --version
           ./build/install/bin/unvm use none --local
           ./build/install/bin/unvm remove latest
@@ -203,8 +209,11 @@ jobs:
           mkdir test
           cd test
           echo '{"name":"test","version":"1.0.0","engines":{"node":">=18 <21"}}' > package.json
+          echo "Execute node"
           ../build/install/bin/node --version
+          echo "Execute npm"
           ../build/install/bin/npm --version
+          echo "Execute npx"
           ../build/install/bin/npx --version
           rm package.json
           cd ..
