@@ -100,7 +100,7 @@ jobs:
           fi
 
       - name: Clone vcpkg
-        run: git clone https://github.com/microsoft/vcpkg.git
+        run: git clone --single-branch --branch "2026.06.01" --depth 1 --recurse-submodules --shallow-submodules https://github.com/microsoft/vcpkg.git
 
       - name: Cache vcpkg
         uses: actions/cache@v5
