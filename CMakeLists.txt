@@ -135,7 +135,7 @@ if (WIN32)
     install(TARGETS unvm
             RUNTIME_DEPENDENCIES
             PRE_EXCLUDE_REGEXES
-            "api-ms-win-.*"
+            "api-ms-.*"
             "ext-ms-.*"
             "kernel32\\.dll"
             "user32\\.dll"
