@@ -45,6 +45,8 @@ jobs:
             runner: windows-latest
             triplet: x64-windows
             toolchain: msvc
+            cc: cl
+            cxx: cl
 
           - os: windows
             runner: windows-latest
@@ -151,6 +153,9 @@ jobs:
         id: msvc
         if: runner.toolchain == 'msvc'
         shell: pwsh
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: |
           $VS_PATH = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           echo "path=$VS_PATH" >> $env:GITHUB_OUTPUT
