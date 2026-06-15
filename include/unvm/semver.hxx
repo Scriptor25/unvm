@@ -132,7 +132,7 @@ namespace unvm::semver
 
     toolkit::result<bool> IsInRange(const RangeSet &set, std::string_view version);
     toolkit::result<bool> IsInRange(const RangeSet &set, const std::string &version);
-    bool IsInRange(const RangeSet &set, const Version &version);
+    toolkit::result<bool> IsInRange(const RangeSet &set, const Version &version);
 
     bool operator==(const Partial &a, const Partial &b);
     bool operator<(const Partial &a, const Partial &b);
