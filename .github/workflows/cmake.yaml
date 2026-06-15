@@ -135,7 +135,7 @@ jobs:
           .\vcpkg\vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
 
       - name: Configure CMake
-        if: runner.toolchain != 'msvc'
+        if: matrix.toolchain != 'msvc'
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
@@ -151,7 +151,7 @@ jobs:
 
       - name: Find Visual Studio (MSVC)
         id: msvc
-        if: runner.toolchain == 'msvc'
+        if: matrix.toolchain == 'msvc'
         shell: pwsh
         env:
           CC: ${{ matrix.cc }}
@@ -162,7 +162,7 @@ jobs:
           echo "vars=$VS_PATH\VC\Auxiliary\Build\vcvars64.bat" >> $env:GITHUB_OUTPUT
 
       - name: Configure CMake (MSVC)
-        if: runner.toolchain == 'msvc'
+        if: matrix.toolchain == 'msvc'
         run: |
           call "${{ steps.msvc.outputs.vars }}"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
