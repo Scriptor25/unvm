@@ -167,10 +167,12 @@ jobs:
         run: cmake --install build --config Release --prefix build/install
 
       - name: Test (help)
+        shell: bash
         run: |
           ./build/install/bin/unvm
 
       - name: Test (list)
+        shell: bash
         run: |
           ./build/install/bin/unvm list
           ./build/install/bin/unvm list --available
@@ -178,6 +180,7 @@ jobs:
           ./build/install/bin/unvm l --available
 
       - name: Test (integration, global)
+        shell: bash
         run: |
           ./build/install/bin/unvm install latest
           ./build/install/bin/unvm use latest
@@ -188,6 +191,7 @@ jobs:
           ./build/install/bin/unvm remove latest
 
       - name: Test (integration, local)
+        shell: bash
         run: |
           ./build/install/bin/unvm install latest
           ./build/install/bin/unvm use latest --local
