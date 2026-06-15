@@ -153,9 +153,6 @@ jobs:
         id: msvc
         if: matrix.toolchain == 'msvc'
         shell: pwsh
-        env:
-          CC: ${{ matrix.cc }}
-          CXX: ${{ matrix.cxx }}
         run: |
           $VS_PATH = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           echo "path=$VS_PATH" >> $env:GITHUB_OUTPUT
@@ -163,6 +160,10 @@ jobs:
 
       - name: Configure CMake (MSVC)
         if: matrix.toolchain == 'msvc'
+        shell: cmd
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
         run: |
           call "${{ steps.msvc.outputs.vars }}"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
