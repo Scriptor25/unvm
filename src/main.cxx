@@ -199,6 +199,13 @@ int main(const int argc, char **argv)
 {
     const auto exec = std::filesystem::path(argv[0]);
 
+    std::cerr << "unvm";
+    for (auto arg = argv; arg != argv + argc; ++arg)
+    {
+        std::cerr << " '" << *arg << "'";
+    }
+    std::cerr << std::endl;
+
     unvm::Config config;
     unvm::http::HttpClient client;
 
