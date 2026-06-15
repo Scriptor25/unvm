@@ -149,6 +149,10 @@ jobs:
           -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release
           -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
 
+      - name: Build
+        if: matrix.toolchain != 'msvc'
+        run: cmake --build build --config Release --parallel
+
       - name: Find Visual Studio (MSVC)
         id: msvc
         if: matrix.toolchain == 'msvc'
@@ -168,8 +172,12 @@ jobs:
           call "${{ steps.msvc.outputs.vars }}"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
 
-      - name: Build
-        run: cmake --build build --config Release --parallel
+      - name: Build (MSVC)
+        if: matrix.toolchain == 'msvc'
+        shell: cmd
+        run: |
+          call "${{ steps.msvc.outputs.vars }}"
+          cmake --build build --config Release --parallel
 
       - name: Install
         run: cmake --install build --config Release --prefix build/install
