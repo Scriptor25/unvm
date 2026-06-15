@@ -163,13 +163,13 @@ static int shim(const std::string &version, const std::filesystem::path &exec, c
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-    const auto exec_path = data_directory / version / "bin" / exec.filename();
+    const auto exec_path = data_directory / version / "bin" / exec.stem();
 
 #endif
 
 #if defined(SYSTEM_WINDOWS)
 
-    const auto exec_path = data_directory / version / exec.filename();
+    const auto exec_path = data_directory / version / exec.stem();
 
 #endif
 
@@ -259,7 +259,7 @@ int main(const int argc, char **argv)
         }
     }
 
-    if (exec.stem() == "unvm" || exec.stem() == "unvm.exe")
+    if (exec.stem() == "unvm")
     {
         if (auto res = execute(config, client, argc, argv); !res)
         {
