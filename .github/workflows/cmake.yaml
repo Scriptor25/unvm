@@ -121,7 +121,7 @@ jobs:
       - name: Bootstrap VCPkg (Windows)
         if: runner.os == 'Windows'
         run: |
-          .\vcpkg\bootstrap-vcpkg.bat
+          ./vcpkg/bootstrap-vcpkg.bat
 
       - name: Install dependencies
         if: runner.os != 'Windows'
@@ -132,7 +132,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           set VCPKG_BUILD_TYPE=release
-          .\vcpkg\vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
+          ./vcpkg/vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
 
       - name: Configure CMake and Build
         if: matrix.toolchain != 'msvc'
@@ -148,9 +148,9 @@ jobs:
         if: matrix.toolchain == 'msvc'
         shell: pwsh
         run: |
-          $VS_PATH = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $VS_PATH = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
           echo "path=$VS_PATH" >> $env:GITHUB_OUTPUT
-          echo "vars=$VS_PATH\VC\Auxiliary\Build\vcvars64.bat" >> $env:GITHUB_OUTPUT
+          echo "vars=$VS_PATH/VC/Auxiliary/Build/vcvars64.bat" >> $env:GITHUB_OUTPUT
 
       - name: Configure CMake and Build (MSVC)
         if: matrix.toolchain == 'msvc'
@@ -160,7 +160,7 @@ jobs:
           CXX: ${{ matrix.cxx }}
         run: |
           call "${{ steps.msvc.outputs.vars }}"
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
           cmake --build build --config Release --parallel
 
       - name: Install
