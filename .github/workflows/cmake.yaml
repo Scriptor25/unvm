@@ -134,24 +134,14 @@ jobs:
           set VCPKG_BUILD_TYPE=release
           .\vcpkg\vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
 
-      - name: Configure CMake
+      - name: Configure CMake and Build
         if: matrix.toolchain != 'msvc'
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: >
-          cmake
-          -S .
-          -B build
-          -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release
-          -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
-
-      - name: Build
-        if: matrix.toolchain != 'msvc'
-        run: cmake --build build --config Release --parallel
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+          cmake --build build --config Release --parallel
 
       - name: Find Visual Studio (MSVC)
         id: msvc
@@ -162,7 +152,7 @@ jobs:
           echo "path=$VS_PATH" >> $env:GITHUB_OUTPUT
           echo "vars=$VS_PATH\VC\Auxiliary\Build\vcvars64.bat" >> $env:GITHUB_OUTPUT
 
-      - name: Configure CMake (MSVC)
+      - name: Configure CMake and Build (MSVC)
         if: matrix.toolchain == 'msvc'
         shell: cmd
         env:
@@ -171,12 +161,6 @@ jobs:
         run: |
           call "${{ steps.msvc.outputs.vars }}"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}\vcpkg\scripts\buildsystems\vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
-
-      - name: Build (MSVC)
-        if: matrix.toolchain == 'msvc'
-        shell: cmd
-        run: |
-          call "${{ steps.msvc.outputs.vars }}"
           cmake --build build --config Release --parallel
 
       - name: Install
