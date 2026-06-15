@@ -163,48 +163,81 @@ static int shim(const std::string &version, const std::filesystem::path &exec, c
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-    const auto exec_path = data_directory / version / "bin" / exec.stem();
+    const auto node_path = data_directory / version / "bin" / "node";
+    const auto npm_cli_path = data_directory / version / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js";
+    const auto npx_cli_path = data_directory / version / "lib" / "node_modules" / "npm" / "bin" / "npx-cli.js";
+
+#elif defined(SYSTEM_WINDOWS)
+
+    const auto node_path = data_directory / version / "node.exe";
+    const auto npm_cli_path = data_directory / version / "node_modules" / "npm" / "bin" / "npm-cli.js";
+    const auto npx_cli_path = data_directory / version / "node_modules" / "npm" / "bin" / "npx-cli.js";
 
 #endif
 
-#if defined(SYSTEM_WINDOWS)
+    const auto node_path_str = node_path.string();
+    const auto npm_cli_path_str = npm_cli_path.string();
+    const auto npx_cli_path_str = npx_cli_path.string();
 
-    const auto exec_path = data_directory / version / exec.stem();
+    std::vector<char *> args;
+    args.reserve(argc + 3);
 
-#endif
+    const auto stem = exec.stem().string();
 
-    const auto exec_path_str = exec_path.string();
+    if (stem == "node")
+    {
+        args.push_back(const_cast<char *>(node_path_str.c_str()));
 
-    std::vector<char *> args{ argv, argv + argc };
-    args[0] = const_cast<char *>(exec_path_str.c_str());
+        for (size_t i = 1; i < argc; ++i)
+        {
+            args.push_back(argv[i]);
+        }
+    }
+    else if (stem == "npm")
+    {
+        args.push_back(const_cast<char *>(node_path_str.c_str()));
+        args.push_back(const_cast<char *>(npm_cli_path_str.c_str()));
+
+        for (size_t i = 1; i < argc; ++i)
+        {
+            args.push_back(argv[i]);
+        }
+    }
+    else if (stem == "npx")
+    {
+        args.push_back(const_cast<char *>(node_path_str.c_str()));
+        args.push_back(const_cast<char *>(npx_cli_path_str.c_str()));
+
+        for (size_t i = 1; i < argc; ++i)
+        {
+            args.push_back(argv[i]);
+        }
+    }
+    else
+    {
+        std::cerr << "unsupported shim target '" << stem << "'." << std::endl;
+        return 1;
+    }
+
     args.push_back(nullptr);
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-    execvp(exec_path_str.c_str(), args.data());
+    execvp(node_path_str.c_str(), args.data());
+
+#elif defined(SYSTEM_WINDOWS)
+
+    _execvp(node_path_str.c_str(), args.data());
 
 #endif
 
-#if defined(SYSTEM_WINDOWS)
-
-    _execvp(exec_path_str.c_str(), args.data());
-
-#endif
-
-    std::cerr << "failed to execute '" << exec_path_str << "': " << std::strerror(errno) << "." << std::endl;
+    std::cerr << "failed to execute '" << node_path_str << "': " << std::strerror(errno) << "." << std::endl;
     return 1;
 }
 
 int main(const int argc, char **argv)
 {
     const auto exec = std::filesystem::path(argv[0]);
-
-    std::cerr << "unvm";
-    for (auto arg = argv; arg != argv + argc; ++arg)
-    {
-        std::cerr << " '" << *arg << "'";
-    }
-    std::cerr << std::endl;
 
     unvm::Config config;
     unvm::http::HttpClient client;
