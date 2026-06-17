@@ -163,7 +163,7 @@ static int execvp(const char *file, char *const argv[])
     std::string line;
     for (size_t i = 0; argv[i]; ++i)
     {
-        std::string_view arg = args[i];
+        std::string_view arg = argv[i];
 
         if (arg.find(' ') != std::string_view::npos)
         {
