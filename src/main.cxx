@@ -6,7 +6,6 @@
 
 #include <toolkit/args.hxx>
 
-#include <cstring>
 #include <filesystem>
 #include <iostream>
 
@@ -157,6 +156,62 @@ static void print_file_tree(const std::filesystem::path &path, const unsigned de
             print_file_tree(entry.path(), depth + 1);
 }
 
+#if defined(SYSTEM_WINDOWS)
+
+static int execvp(const char *file, char *const argv[])
+{
+    std::string line;
+    for (size_t i = 0; argv[i]; ++i)
+    {
+        std::string_view arg = args[i];
+
+        if (arg.find(' ') != std::string_view::npos)
+        {
+            line += '"';
+            line += arg;
+            line += '"';
+        }
+        else
+        {
+            line += arg;
+        }
+
+        if (argv[i + 1])
+        {
+            line += ' ';
+        }
+    }
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    ZeroMemory(&pi, sizeof(pi));
+    si.cb = sizeof(si);
+
+    std::vector<char> buf(line.begin(), line.end());
+    buf.push_back(0);
+
+    auto ok = CreateProcessA(nullptr, buf.data(), nullptr, nullptr, false, 0, nullptr, nullptr, &si, &pi);
+
+    if (!ok)
+    {
+        std::cerr << "CreateProcess failed: " << GetLastError() << std::endl;
+        return 1;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD code = 1;
+    GetExitCodeProcess(pi.hProcess, &code);
+
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    ExitProcess(code);
+}
+
+#endif
+
 static int shim(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
 {
     const auto data_directory = unvm::GetDataDirectory();
@@ -221,17 +276,9 @@ static int shim(const std::string &version, const std::filesystem::path &exec, c
 
     args.push_back(nullptr);
 
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+    const auto error = execvp(node_path_str.c_str(), args.data());
 
-    execvp(node_path_str.c_str(), args.data());
-
-#elif defined(SYSTEM_WINDOWS)
-
-    _execvp(node_path_str.c_str(), args.data());
-
-#endif
-
-    std::cerr << "failed to execute '" << node_path_str << "': " << std::strerror(errno) << "." << std::endl;
+    std::cerr << "failed to execute '" << node_path_str << "': " << error << "." << std::endl;
     return 1;
 }
 
