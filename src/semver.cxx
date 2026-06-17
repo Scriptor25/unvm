@@ -486,7 +486,7 @@ static unvm::semver::Partial normalize_partial(const unvm::semver::Partial &part
     };
 }
 
-bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
+toolkit::result<bool> unvm::semver::IsInRange(const RangeSet &set, const Version &version)
 {
     Partial partial;
     partial.Value = version;
@@ -495,7 +495,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
 
     for (auto &range : set)
     {
-        if (const auto hyphen = std::get_if<Hyphen>(&range))
+        if (const auto *hyphen = std::get_if<Hyphen>(&range))
         {
             auto &begin = hyphen->Begin;
             auto &end = hyphen->End;
@@ -508,7 +508,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
             continue;
         }
 
-        if (const auto primitive_set = std::get_if<PrimitiveSet>(&range))
+        if (const auto *primitive_set = std::get_if<PrimitiveSet>(&range))
         {
             auto match = true;
             for (const auto &[type_, value_] : *primitive_set)
@@ -606,7 +606,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
                 }
 
                 default:
-                    throw std::runtime_error("invalid primitive type");
+                    return toolkit::make_error("invalid semver primitive type.");
                 }
 
                 if (!match)
@@ -623,7 +623,7 @@ bool unvm::semver::IsInRange(const RangeSet &set, const Version &version)
             continue;
         }
 
-        throw std::runtime_error("invalid range type");
+        return toolkit::make_error("invalid semver range type.");
     }
 
     return false;

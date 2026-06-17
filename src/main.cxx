@@ -6,7 +6,6 @@
 
 #include <toolkit/args.hxx>
 
-#include <cstring>
 #include <filesystem>
 #include <iostream>
 
@@ -157,41 +156,129 @@ static void print_file_tree(const std::filesystem::path &path, const unsigned de
             print_file_tree(entry.path(), depth + 1);
 }
 
+#if defined(SYSTEM_WINDOWS)
+
+static int execvp(const char *file, char *const argv[])
+{
+    std::string line;
+    for (size_t i = 0; argv[i]; ++i)
+    {
+        std::string_view arg = argv[i];
+
+        if (arg.find(' ') != std::string_view::npos)
+        {
+            line += '"';
+            line += arg;
+            line += '"';
+        }
+        else
+        {
+            line += arg;
+        }
+
+        if (argv[i + 1])
+        {
+            line += ' ';
+        }
+    }
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    ZeroMemory(&pi, sizeof(pi));
+    si.cb = sizeof(si);
+
+    std::vector<char> buf(line.begin(), line.end());
+    buf.push_back(0);
+
+    auto ok = CreateProcessA(nullptr, buf.data(), nullptr, nullptr, false, 0, nullptr, nullptr, &si, &pi);
+
+    if (!ok)
+    {
+        std::cerr << "CreateProcess failed: " << GetLastError() << std::endl;
+        return 1;
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD code = 1;
+    GetExitCodeProcess(pi.hProcess, &code);
+
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+
+    ExitProcess(code);
+}
+
+#endif
+
 static int shim(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
 {
     const auto data_directory = unvm::GetDataDirectory();
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
 
-    const auto exec_path = data_directory / version / "bin" / exec.filename();
+    const auto node_path = data_directory / version / "bin" / "node";
+    const auto npm_cli_path = data_directory / version / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js";
+    const auto npx_cli_path = data_directory / version / "lib" / "node_modules" / "npm" / "bin" / "npx-cli.js";
+
+#elif defined(SYSTEM_WINDOWS)
+
+    const auto node_path = data_directory / version / "node.exe";
+    const auto npm_cli_path = data_directory / version / "node_modules" / "npm" / "bin" / "npm-cli.js";
+    const auto npx_cli_path = data_directory / version / "node_modules" / "npm" / "bin" / "npx-cli.js";
 
 #endif
 
-#if defined(SYSTEM_WINDOWS)
+    const auto node_path_str = node_path.string();
+    const auto npm_cli_path_str = npm_cli_path.string();
+    const auto npx_cli_path_str = npx_cli_path.string();
 
-    const auto exec_path = data_directory / version / exec.filename();
+    std::vector<char *> args;
+    args.reserve(argc + 3);
 
-#endif
+    const auto stem = exec.stem().string();
 
-    const auto exec_path_str = exec_path.string();
+    if (stem == "node")
+    {
+        args.push_back(const_cast<char *>(node_path_str.c_str()));
 
-    std::vector<char *> args{ argv, argv + argc };
-    args[0] = const_cast<char *>(exec_path_str.c_str());
+        for (size_t i = 1; i < argc; ++i)
+        {
+            args.push_back(argv[i]);
+        }
+    }
+    else if (stem == "npm")
+    {
+        args.push_back(const_cast<char *>(node_path_str.c_str()));
+        args.push_back(const_cast<char *>(npm_cli_path_str.c_str()));
+
+        for (size_t i = 1; i < argc; ++i)
+        {
+            args.push_back(argv[i]);
+        }
+    }
+    else if (stem == "npx")
+    {
+        args.push_back(const_cast<char *>(node_path_str.c_str()));
+        args.push_back(const_cast<char *>(npx_cli_path_str.c_str()));
+
+        for (size_t i = 1; i < argc; ++i)
+        {
+            args.push_back(argv[i]);
+        }
+    }
+    else
+    {
+        std::cerr << "unsupported shim target '" << stem << "'." << std::endl;
+        return 1;
+    }
+
     args.push_back(nullptr);
 
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+    const auto error = execvp(node_path_str.c_str(), args.data());
 
-    execvp(exec_path_str.c_str(), args.data());
-
-#endif
-
-#if defined(SYSTEM_WINDOWS)
-
-    _execvp(exec_path_str.c_str(), args.data());
-
-#endif
-
-    std::cerr << "failed to execute '" << exec_path_str << "': " << std::strerror(errno) << "." << std::endl;
+    std::cerr << "failed to execute '" << node_path_str << "': " << error << "." << std::endl;
     return 1;
 }
 
@@ -259,7 +346,7 @@ int main(const int argc, char **argv)
         }
     }
 
-    if (exec.stem() == "unvm" || exec.stem() == "unvm.exe")
+    if (exec.stem() == "unvm")
     {
         if (auto res = execute(config, client, argc, argv); !res)
         {

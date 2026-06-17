@@ -3,7 +3,7 @@ name: CMake Multi-Platform Build
 on:
   workflow_dispatch:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
@@ -45,7 +45,8 @@ jobs:
             runner: windows-latest
             triplet: x64-windows
             toolchain: msvc
-            generator: Visual Studio 17 2022
+            cc: cl
+            cxx: cl
 
           - os: windows
             runner: windows-latest
@@ -80,11 +81,12 @@ jobs:
       - name: Sanitize Version Name
         id: version-name
         if: github.ref_type == 'tag'
+        shell: bash
         run: |
           ref="${{ github.ref_name }}"
 
           tag="${ref##*/}"
-          
+
           if [[ "$tag" == v* ]]; then
             tag="${tag#v}"
           fi
@@ -96,10 +98,9 @@ jobs:
           else
             echo "version=0.0.0" >> "$GITHUB_OUTPUT"
           fi
-        shell: bash
 
       - name: Clone vcpkg
-        run: git clone https://github.com/microsoft/vcpkg.git
+        run: git clone --single-branch --branch "2026.06.01" --depth 1 --recurse-submodules --shallow-submodules https://github.com/microsoft/vcpkg.git
 
       - name: Cache vcpkg
         uses: actions/cache@v5
@@ -111,55 +112,63 @@ jobs:
             vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-
             vcpkg-${{ matrix.os }}-
 
-      - name: Bootstrap vcpkg
+      - name: Bootstrap VCPkg
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           ./vcpkg/bootstrap-vcpkg.sh
-        shell: bash
-        if: runner.os != 'Windows'
 
-      - name: Bootstrap vcpkg (Windows)
-        run: |
-          .\vcpkg\bootstrap-vcpkg.bat
+      - name: Bootstrap VCPkg (Windows)
         if: runner.os == 'Windows'
+        run: |
+          ./vcpkg/bootstrap-vcpkg.bat
 
       - name: Install dependencies
+        if: runner.os != 'Windows'
         run: |
           ./vcpkg/vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
-        shell: bash
-        if: runner.os != 'Windows'
 
       - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
         run: |
           set VCPKG_BUILD_TYPE=release
-          .\vcpkg\vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
-        if: runner.os == 'Windows'
+          ./vcpkg/vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
 
-      - name: Configure cmake
+      - name: Configure CMake and Build
+        if: matrix.toolchain != 'msvc'
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: >
-          cmake
-          -S .
-          -B build
-          -G "${{ matrix.generator || 'Ninja' }}"
-          -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release
-          -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+          cmake --build build --config Release --parallel
 
-      - name: Build
-        run: cmake --build build --config Release --parallel
-        shell: bash
+      - name: Find Visual Studio (MSVC)
+        id: msvc
+        if: matrix.toolchain == 'msvc'
+        shell: pwsh
+        run: |
+          $VS_PATH = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          echo "path=$VS_PATH" >> $env:GITHUB_OUTPUT
+          echo "vars=$VS_PATH/VC/Auxiliary/Build/vcvars64.bat" >> $env:GITHUB_OUTPUT
+
+      - name: Configure CMake and Build (MSVC)
+        if: matrix.toolchain == 'msvc'
+        shell: cmd
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: |
+          call "${{ steps.msvc.outputs.vars }}"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
+          cmake --build build --config Release --parallel
 
       - name: Install
         run: cmake --install build --config Release --prefix build/install
-        shell: bash
 
       - name: Test (help)
         run: |
           ./build/install/bin/unvm
-        shell: bash
 
       - name: Test (list)
         run: |
@@ -167,39 +176,43 @@ jobs:
           ./build/install/bin/unvm list --available
           ./build/install/bin/unvm l
           ./build/install/bin/unvm l --available
-        shell: bash
 
       - name: Test (integration, global)
         run: |
           ./build/install/bin/unvm install latest
           ./build/install/bin/unvm use latest
           ./build/install/bin/node --version
+          ./build/install/bin/npm --version
+          ./build/install/bin/npx --version
           ./build/install/bin/unvm use none
           ./build/install/bin/unvm remove latest
-        shell: bash
 
       - name: Test (integration, local)
         run: |
           ./build/install/bin/unvm install latest
           ./build/install/bin/unvm use latest --local
           ./build/install/bin/node --version
+          ./build/install/bin/npm --version
+          ./build/install/bin/npx --version
           ./build/install/bin/unvm use none --local
           ./build/install/bin/unvm remove latest
-        shell: bash
 
       - name: Test (integration, package)
+        shell: bash
         run: |
           mkdir test
           cd test
           echo '{"name":"test","version":"1.0.0","engines":{"node":">=18 <21"}}' > package.json
           ../build/install/bin/node --version
+          ../build/install/bin/npm --version
+          ../build/install/bin/npx --version
           rm package.json
           cd ..
           rmdir test
-        shell: bash
 
       - name: Package
         if: github.ref_type == 'tag'
+        shell: bash
         run: |
           mkdir dist
           cd dist
@@ -207,6 +220,9 @@ jobs:
 
       - name: Upload Packages
         if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           for file in dist/*; do
             [ -f "$file" ] || continue
@@ -221,6 +237,3 @@ jobs:
             echo "Upload $target to ${{ github.ref_name }}"
             gh release upload ${{ github.ref_name }} "$target" --clobber
           done
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
