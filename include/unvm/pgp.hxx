@@ -434,10 +434,10 @@ namespace unvm::pgp
         MPIIterator &operator++();
         MPIIterator operator++(int);
 
-        toolkit::result<std::span<const uint8_t>> bytes(size_t byte_count);
-        toolkit::result<std::span<const uint8_t>> mpi();
-        toolkit::result<CurveOID> curve();
-        toolkit::result<KDF> kdf();
+        [[nodiscard]] toolkit::result<std::span<const uint8_t>> bytes(size_t byte_count);
+        [[nodiscard]] toolkit::result<std::span<const uint8_t>> mpi();
+        [[nodiscard]] toolkit::result<CurveOID> curve();
+        [[nodiscard]] toolkit::result<KDF> kdf();
 
         std::span<const uint8_t> block;
     };
@@ -1119,7 +1119,7 @@ namespace unvm::pgp
         return buffer;
     }
 
-    toolkit::result<SubpacketDescriptor> DescribeSubpacket(std::span<const uint8_t> buffer);
+    [[nodiscard]] toolkit::result<SubpacketDescriptor> DescribeSubpacket(std::span<const uint8_t> buffer);
 
     enum class KeyUsageFlag : uint8_t
     {

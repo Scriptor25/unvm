@@ -158,7 +158,7 @@ static void print_file_tree(const std::filesystem::path &path, const unsigned de
 
 #if defined(SYSTEM_WINDOWS)
 
-static int execvp(const char *file, char *const argv[])
+[[noreturn]] static int execvp(const char *file, char *const argv[])
 {
     std::string line;
     for (size_t i = 0; argv[i]; ++i)
@@ -237,41 +237,30 @@ static int shim(const std::string &version, const std::filesystem::path &exec, c
     std::vector<char *> args;
     args.reserve(argc + 3);
 
+    args.push_back(const_cast<char *>(node_path_str.c_str()));
+
     const auto stem = exec.stem().string();
 
     if (stem == "node")
     {
-        args.push_back(const_cast<char *>(node_path_str.c_str()));
-
-        for (size_t i = 1; i < argc; ++i)
-        {
-            args.push_back(argv[i]);
-        }
     }
     else if (stem == "npm")
     {
-        args.push_back(const_cast<char *>(node_path_str.c_str()));
         args.push_back(const_cast<char *>(npm_cli_path_str.c_str()));
-
-        for (size_t i = 1; i < argc; ++i)
-        {
-            args.push_back(argv[i]);
-        }
     }
     else if (stem == "npx")
     {
-        args.push_back(const_cast<char *>(node_path_str.c_str()));
         args.push_back(const_cast<char *>(npx_cli_path_str.c_str()));
-
-        for (size_t i = 1; i < argc; ++i)
-        {
-            args.push_back(argv[i]);
-        }
     }
     else
     {
         std::cerr << "unsupported shim target '" << stem << "'." << std::endl;
         return 1;
+    }
+
+    for (size_t i = 1; i < argc; ++i)
+    {
+        args.push_back(argv[i]);
     }
 
     args.push_back(nullptr);
@@ -295,17 +284,13 @@ int main(const int argc, char **argv)
         return 1;
     }
 
-    std::optional<std::string> maybe_active;
     unvm::VersionType type{};
-    if (auto res = unvm::FindActiveVersion(maybe_active, &type); !res)
+
+    std::optional<std::string> maybe_active;
+    if (auto res = unvm::FindActiveVersion(config.Default, &type) >> maybe_active; !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;
-    }
-
-    if (type == unvm::VersionType::Default && config.Default)
-    {
-        maybe_active = *config.Default;
     }
 
     if (maybe_active)

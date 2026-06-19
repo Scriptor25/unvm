@@ -14,7 +14,7 @@ namespace unvm
 {
     void PrintManual();
 
-    toolkit::result<> LoadVersionTable(
+    [[nodiscard]] toolkit::result<> LoadVersionTable(
         http::HttpClient &client,
         VersionTable &table,
         bool online);
@@ -23,38 +23,38 @@ namespace unvm
         const VersionTable &table,
         std::string_view version);
 
-    toolkit::result<> UnpackArchive(
+    [[nodiscard]] toolkit::result<> UnpackArchive(
         std::istream &stream,
         const std::filesystem::path &directory);
 
-    toolkit::result<> Install(
+    [[nodiscard]] toolkit::result<> Install(
         Config &config,
         http::HttpClient &client,
         std::string_view version,
         const VersionEntry &entry);
-    toolkit::result<> Install(
+    [[nodiscard]] toolkit::result<> Install(
         Config &config,
         http::HttpClient &client,
         std::string_view version);
 
-    toolkit::result<> Remove(
+    [[nodiscard]] toolkit::result<> Remove(
         Config &config,
         http::HttpClient &client,
         std::string_view version);
 
-    toolkit::result<> Use(
+    [[nodiscard]] toolkit::result<> Use(
         Config &config,
         http::HttpClient &client,
         std::string_view version,
         bool local);
 
-    toolkit::result<> List(
+    [[nodiscard]] toolkit::result<> List(
         const Config &config,
         http::HttpClient &client,
         bool available,
         bool flat);
 
-    toolkit::result<> Complete(
+    [[nodiscard]] toolkit::result<> Complete(
         const Config &config,
         http::HttpClient &client,
         const toolkit::arg_context &args);

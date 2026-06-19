@@ -34,19 +34,21 @@ namespace unvm
 
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
 
-    toolkit::result<> ReadConfigFile(Config &config);
-    toolkit::result<> WriteConfigFile(const Config &config);
+    [[nodiscard]] toolkit::result<> ReadConfigFile(Config &config);
+    [[nodiscard]] toolkit::result<> WriteConfigFile(const Config &config);
 
-    toolkit::result<> FindActiveVersion(std::optional<std::string> &version, VersionType *type = {});
+    [[nodiscard]] toolkit::result<std::optional<std::string>> FindActiveVersion(
+        const std::optional<std::string> &def,
+        VersionType *type = {});
 
     bool FindVersionFile(std::filesystem::path &path);
 
-    toolkit::result<> ReadVersionFile(std::optional<std::string> &version);
-    toolkit::result<> WriteVersionFile(const std::string &version);
-    toolkit::result<> RemoveVersionFile();
+    [[nodiscard]] toolkit::result<> ReadVersionFile(std::optional<std::string> &version);
+    [[nodiscard]] toolkit::result<> WriteVersionFile(const std::string &version);
+    [[nodiscard]] toolkit::result<> RemoveVersionFile();
 
     template<typename T>
-    toolkit::result<T> ParseString(const std::string &str)
+    [[nodiscard]] toolkit::result<T> ParseString(const std::string &str)
     {
         T value;
         auto [_, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
