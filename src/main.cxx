@@ -215,13 +215,6 @@ int main(const int argc, char **argv)
 
     if (config.Detected)
     {
-        unvm::semver::RangeSet set;
-        if (auto res = unvm::semver::ParseRangeSet(*config.Detected) >> set; !res)
-        {
-            std::cerr << res.error() << std::endl;
-            return 1;
-        }
-
         unvm::VersionTable table;
         if (auto res = unvm::LoadVersionTable(client, table, false); !res)
         {
@@ -231,22 +224,36 @@ int main(const int argc, char **argv)
 
         unvm::FilterVersionTable(config, table, true, true);
 
-        for (auto &entry : table)
+        if (auto *effective = unvm::FindEffectiveVersion(table, *config.Detected))
         {
-            bool in_range;
-            if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
+            config.Active = effective->Version;
+        }
+        else
+        {
+            unvm::semver::RangeSet set;
+            if (auto res = unvm::semver::ParseRangeSet(*config.Detected) >> set; !res)
             {
                 std::cerr << res.error() << std::endl;
                 return 1;
             }
 
-            if (!in_range)
+            for (auto &entry : table)
             {
-                continue;
-            }
+                bool in_range;
+                if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
+                {
+                    std::cerr << res.error() << std::endl;
+                    return 1;
+                }
 
-            config.Active = entry.Version;
-            break;
+                if (!in_range)
+                {
+                    continue;
+                }
+
+                config.Active = entry.Version;
+                break;
+            }
         }
     }
 
