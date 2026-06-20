@@ -139,49 +139,68 @@ static toolkit::result<> shim(const std::string &version, const toolkit::arg_con
     return toolkit::make_error("failed to execute '{}': {}", node_path_str, error);
 }
 
-toolkit::result<> unvm::Execute(
-    Config &config,
-    http::HttpClient &client,
-    std::string_view version,
-    bool yes,
-    const toolkit::arg_context &context)
+static toolkit::result<const unvm::VersionEntry *> find_version_entry(
+    const unvm::Config &config,
+    unvm::http::HttpClient &client,
+    const std::string_view version,
+    const bool online)
 {
-    VersionTable table;
-    if (auto res = LoadVersionTable(client, table, true); !res)
+    unvm::VersionTable table;
+    if (auto res = LoadVersionTable(client, table, online); !res)
     {
         return res;
     }
 
     FilterVersionTable(config, table, true, false);
 
-    const VersionEntry *version_entry{};
     if (auto *effective = FindEffectiveVersion(table, version))
     {
-        version_entry = effective;
+        return effective;
     }
-    else
+
+    unvm::semver::RangeSet set;
+    if (auto res = unvm::semver::ParseRangeSet(version) >> set; !res)
     {
-        semver::RangeSet set;
-        if (auto res = semver::ParseRangeSet(version) >> set; !res)
+        return res;
+    }
+
+    for (auto &entry : table)
+    {
+        bool in_range;
+        if (auto res = IsInRange(set, entry.Version) >> in_range; !res)
         {
             return res;
         }
 
-        for (auto &entry : table)
+        if (!in_range)
         {
-            bool in_range;
-            if (auto res = semver::IsInRange(set, entry.Version) >> in_range; !res)
-            {
-                return res;
-            }
+            continue;
+        }
 
-            if (!in_range)
-            {
-                continue;
-            }
+        return &entry;
+    }
 
-            version_entry = &entry;
-            break;
+    return nullptr;
+}
+
+toolkit::result<> unvm::Execute(
+    Config &config,
+    http::HttpClient &client,
+    std::string_view version,
+    const bool yes,
+    const toolkit::arg_context &context)
+{
+    const VersionEntry *version_entry;
+    if (auto res = find_version_entry(config, client, version, false) >> version_entry; !res)
+    {
+        return res;
+    }
+
+    if (!version_entry)
+    {
+        if (auto res = find_version_entry(config, client, version, true) >> version_entry; !res)
+        {
+            return res;
         }
     }
 
