@@ -59,8 +59,10 @@ toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std:
         return res;
     }
 
+    FilterVersionTable(config, table, true, true);
+
     const auto entry = FindEffectiveVersion(table, version);
-    if (!entry || !config.Installed.contains(entry->Version))
+    if (!entry)
     {
         return toolkit::make_error("version '{}' is not installed.", version);
     }

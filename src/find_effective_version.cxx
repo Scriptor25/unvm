@@ -21,7 +21,7 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
     {
         for (auto &entry : table)
         {
-            if (entry.Lts)
+            if (entry.LTS)
             {
                 return &entry;
             }
@@ -65,6 +65,7 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
         return nullptr;
     }
 
+    // version by pattern
     if (version.front() == 'v')
     {
         switch (const auto segments = toolkit::split(version, '.'); segments.size())
@@ -102,7 +103,7 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(const VersionTable &table, 
     const auto name = toolkit::lowercase(std::string(version));
     for (auto &entry : table)
     {
-        if (entry.Lts && toolkit::lowercase(*entry.Lts) == name)
+        if (entry.LTS && toolkit::lowercase(*entry.LTS) == name)
         {
             return &entry;
         }

@@ -19,6 +19,8 @@ namespace unvm
         VersionTable &table,
         bool online);
 
+    void FilterVersionTable(const Config &config, VersionTable &table, bool supported, bool installed);
+
     const VersionEntry *FindEffectiveVersion(
         const VersionTable &table,
         std::string_view version);
@@ -52,7 +54,8 @@ namespace unvm
         const Config &config,
         http::HttpClient &client,
         bool available,
-        bool flat);
+        bool flat,
+        bool details);
 
     [[nodiscard]] toolkit::result<> Complete(
         const Config &config,

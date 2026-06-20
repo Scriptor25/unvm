@@ -64,6 +64,11 @@ static const toolkit::arg_manifest manifest
             .kind = toolkit::arg_kind::flag,
             .patterns = { "-f", "--flat" },
         },
+        {
+            .id = "details",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-d", "--details" },
+        },
     },
 };
 
@@ -124,8 +129,9 @@ static toolkit::result<> execute(
 
         const auto available = args.is("available");
         const auto flat = args.is("flat");
+        const auto details = args.is("details");
 
-        return List(config, client, available, flat);
+        return List(config, client, available, flat, details);
     }
 
     case Operation::Complete:
@@ -274,6 +280,7 @@ static int shim(const std::string &version, const std::filesystem::path &exec, c
 int main(const int argc, char **argv)
 {
     const auto exec = std::filesystem::path(argv[0]);
+    const auto stem = exec.stem().string();
 
     unvm::Config config;
     unvm::http::HttpClient client;
@@ -309,21 +316,20 @@ int main(const int argc, char **argv)
             return 1;
         }
 
+        unvm::FilterVersionTable(config, table, true, true);
+
         for (auto &entry : table)
         {
-            if (!config.Installed.contains(entry.Version))
-            {
-                continue;
-            }
-
-            if (auto res = unvm::semver::IsInRange(set, entry.Version); res && !*res)
-            {
-                continue;
-            }
-            else if (!res)
+            bool in_range;
+            if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
             {
                 std::cerr << res.error() << std::endl;
                 return 1;
+            }
+
+            if (!in_range)
+            {
+                continue;
             }
 
             config.Active = entry.Version;
@@ -331,7 +337,7 @@ int main(const int argc, char **argv)
         }
     }
 
-    if (exec.stem() == "unvm")
+    if (stem == "unvm")
     {
         if (auto res = execute(config, client, argc, argv); !res)
         {
@@ -354,10 +360,12 @@ int main(const int argc, char **argv)
         return 1;
     }
 
+    auto &version = *maybe_active;
+
     if (!config.Active)
     {
         unvm::semver::RangeSet set;
-        if (auto res = unvm::semver::ParseRangeSet(*maybe_active) >> set; !res)
+        if (auto res = unvm::semver::ParseRangeSet(version) >> set; !res)
         {
             std::cerr << res.error() << std::endl;
             return 1;
@@ -370,19 +378,31 @@ int main(const int argc, char **argv)
             return 1;
         }
 
+        unvm::FilterVersionTable(config, table, true, false);
+
         for (auto &entry : table)
         {
-            if (auto res = unvm::semver::IsInRange(set, entry.Version); res && !*res)
-            {
-                continue;
-            }
-            else if (!res)
+            bool in_range;
+            if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
             {
                 std::cerr << res.error() << std::endl;
                 return 1;
             }
 
-            if (auto res = unvm::Install(config, client, *maybe_active, entry); !res)
+            if (!in_range)
+            {
+                continue;
+            }
+
+            std::cout << "version '" << version << "' is not installed." << std::endl;
+
+            if (!unvm::Confirm("install this version?"))
+            {
+                std::cerr << "version '" << version << "' is not installed." << std::endl;
+                return 1;
+            }
+
+            if (auto res = unvm::Install(config, client, version, entry); !res)
             {
                 std::cerr << res.error() << std::endl;
                 return 1;

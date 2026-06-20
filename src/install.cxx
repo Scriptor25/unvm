@@ -4,7 +4,6 @@
 #include <unvm/util.hxx>
 
 #include <toolkit/defer.hxx>
-#include <toolkit/string.hxx>
 
 #include <openssl/evp.h>
 
@@ -61,25 +60,6 @@ static toolkit::result<bool> get_file_from_repo(
     }
 
     return true;
-}
-
-template<typename... M>
-std::string prompt(const M &... message)
-{
-    (std::cout << ... << message) << std::flush;
-
-    std::string input;
-    std::getline(std::cin, input);
-
-    return input;
-}
-
-template<typename... M>
-static bool confirm(const M &... message)
-{
-    auto input = toolkit::lowercase(prompt(message..., " [y/N]: "));
-
-    return input == "y" || input == "yes";
 }
 
 static toolkit::result<std::string> get_trusted_checksum(
@@ -162,7 +142,7 @@ static toolkit::result<std::string> get_trusted_checksum(
             {
                 std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;
 
-                if (auto trust = confirm("trust this fingerprint?"); !trust)
+                if (auto trust = unvm::Confirm("trust this fingerprint?"); !trust)
                 {
                     return toolkit::make_error("untrusted fingerprint '{}'.", fingerprint);
                 }
@@ -176,7 +156,7 @@ static toolkit::result<std::string> get_trusted_checksum(
     {
         std::cout << "version '" << entry.Version << "' does not have a signature file." << std::endl;
 
-        if (auto trust = confirm("install anyways?"); !trust)
+        if (auto trust = unvm::Confirm("install anyways?"); !trust)
         {
             return toolkit::make_error("version '{}' does not have a signature file.", entry.Version);
         }
@@ -254,55 +234,7 @@ toolkit::result<> unvm::Install(
         return {};
     }
 
-#if defined(SYSTEM_WINDOWS)
-
-#if defined(ARCH_X86)
-    constexpr auto format = "node-{}-win-x86";
-#endif
-
-#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
-    constexpr auto format = "node-{}-win-x64";
-#endif
-
-#if defined(ARCH_ARM64)
-    constexpr auto format = "node-{}-win-arm64";
-#endif
-
-    constexpr auto extension = "zip";
-
-#endif
-
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID)
-
-#if defined(ARCH_X86)
-    constexpr auto format = "node-{}-linux-x86";
-#endif
-
-#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
-    constexpr auto format = "node-{}-linux-x64";
-#endif
-
-#if defined(ARCH_ARM64) || defined(ARCH_AARCH64)
-    constexpr auto format = "node-{}-linux-arm64";
-#endif
-
-    constexpr auto extension = "tar.gz";
-
-#endif
-
-#if defined(SYSTEM_DARWIN)
-
-#if defined(ARCH_X86_64) || defined(ARCH_AMD64)
-    constexpr auto format = "node-{}-darwin-x64";
-#endif
-
-#if defined(ARCH_ARM64)
-    constexpr auto format = "node-{}-darwin-arm64";
-#endif
-
-    constexpr auto extension = "tar.gz";
-
-#endif
+    auto [format, extension, pattern] = platform;
 
     auto filename = std::format(format, entry.Version);
     auto with_extension = std::format("{}.{}", filename, extension);
@@ -407,11 +339,13 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const 
         return toolkit::make_error("failed to load version table: {}", res.error());
     }
 
-    const auto entry_ptr = FindEffectiveVersion(table, version);
-    if (!entry_ptr)
+    FilterVersionTable(config, table, true, false);
+
+    const auto entry = FindEffectiveVersion(table, version);
+    if (!entry)
     {
         return toolkit::make_error("no effective version for '{}'.", version);
     }
 
-    return Install(config, client, version, *entry_ptr);
+    return Install(config, client, version, *entry);
 }

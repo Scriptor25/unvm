@@ -501,7 +501,12 @@ std::ostream &operator<<(std::ostream &stream, const unvm::http::HttpMethod meth
         { unvm::http::HttpMethod::Trace, "TRACE" },
     };
 
-    return stream << map.at(method);
+    if (const auto it = map.find(method); it != map.end())
+    {
+        return stream << it->second;
+    }
+
+    return stream << "undefined";
 }
 
 std::ostream &operator<<(std::ostream &stream, unvm::http::HttpStatusCode status_code)

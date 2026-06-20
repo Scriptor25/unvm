@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unvm/util.hxx>
+
 #include <toolkit/result.hxx>
 
 #include <openssl/evp.h>
@@ -1262,12 +1264,7 @@ struct std::formatter<unvm::pgp::PacketTypeID>
     template<typename C>
     auto format(const unvm::pgp::PacketTypeID packet_type, C &&ctx) const
     {
-        for (auto c : unvm::pgp::ToString(packet_type))
-        {
-            *ctx.out()++ = c;
-        }
-
-        return ctx.out();
+        return unvm::PrintString(ctx, unvm::pgp::ToString(packet_type));
     }
 };
 
@@ -1283,12 +1280,7 @@ struct std::formatter<unvm::pgp::SignatureTypeID>
     template<typename C>
     auto format(const unvm::pgp::SignatureTypeID signature_type, C &&ctx) const
     {
-        for (auto c : unvm::pgp::ToString(signature_type))
-        {
-            *ctx.out()++ = c;
-        }
-
-        return ctx.out();
+        return unvm::PrintString(ctx, unvm::pgp::ToString(signature_type));
     }
 };
 
@@ -1304,12 +1296,7 @@ struct std::formatter<unvm::pgp::SubpacketTypeID>
     template<typename C>
     auto format(const unvm::pgp::SubpacketTypeID packet_type, C &&ctx) const
     {
-        for (auto c : unvm::pgp::ToString(packet_type))
-        {
-            *ctx.out()++ = c;
-        }
-
-        return ctx.out();
+        return unvm::PrintString(ctx, unvm::pgp::ToString(packet_type));
     }
 };
 
@@ -1325,12 +1312,7 @@ struct std::formatter<unvm::pgp::PublicKeyAlgorithmID>
     template<typename C>
     auto format(const unvm::pgp::PublicKeyAlgorithmID algorithm, C &&ctx) const
     {
-        for (auto c : unvm::pgp::ToString(algorithm))
-        {
-            *ctx.out()++ = c;
-        }
-
-        return ctx.out();
+        return unvm::PrintString(ctx, unvm::pgp::ToString(algorithm));
     }
 };
 
@@ -1346,12 +1328,7 @@ struct std::formatter<unvm::pgp::HashAlgorithmID>
     template<typename C>
     auto format(const unvm::pgp::HashAlgorithmID algorithm, C &&ctx) const
     {
-        for (auto c : unvm::pgp::ToString(algorithm))
-        {
-            *ctx.out()++ = c;
-        }
-
-        return ctx.out();
+        return unvm::PrintString(ctx, unvm::pgp::ToString(algorithm));
     }
 };
 

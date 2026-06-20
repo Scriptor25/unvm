@@ -22,7 +22,7 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
         if (args.size() == 1)
         {
             std::cout << "latest lts ";
-            return List(config, client, true, true);
+            return List(config, client, true, true, false);
         }
 
         return {};
@@ -34,7 +34,7 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
         if (args.size() == 1)
         {
             std::cout << "latest lts ";
-            return List(config, client, false, true);
+            return List(config, client, false, true, false);
         }
 
         return {};
@@ -51,13 +51,13 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
         if (args.size() == 1)
         {
             std::cout << "none latest lts ";
-            return List(config, client, false, true);
+            return List(config, client, false, true, false);
         }
 
         return {};
     }
 
-    // list (-a|--available|-f|--flat)...
+    // list (-a|--available|-f|--flat|-d|--details)...
     if (args[0] == "l" || args[0] == "list")
     {
         if (!args.is("available"))
@@ -68,6 +68,11 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
         if (!args.is("flat"))
         {
             std::cout << "-f --flat ";
+        }
+
+        if (!args.is("details"))
+        {
+            std::cout << "-d --details ";
         }
 
         return {};

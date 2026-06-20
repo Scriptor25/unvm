@@ -11,8 +11,10 @@ toolkit::result<> unvm::Remove(Config &config, http::HttpClient &client, const s
         return res;
     }
 
+    FilterVersionTable(config, table, true, true);
+
     const auto entry = FindEffectiveVersion(table, version);
-    if (!entry || !config.Installed.contains(entry->Version))
+    if (!entry)
     {
         std::cerr << "version '" << version << "' is not installed." << std::endl;
         return {};
