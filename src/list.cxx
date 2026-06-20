@@ -68,13 +68,13 @@ toolkit::result<> unvm::List(
             out
                     << (config.Active == entry.Version ? "yes" : "")
                     << (entry.Security ? "yes" : "")
-                    << entry.LTS.value_or({})
+                    << entry.LTS.value_or(std::string())
                     << entry.Version
-                    << entry.NPM.value_or({})
+                    << entry.NPM.value_or(std::string())
                     << entry.V8
-                    << entry.UV.value_or({})
-                    << entry.ZLib.value_or({})
-                    << entry.OpenSSL.value_or({})
+                    << entry.UV.value_or(std::string())
+                    << entry.ZLib.value_or(std::string())
+                    << entry.OpenSSL.value_or(std::string())
                     << entry.Date
                     << std::to_string(entry.Modules);
         }
@@ -104,9 +104,9 @@ toolkit::result<> unvm::List(
 
             out
                     << (config.Active == entry.Version ? "*" : "")
-                    << entry.LTS.value_or({})
+                    << entry.LTS.value_or(std::string())
                     << entry.Version
-                    << entry.NPM.value_or({})
+                    << entry.NPM.value_or(std::string())
                     << entry.Date;
         }
     }
