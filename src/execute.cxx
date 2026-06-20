@@ -139,7 +139,7 @@ static toolkit::result<> shim(const std::string &version, const toolkit::arg_con
     return toolkit::make_error("failed to execute '{}': {}", node_path_str, error);
 }
 
-static toolkit::result<const unvm::VersionEntry *> find_version_entry(
+static toolkit::result<std::optional<unvm::VersionEntry>> find_version_entry(
     const unvm::Config &config,
     unvm::http::HttpClient &client,
     const std::string_view version,
@@ -155,7 +155,7 @@ static toolkit::result<const unvm::VersionEntry *> find_version_entry(
 
     if (auto *effective = FindEffectiveVersion(table, version))
     {
-        return effective;
+        return { std::move(*const_cast<unvm::VersionEntry *>(effective)) };
     }
 
     unvm::semver::RangeSet set;
@@ -177,10 +177,10 @@ static toolkit::result<const unvm::VersionEntry *> find_version_entry(
             continue;
         }
 
-        return &entry;
+        return { std::move(entry) };
     }
 
-    return nullptr;
+    return {};
 }
 
 toolkit::result<> unvm::Execute(
@@ -190,13 +190,11 @@ toolkit::result<> unvm::Execute(
     const bool yes,
     const toolkit::arg_context &context)
 {
-    const VersionEntry *version_entry{};
+    std::optional<VersionEntry> version_entry;
     if (auto res = find_version_entry(config, client, version, false) >> version_entry; !res)
     {
         return res;
     }
-
-    std::cerr << "version entry (offline): " << version_entry << std::endl;
 
     if (!version_entry)
     {
@@ -206,19 +204,13 @@ toolkit::result<> unvm::Execute(
         }
     }
 
-    std::cerr << "version entry (online): " << version_entry << std::endl;
-
     if (!version_entry)
     {
         return toolkit::make_error("no version matching '{}'.", version);
     }
 
-    std::cerr << "version: " << version_entry->Version << std::endl;
-
     if (!config.Installed.contains(version_entry->Version))
     {
-        std::cerr << "not installed yet" << std::endl;
-
         if (!yes)
         {
             std::cout << "version '" << version << "' is not installed." << std::endl;
@@ -229,14 +221,10 @@ toolkit::result<> unvm::Execute(
             }
         }
 
-        std::cerr << "install" << std::endl;
-
         if (auto res = Install(config, client, version, *version_entry); !res)
         {
             return res;
         }
-
-        std::cerr << "write config" << std::endl;
 
         if (auto res = WriteConfigFile(config); !res)
         {
@@ -244,11 +232,7 @@ toolkit::result<> unvm::Execute(
         }
     }
 
-    std::cerr << "set active" << std::endl;
-
     config.Active = version_entry->Version;
-
-    std::cerr << "execute shim" << std::endl;
 
     return shim(version_entry->Version, context);
 }
