@@ -61,4 +61,11 @@ namespace unvm
         const Config &config,
         http::HttpClient &client,
         const toolkit::arg_context &args);
+
+    [[nodiscard]] toolkit::result<> Execute(
+        Config &config,
+        http::HttpClient &client,
+        std::string_view version,
+        bool yes,
+        const toolkit::arg_context &context);
 }

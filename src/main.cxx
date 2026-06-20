@@ -9,15 +9,6 @@
 #include <filesystem>
 #include <iostream>
 
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
-#include <unistd.h>
-#endif
-
-#if defined(SYSTEM_WINDOWS)
-#include <process.h>
-#include <windows.h>
-#endif
-
 enum class Operation
 {
     Install,
@@ -25,6 +16,7 @@ enum class Operation
     Use,
     List,
     Complete,
+    Execute,
 };
 
 static const std::map<std::string_view, Operation> operation_map
@@ -39,6 +31,9 @@ static const std::map<std::string_view, Operation> operation_map
     { "l", Operation::List },
     { "complete", Operation::Complete },
     { "c", Operation::Complete },
+    { "execute", Operation::Execute },
+    { "exec", Operation::Execute },
+    { "x", Operation::Execute },
 };
 
 static const toolkit::arg_manifest manifest
@@ -69,6 +64,11 @@ static const toolkit::arg_manifest manifest
             .kind = toolkit::arg_kind::flag,
             .patterns = { "-d", "--details" },
         },
+        {
+            .id = "yes",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-y", "--yes" },
+        },
     },
 };
 
@@ -76,7 +76,7 @@ static toolkit::result<> execute(
     unvm::Config &config,
     unvm::http::HttpClient &client,
     const int argc,
-    const char *const*argv)
+    char **argv)
 {
     toolkit::arg_context args;
     if (auto res = toolkit::arg_parse(manifest, argc, argv) >> args; !res)
@@ -148,133 +148,44 @@ static toolkit::result<> execute(
         return unvm::Complete(config, client, context);
     }
 
-    default:
-        return toolkit::make_error("operation '{}' not implemented.", args[0]);
-    }
-}
-
-static void print_file_tree(const std::filesystem::path &path, const unsigned depth = {})
-{
-    std::cerr << std::string(depth * 2, ' ') << "+- " << path.filename().string() << std::endl;
-
-    if (is_directory(path))
-        for (auto &entry : std::filesystem::directory_iterator(path))
-            print_file_tree(entry.path(), depth + 1);
-}
-
-#if defined(SYSTEM_WINDOWS)
-
-[[noreturn]] static int execvp(const char *file, char *const argv[])
-{
-    std::string line;
-    for (size_t i = 0; argv[i]; ++i)
+    case Operation::Execute:
     {
-        std::string_view arg = argv[i];
-
-        if (arg.find(' ') != std::string_view::npos)
+        if (args.limit != 1 && args.limit != 2)
         {
-            line += '"';
-            line += arg;
-            line += '"';
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        std::string_view version;
+        if (args.limit == 1)
+        {
+            if (!config.Detected)
+            {
+                return toolkit::make_error("node is not active in the current context.");
+            }
+
+            version = *config.Detected;
         }
         else
         {
-            line += arg;
+            version = args[1];
         }
 
-        if (argv[i + 1])
-        {
-            line += ' ';
-        }
+        auto yes = args.is("yes");
+
+        std::vector<const char *> line(args.size() - args.limit);
+        for (auto i = args.limit; i < args.size(); ++i)
+            line[i - args.limit] = args[i].data();
+
+        toolkit::arg_context context;
+        if (auto res = toolkit::arg_parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
+            return res;
+
+        return unvm::Execute(config, client, version, yes, context);
     }
 
-    STARTUPINFOA si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof(si));
-    ZeroMemory(&pi, sizeof(pi));
-    si.cb = sizeof(si);
-
-    std::vector<char> buf(line.begin(), line.end());
-    buf.push_back(0);
-
-    auto ok = CreateProcessA(nullptr, buf.data(), nullptr, nullptr, false, 0, nullptr, nullptr, &si, &pi);
-
-    if (!ok)
-    {
-        std::cerr << "CreateProcess failed: " << GetLastError() << std::endl;
-        return 1;
+    default:
+        return toolkit::make_error("operation '{}' not implemented.", args[0]);
     }
-
-    WaitForSingleObject(pi.hProcess, INFINITE);
-
-    DWORD code = 1;
-    GetExitCodeProcess(pi.hProcess, &code);
-
-    CloseHandle(pi.hThread);
-    CloseHandle(pi.hProcess);
-
-    ExitProcess(code);
-}
-
-#endif
-
-static int shim(const std::string &version, const std::filesystem::path &exec, const int argc, char **argv)
-{
-    const auto data_directory = unvm::GetDataDirectory();
-
-#if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
-
-    const auto node_path = data_directory / version / "bin" / "node";
-    const auto npm_cli_path = data_directory / version / "lib" / "node_modules" / "npm" / "bin" / "npm-cli.js";
-    const auto npx_cli_path = data_directory / version / "lib" / "node_modules" / "npm" / "bin" / "npx-cli.js";
-
-#elif defined(SYSTEM_WINDOWS)
-
-    const auto node_path = data_directory / version / "node.exe";
-    const auto npm_cli_path = data_directory / version / "node_modules" / "npm" / "bin" / "npm-cli.js";
-    const auto npx_cli_path = data_directory / version / "node_modules" / "npm" / "bin" / "npx-cli.js";
-
-#endif
-
-    const auto node_path_str = node_path.string();
-    const auto npm_cli_path_str = npm_cli_path.string();
-    const auto npx_cli_path_str = npx_cli_path.string();
-
-    std::vector<char *> args;
-    args.reserve(argc + 3);
-
-    args.push_back(const_cast<char *>(node_path_str.c_str()));
-
-    const auto stem = exec.stem().string();
-
-    if (stem == "node")
-    {
-    }
-    else if (stem == "npm")
-    {
-        args.push_back(const_cast<char *>(npm_cli_path_str.c_str()));
-    }
-    else if (stem == "npx")
-    {
-        args.push_back(const_cast<char *>(npx_cli_path_str.c_str()));
-    }
-    else
-    {
-        std::cerr << "unsupported shim target '" << stem << "'." << std::endl;
-        return 1;
-    }
-
-    for (size_t i = 1; i < argc; ++i)
-    {
-        args.push_back(argv[i]);
-    }
-
-    args.push_back(nullptr);
-
-    const auto error = execvp(node_path_str.c_str(), args.data());
-
-    std::cerr << "failed to execute '" << node_path_str << "': " << error << "." << std::endl;
-    return 1;
 }
 
 int main(const int argc, char **argv)
@@ -293,17 +204,16 @@ int main(const int argc, char **argv)
 
     unvm::VersionType type{};
 
-    std::optional<std::string> maybe_active;
-    if (auto res = unvm::FindActiveVersion(config.Default, &type) >> maybe_active; !res)
+    if (auto res = unvm::FindActiveVersion(config.Default, &type) >> config.Detected; !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;
     }
 
-    if (maybe_active)
+    if (config.Detected)
     {
         unvm::semver::RangeSet set;
-        if (auto res = unvm::semver::ParseRangeSet(*maybe_active) >> set; !res)
+        if (auto res = unvm::semver::ParseRangeSet(*config.Detected) >> set; !res)
         {
             std::cerr << res.error() << std::endl;
             return 1;
@@ -354,76 +264,25 @@ int main(const int argc, char **argv)
         return 0;
     }
 
-    if (!maybe_active)
+    if (!config.Detected)
     {
         std::cerr << "node is not active in the current context." << std::endl;
         return 1;
     }
 
-    auto &version = *maybe_active;
-
-    if (!config.Active)
-    {
-        unvm::semver::RangeSet set;
-        if (auto res = unvm::semver::ParseRangeSet(version) >> set; !res)
-        {
-            std::cerr << res.error() << std::endl;
-            return 1;
-        }
-
-        unvm::VersionTable table;
-        if (auto res = unvm::LoadVersionTable(client, table, true); !res)
-        {
-            std::cerr << res.error() << std::endl;
-            return 1;
-        }
-
-        unvm::FilterVersionTable(config, table, true, false);
-
-        for (auto &entry : table)
-        {
-            bool in_range;
-            if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
-            {
-                std::cerr << res.error() << std::endl;
-                return 1;
-            }
-
-            if (!in_range)
-            {
-                continue;
-            }
-
-            std::cout << "version '" << version << "' is not installed." << std::endl;
-
-            if (!unvm::Confirm("install this version?"))
-            {
-                std::cerr << "version '" << version << "' is not installed." << std::endl;
-                return 1;
-            }
-
-            if (auto res = unvm::Install(config, client, version, entry); !res)
-            {
-                std::cerr << res.error() << std::endl;
-                return 1;
-            }
-
-            config.Active = entry.Version;
-            break;
-        }
-
-        if (!config.Active)
-        {
-            std::cerr << "no version matching '" << *config.Active << "'." << std::endl;
-            return 1;
-        }
-    }
-
-    if (auto res = unvm::WriteConfigFile(config); !res)
+    toolkit::arg_context context;
+    if (auto res = toolkit::arg_parse(manifest, argc, argv) >> context; !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;
     }
 
-    return shim(*config.Active, exec, argc, argv);
+    if (auto res = unvm::Execute(config, client, *config.Detected, false, context); !res)
+    {
+        std::cerr << res.error() << std::endl;
+        return 1;
+    }
+
+    std::cerr << "unhandled state reached." << std::endl;
+    return 1;
 }
