@@ -146,21 +146,26 @@ toolkit::result<> unvm::Execute(
     bool yes,
     const toolkit::arg_context &context)
 {
-    if (!config.Active)
+    VersionTable table;
+    if (auto res = LoadVersionTable(client, table, true); !res)
+    {
+        return res;
+    }
+
+    FilterVersionTable(config, table, true, false);
+
+    const VersionEntry *version_entry{};
+    if (auto *effective = FindEffectiveVersion(table, version))
+    {
+        version_entry = effective;
+    }
+    else
     {
         semver::RangeSet set;
         if (auto res = semver::ParseRangeSet(version) >> set; !res)
         {
             return res;
         }
-
-        VersionTable table;
-        if (auto res = LoadVersionTable(client, table, true); !res)
-        {
-            return res;
-        }
-
-        FilterVersionTable(config, table, true, false);
 
         for (auto &entry : table)
         {
@@ -175,34 +180,39 @@ toolkit::result<> unvm::Execute(
                 continue;
             }
 
-            if (!yes)
-            {
-                std::cout << "version '" << version << "' is not installed." << std::endl;
-
-                if (!Confirm("install this version?"))
-                {
-                    return toolkit::make_error("version '{}' is not installed.", version);
-                }
-            }
-
-            if (auto res = Install(config, client, version, entry); !res)
-            {
-                return res;
-            }
-
-            config.Active = entry.Version;
+            version_entry = &entry;
             break;
-        }
-
-        if (!config.Active)
-        {
-            return toolkit::make_error("no version matching '{}'.", version);
         }
     }
 
-    if (auto res = WriteConfigFile(config); !res)
+    if (!version_entry)
     {
-        return res;
+        return toolkit::make_error("no version matching '{}'.", version);
+    }
+
+    config.Active = version_entry->Version;
+
+    if (!config.Installed.contains(version_entry->Version))
+    {
+        if (!yes)
+        {
+            std::cout << "version '" << version << "' is not installed." << std::endl;
+
+            if (!Confirm("install this version?"))
+            {
+                return toolkit::make_error("version '{}' is not installed.", version);
+            }
+        }
+
+        if (auto res = Install(config, client, version, *version_entry); !res)
+        {
+            return res;
+        }
+
+        if (auto res = WriteConfigFile(config); !res)
+        {
+            return res;
+        }
     }
 
     return shim(*config.Active, context);
