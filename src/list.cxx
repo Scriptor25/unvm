@@ -9,7 +9,8 @@ toolkit::result<> unvm::List(
     const Config &config,
     http::HttpClient &client,
     const bool available,
-    const bool flat)
+    const bool flat,
+    const bool details)
 {
     VersionTable table;
     if (auto res = LoadVersionTable(client, table, available); !res)
@@ -17,34 +18,21 @@ toolkit::result<> unvm::List(
         return res;
     }
 
+    FilterVersionTable(config, table, true, !available);
+
     if (flat)
     {
         std::unordered_set<std::string> versions;
 
         for (auto &entry : table)
         {
-            if (available || config.Installed.contains(entry.Version))
+            versions.insert(entry.Version);
+            versions.insert(entry.Version.substr(1));
+
+            if (entry.LTS)
             {
-                for (size_t pos = 0; (pos = entry.Version.find('.', pos)), true; ++pos)
-                {
-                    auto str = entry.Version.substr(0, pos);
-
-                    versions.insert(str);
-
-                    if (str.front() == 'v')
-                    {
-                        versions.insert(str.substr(1));
-                    }
-
-                    if (pos == std::string::npos)
-                        break;
-                }
-
-                if (entry.Lts && !versions.contains(*entry.Lts))
-                {
-                    versions.insert(*entry.Lts);
-                    versions.insert(toolkit::lowercase(*entry.Lts));
-                }
+                versions.insert(*entry.LTS);
+                versions.insert(toolkit::lowercase(*entry.LTS));
             }
         }
 
@@ -56,27 +44,70 @@ toolkit::result<> unvm::List(
         return {};
     }
 
-    Table out(
-        {
-            { {}, false },
-            { "Lts", true },
-            { "Version", true },
-            { "Npm", true },
-            { "Date", true },
-            { "Modules", false }
-        });
+    Table out;
 
-    for (auto &entry : table)
+    if (details)
     {
-        if (available || config.Installed.contains(entry.Version))
+        out.Init(
+            {
+                { "Installed", true },
+                { "Security", true },
+                { "LTS", true },
+                { "Version", true },
+                { "NPM", true },
+                { "V8", true },
+                { "UV", true },
+                { "ZLib", true },
+                { "OpenSSL", true },
+                { "Date", true },
+                { "Modules", false },
+            });
+
+        for (auto &entry : table)
         {
             out
-                    << (config.Active == entry.Version ? "*" : "")
-                    << entry.Lts.value_or(std::string())
+                    << (config.Active == entry.Version ? "yes" : "")
+                    << (entry.Security ? "yes" : "")
+                    << entry.LTS.value_or(std::string())
                     << entry.Version
-                    << entry.Npm.value_or(std::string())
+                    << entry.NPM.value_or(std::string())
+                    << entry.V8
+                    << entry.UV.value_or(std::string())
+                    << entry.ZLib.value_or(std::string())
+                    << entry.OpenSSL.value_or(std::string())
                     << entry.Date
-                    << entry.Modules.value_or(std::string());
+                    << std::to_string(entry.Modules);
+        }
+    }
+    else
+    {
+        out.Init(
+            {
+                { {}, false },
+                { "LTS", true },
+                { "Version", true },
+                { "NPM", true },
+                { "Date", true },
+            });
+
+        std::unordered_set<std::string> major_versions;
+
+        for (auto &entry : table)
+        {
+            auto segments = toolkit::split(entry.Version, '.');
+            if (available && major_versions.contains(segments.front()))
+            {
+                continue;
+            }
+
+            major_versions.insert(segments.front());
+
+            out
+                    << (config.Active == entry.Version ? "*" : "")
+                    << entry.LTS.value_or(std::string())
+                    << entry.Version
+                    << entry.NPM.value_or(std::string())
+                    << entry.Date;
         }
     }
 

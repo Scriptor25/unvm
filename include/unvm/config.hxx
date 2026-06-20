@@ -14,6 +14,7 @@ namespace unvm
         std::optional<std::string> Default;
 
         std::optional<std::string> Active;
+        std::optional<std::string> Detected;
 
         std::unordered_set<std::string> Fingerprints;
     };

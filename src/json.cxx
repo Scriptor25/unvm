@@ -1,4 +1,5 @@
 #include <unvm/json.hxx>
+#include <unvm/util.hxx>
 
 bool data::serializer<std::filesystem::path>::from_data(const json::Node &node, std::filesystem::path &value)
 {
@@ -54,23 +55,53 @@ bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unv
     ok &= node["version"] >> value.Version;
     ok &= node["date"] >> value.Date;
     ok &= node["files"] >> value.Files;
-    ok &= node["npm"] >> value.Npm;
+    ok &= node["npm"] >> value.NPM;
     ok &= node["v8"] >> value.V8;
-    ok &= node["uv"] >> value.Uv;
+    ok &= node["uv"] >> value.UV;
     ok &= node["zlib"] >> value.ZLib;
     ok &= node["openssl"] >> value.OpenSSL;
-    ok &= node["modules"] >> value.Modules;
-    ok &= node["security"] >> value.Security;
+
+    std::optional<std::string> modules;
+    ok &= node["modules"] >> modules;
+
+    if (modules)
+    {
+        auto &m = *modules;
+
+        int base;
+
+        if (m.starts_with("0b"))
+        {
+            base = 2;
+            m = m.substr(2);
+        }
+        else if (m.starts_with("0x"))
+        {
+            base = 16;
+            m = m.substr(2);
+        }
+        else
+        {
+            base = 10;
+        }
+
+        if (const auto res = unvm::ParseString<uint16_t>(m, base) >> value.Modules; !res)
+        {
+            ok = false;
+        }
+    }
 
     auto &lts = node["lts"];
     if (bool val; lts >> val && !val)
     {
-        value.Lts = std::nullopt;
+        value.LTS = std::nullopt;
     }
     else
     {
-        ok &= lts >> value.Lts;
+        ok &= lts >> value.LTS;
     }
+
+    ok &= node["security"] >> value.Security;
 
     return ok;
 }

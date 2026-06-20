@@ -84,14 +84,14 @@ namespace unvm::semver
     public:
         explicit Parser(std::istream &stream);
 
-        toolkit::result<RangeSet> Parse();
+        [[nodiscard]] toolkit::result<RangeSet> Parse();
 
-        toolkit::result<Primitive> ParsePrimitive();
-        toolkit::result<Partial> ParsePartial();
-        toolkit::result<Version> ParseVersion();
+        [[nodiscard]] toolkit::result<Primitive> ParsePrimitive();
+        [[nodiscard]] toolkit::result<Partial> ParsePartial();
+        [[nodiscard]] toolkit::result<Version> ParseVersion();
 
-        toolkit::result<bool> ParsePossibleWildcard(uint32_t &value);
-        toolkit::result<> ParseVersionPart(uint32_t &value);
+        [[nodiscard]] toolkit::result<bool> ParsePossibleWildcard(uint32_t &value);
+        [[nodiscard]] toolkit::result<> ParseVersionPart(uint32_t &value);
 
         [[nodiscard]] bool At(const std::set<std::string_view> &set) const;
 
@@ -109,10 +109,10 @@ namespace unvm::semver
             return Skip(std::set<std::string_view>{ s... });
         }
 
-        toolkit::result<std::string> Expect(const std::set<std::string_view> &set);
+        [[nodiscard]] toolkit::result<std::string> Expect(const std::set<std::string_view> &set);
 
         template<string_type... S>
-        toolkit::result<std::string> Expect(S... s)
+        [[nodiscard]] toolkit::result<std::string> Expect(S... s)
         {
             return Expect(std::set<std::string_view>{ s... });
         }
@@ -126,13 +126,13 @@ namespace unvm::semver
         std::string m_Token;
     };
 
-    toolkit::result<RangeSet> ParseRangeSet(std::istream &stream);
-    toolkit::result<RangeSet> ParseRangeSet(std::string_view str);
-    toolkit::result<RangeSet> ParseRangeSet(const std::string &str);
+    [[nodiscard]] toolkit::result<RangeSet> ParseRangeSet(std::istream &stream);
+    [[nodiscard]] toolkit::result<RangeSet> ParseRangeSet(std::string_view str);
+    [[nodiscard]] toolkit::result<RangeSet> ParseRangeSet(const std::string &str);
 
-    toolkit::result<bool> IsInRange(const RangeSet &set, std::string_view version);
-    toolkit::result<bool> IsInRange(const RangeSet &set, const std::string &version);
-    toolkit::result<bool> IsInRange(const RangeSet &set, const Version &version);
+    [[nodiscard]] toolkit::result<bool> IsInRange(const RangeSet &set, std::string_view version);
+    [[nodiscard]] toolkit::result<bool> IsInRange(const RangeSet &set, const std::string &version);
+    [[nodiscard]] toolkit::result<bool> IsInRange(const RangeSet &set, const Version &version);
 
     bool operator==(const Partial &a, const Partial &b);
     bool operator<(const Partial &a, const Partial &b);

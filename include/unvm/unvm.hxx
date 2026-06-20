@@ -14,48 +14,58 @@ namespace unvm
 {
     void PrintManual();
 
-    toolkit::result<> LoadVersionTable(
+    [[nodiscard]] toolkit::result<> LoadVersionTable(
         http::HttpClient &client,
         VersionTable &table,
         bool online);
+
+    void FilterVersionTable(const Config &config, VersionTable &table, bool supported, bool installed);
 
     const VersionEntry *FindEffectiveVersion(
         const VersionTable &table,
         std::string_view version);
 
-    toolkit::result<> UnpackArchive(
+    [[nodiscard]] toolkit::result<> UnpackArchive(
         std::istream &stream,
         const std::filesystem::path &directory);
 
-    toolkit::result<> Install(
+    [[nodiscard]] toolkit::result<> Install(
         Config &config,
         http::HttpClient &client,
         std::string_view version,
         const VersionEntry &entry);
-    toolkit::result<> Install(
+    [[nodiscard]] toolkit::result<> Install(
         Config &config,
         http::HttpClient &client,
         std::string_view version);
 
-    toolkit::result<> Remove(
+    [[nodiscard]] toolkit::result<> Remove(
         Config &config,
         http::HttpClient &client,
         std::string_view version);
 
-    toolkit::result<> Use(
+    [[nodiscard]] toolkit::result<> Use(
         Config &config,
         http::HttpClient &client,
         std::string_view version,
         bool local);
 
-    toolkit::result<> List(
+    [[nodiscard]] toolkit::result<> List(
         const Config &config,
         http::HttpClient &client,
         bool available,
-        bool flat);
+        bool flat,
+        bool details);
 
-    toolkit::result<> Complete(
+    [[nodiscard]] toolkit::result<> Complete(
         const Config &config,
         http::HttpClient &client,
         const toolkit::arg_context &args);
+
+    [[nodiscard]] toolkit::result<> Execute(
+        Config &config,
+        http::HttpClient &client,
+        std::string_view version,
+        bool yes,
+        const toolkit::arg_context &context);
 }

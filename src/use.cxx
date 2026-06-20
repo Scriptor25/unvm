@@ -5,24 +5,24 @@
 
 toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std::string_view version, const bool local)
 {
-    std::optional<std::string> active;
+    std::optional<std::string> maybe_active;
     VersionType type;
 
     if (local)
     {
-        if (auto res = FindActiveVersion(active, &type); !res)
+        if (auto res = FindActiveVersion(config.Default, &type) >> maybe_active; !res)
         {
             return toolkit::make_error("failed to find active version: {}", res.error());
         }
     }
     else if (config.Default)
     {
-        active = *config.Default;
+        maybe_active = *config.Default;
     }
 
     if (version == "none")
     {
-        if (!active)
+        if (!maybe_active)
         {
             std::cerr << "node is already not active in the current context." << std::endl;
             return {};
@@ -59,13 +59,15 @@ toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std:
         return res;
     }
 
+    FilterVersionTable(config, table, true, true);
+
     const auto entry = FindEffectiveVersion(table, version);
-    if (!entry || !config.Installed.contains(entry->Version))
+    if (!entry)
     {
         return toolkit::make_error("version '{}' is not installed.", version);
     }
 
-    if (active && *active == entry->Version)
+    if (maybe_active && *maybe_active == entry->Version)
     {
         std::cerr << "version '" << version << "' is already active in the current context." << std::endl;
         return {};

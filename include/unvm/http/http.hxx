@@ -121,7 +121,10 @@ namespace unvm::http
         std::ostream *Body;
     };
 
-    toolkit::result<> ParseStatus(std::istream &stream, HttpStatusCode &status_code, std::string &status_message);
+    [[nodiscard]] toolkit::result<> ParseStatus(
+        std::istream &stream,
+        HttpStatusCode &status_code,
+        std::string &status_message);
     void ParseHeaders(std::istream &stream, HttpHeaders &headers);
 
     struct HttpTransport
@@ -138,8 +141,8 @@ namespace unvm::http
         HttpClient();
         ~HttpClient();
 
-        toolkit::result<> Fetch(HttpRequest request, HttpResponse &response) const;
-        toolkit::result<> FetchWithRedirects(HttpRequest request, HttpResponse &response) const;
+        [[nodiscard]] toolkit::result<> Fetch(HttpRequest request, HttpResponse &response) const;
+        [[nodiscard]] toolkit::result<> FetchWithRedirects(HttpRequest request, HttpResponse &response) const;
 
     private:
         struct State;

@@ -81,3 +81,23 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
 
     return {};
 }
+
+void unvm::FilterVersionTable(const Config &config, VersionTable &table, const bool supported, const bool installed)
+{
+    const std::string pattern(platform.Pattern);
+
+    for (auto it = table.begin(); it != table.end();)
+    {
+        const auto is_supported = it->Files.contains(pattern);
+        const auto is_installed = config.Installed.contains(it->Version);
+
+        if ((supported && !is_supported) || (installed && !is_installed))
+        {
+            it = table.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}

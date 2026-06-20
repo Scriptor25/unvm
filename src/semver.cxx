@@ -680,8 +680,8 @@ static int compare_pre_release(const std::vector<std::string> &a, const std::vec
 
     for (size_t i = 0; i < count; ++i)
     {
-        auto &a_entry = a.at(i);
-        auto &b_entry = b.at(i);
+        auto &a_entry = a[i];
+        auto &b_entry = b[i];
 
         const auto a_numeric = is_numeric(a_entry);
         const auto b_numeric = is_numeric(b_entry);

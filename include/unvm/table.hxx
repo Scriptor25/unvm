@@ -23,10 +23,11 @@ namespace unvm
             bool Left;
         };
 
-        explicit Table(std::vector<Column> columns)
-            : m_Columns(std::move(columns))
-        {
-        }
+        Table() = default;
+
+        void Init(std::vector<Column> columns);
+
+        explicit Table(std::vector<Column> columns);
 
         Table &operator<<(std::string &&entry);
         Table &operator<<(const std::string &entry);

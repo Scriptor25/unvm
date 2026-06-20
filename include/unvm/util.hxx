@@ -1,10 +1,12 @@
 #pragma once
 
 #include <toolkit/result.hxx>
+#include <toolkit/string.hxx>
 
 #include <charconv>
 #include <filesystem>
 #include <format>
+#include <iostream>
 #include <map>
 #include <optional>
 #include <ostream>
@@ -34,22 +36,40 @@ namespace unvm
 
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
 
-    toolkit::result<> ReadConfigFile(Config &config);
-    toolkit::result<> WriteConfigFile(const Config &config);
+    [[nodiscard]] toolkit::result<> ReadConfigFile(Config &config);
+    [[nodiscard]] toolkit::result<> WriteConfigFile(const Config &config);
 
-    toolkit::result<> FindActiveVersion(std::optional<std::string> &version, VersionType *type = {});
+    [[nodiscard]] toolkit::result<std::optional<std::string>> FindActiveVersion(
+        const std::optional<std::string> &def,
+        VersionType *type = {});
 
     bool FindVersionFile(std::filesystem::path &path);
 
-    toolkit::result<> ReadVersionFile(std::optional<std::string> &version);
-    toolkit::result<> WriteVersionFile(const std::string &version);
-    toolkit::result<> RemoveVersionFile();
+    [[nodiscard]] toolkit::result<> ReadVersionFile(std::optional<std::string> &version);
+    [[nodiscard]] toolkit::result<> WriteVersionFile(const std::string &version);
+    [[nodiscard]] toolkit::result<> RemoveVersionFile();
 
-    template<typename T>
-    toolkit::result<T> ParseString(const std::string &str)
+    template<std::integral T>
+    [[nodiscard]] toolkit::result<T> ParseString(
+        const std::string &str,
+        int base = 10)
     {
         T value;
-        auto [_, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
+        auto [_, ec] = std::from_chars(str.data(), str.data() + str.size(), value, base);
+        if (ec != std::errc())
+        {
+            return toolkit::make_error("failed to parse '{}': {}", str, ec);
+        }
+        return value;
+    }
+
+    template<std::floating_point T>
+    [[nodiscard]] toolkit::result<T> ParseString(
+        const std::string &str,
+        std::chars_format fmt = std::chars_format::general)
+    {
+        T value;
+        auto [_, ec] = std::from_chars(str.data(), str.data() + str.size(), value, fmt);
         if (ec != std::errc())
         {
             return toolkit::make_error("failed to parse '{}': {}", str, ec);
@@ -58,6 +78,36 @@ namespace unvm
     }
 
     std::string GetSSLErrorStack();
+
+    template<typename... M>
+    std::string Prompt(const M &... message)
+    {
+        (std::cout << ... << message) << std::flush;
+
+        std::string input;
+        std::getline(std::cin, input);
+
+        return input;
+    }
+
+    template<typename... M>
+    bool Confirm(const M &... message)
+    {
+        auto input = toolkit::lowercase(Prompt(message..., " [y/N]: "));
+
+        return input == "y" || input == "yes";
+    }
+
+    template<typename C>
+    auto PrintString(C &&ctx, std::string_view str)
+    {
+        for (auto c : str)
+        {
+            *ctx.out()++ = c;
+        }
+
+        return ctx.out();
+    }
 }
 
 template<typename K, typename V>
@@ -79,13 +129,13 @@ template<>
 struct std::formatter<std::errc>
 {
     template<typename C>
-    constexpr auto parse(C &ctx)
+    constexpr auto parse(C &&ctx)
     {
         return ctx.begin();
     }
 
     template<typename C>
-    auto format(const std::errc &value, C &ctx) const
+    auto format(const std::errc &value, C &&ctx) const
     {
         static const std::unordered_map<std::errc, const char *> map
         {
@@ -170,14 +220,12 @@ struct std::formatter<std::errc>
             { std::errc::wrong_protocol_type, "wrong_protocol_type" },
         };
 
-        std::string_view str = map.at(value);
-
-        for (auto &c : str)
+        if (const auto it = map.find(value); it != map.end())
         {
-            *ctx.out()++ = c;
+            return unvm::PrintString(ctx, it->second);
         }
 
-        return ctx.out();
+        return unvm::PrintString(ctx, "undefined");
     }
 };
 
@@ -217,11 +265,6 @@ struct std::formatter<std::set<T>>
             str += *it;
         }
 
-        for (auto &c : str)
-        {
-            *ctx.out()++ = c;
-        }
-
-        return ctx.out();
+        return unvm::PrintString(ctx, str);
     }
 };

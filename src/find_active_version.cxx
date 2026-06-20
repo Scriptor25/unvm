@@ -3,9 +3,7 @@
 
 #include <fstream>
 
-static toolkit::result<> read_exact_version(
-    const std::filesystem::path &path,
-    std::optional<std::string> &version)
+[[nodiscard]] static toolkit::result<std::string> read_exact_version(const std::filesystem::path &path)
 {
     std::ifstream stream(path);
     if (!stream)
@@ -16,13 +14,10 @@ static toolkit::result<> read_exact_version(
     std::string line;
     std::getline(stream, line);
 
-    version = std::move(line);
-    return {};
+    return line;
 }
 
-static toolkit::result<> read_package_version(
-    const std::filesystem::path &path,
-    std::optional<std::string> &version)
+[[nodiscard]] static toolkit::result<std::optional<std::string>> read_package_version(const std::filesystem::path &path)
 {
     std::ifstream stream(path);
     if (!stream)
@@ -44,52 +39,55 @@ static toolkit::result<> read_package_version(
         return toolkit::make_error("failed to convert key 'engines.node' in '{}' to string.", path.string());
     }
 
-    if (maybe)
-    {
-        version = *std::move(maybe);
-    }
-
-    return {};
+    return maybe;
 }
 
-toolkit::result<> unvm::FindActiveVersion(std::optional<std::string> &version, VersionType *type)
+toolkit::result<std::optional<std::string>> unvm::FindActiveVersion(
+    const std::optional<std::string> &def,
+    VersionType *type)
 {
-    const auto current_path = std::filesystem::weakly_canonical(std::filesystem::current_path());
+    bool has_package_json{};
 
-    for (auto parent_path = current_path;;)
+    for (auto parent_path = std::filesystem::weakly_canonical(std::filesystem::current_path());;)
     {
-        if (auto entry = parent_path / ".unvm"; std::filesystem::exists(entry))
+        if (!has_package_json)
         {
-            if (auto res = read_exact_version(entry, version); !res)
+            if (auto entry = parent_path / ".unvm"; std::filesystem::exists(entry))
             {
-                return res;
-            }
+                std::string line;
+                if (auto res = read_exact_version(entry) >> line; !res)
+                {
+                    return res;
+                }
 
-            if (version)
-            {
                 if (type)
                 {
                     *type = VersionType::Exact;
                 }
-                return {};
+
+                return { std::move(line) };
             }
         }
 
         if (auto entry = parent_path / "package.json"; std::filesystem::exists(entry))
         {
-            if (auto res = read_package_version(entry, version); !res)
+            std::optional<std::string> line;
+            if (auto res = read_package_version(entry) >> line; !res)
             {
                 return res;
             }
 
-            if (version)
+            if (line)
             {
                 if (type)
                 {
                     *type = VersionType::Package;
                 }
-                return {};
+
+                return line;
             }
+
+            has_package_json = true;
         }
 
         auto next = parent_path.parent_path();
@@ -97,9 +95,10 @@ toolkit::result<> unvm::FindActiveVersion(std::optional<std::string> &version, V
         {
             if (type)
             {
-                *type = VersionType::Default;
+                *type = has_package_json ? VersionType::Package : VersionType::Default;
             }
-            return {};
+
+            return def;
         }
 
         parent_path = next;

@@ -174,8 +174,6 @@ jobs:
         run: |
           ./build/install/bin/unvm list
           ./build/install/bin/unvm list --available
-          ./build/install/bin/unvm l
-          ./build/install/bin/unvm l --available
 
       - name: Test (integration, global)
         run: |
@@ -203,9 +201,9 @@ jobs:
           mkdir test
           cd test
           echo '{"name":"test","version":"1.0.0","engines":{"node":">=18 <21"}}' > package.json
-          ../build/install/bin/node --version
-          ../build/install/bin/npm --version
-          ../build/install/bin/npx --version
+          ../build/install/bin/unvm execute --yes -- node --version
+          ../build/install/bin/unvm execute --yes -- npm --version
+          ../build/install/bin/unvm execute --yes -- npx --version
           rm package.json
           cd ..
           rmdir test
