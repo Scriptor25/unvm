@@ -196,6 +196,8 @@ toolkit::result<> unvm::Execute(
         return res;
     }
 
+    std::cerr << "version entry (offline): " << version_entry << std::endl;
+
     if (!version_entry)
     {
         if (auto res = find_version_entry(config, client, version, true) >> version_entry; !res)
@@ -204,13 +206,19 @@ toolkit::result<> unvm::Execute(
         }
     }
 
+    std::cerr << "version entry (online): " << version_entry << std::endl;
+
     if (!version_entry)
     {
         return toolkit::make_error("no version matching '{}'.", version);
     }
 
+    std::cerr << "version: " << version_entry->Version << std::endl;
+
     if (!config.Installed.contains(version_entry->Version))
     {
+        std::cerr << "not installed yet" << std::endl;
+
         if (!yes)
         {
             std::cout << "version '" << version << "' is not installed." << std::endl;
@@ -221,10 +229,14 @@ toolkit::result<> unvm::Execute(
             }
         }
 
+        std::cerr << "install" << std::endl;
+
         if (auto res = Install(config, client, version, *version_entry); !res)
         {
             return res;
         }
+
+        std::cerr << "write config" << std::endl;
 
         if (auto res = WriteConfigFile(config); !res)
         {
@@ -232,7 +244,11 @@ toolkit::result<> unvm::Execute(
         }
     }
 
+    std::cerr << "set active" << std::endl;
+
     config.Active = version_entry->Version;
+
+    std::cerr << "execute shim" << std::endl;
 
     return shim(version_entry->Version, context);
 }
