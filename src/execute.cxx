@@ -208,12 +208,11 @@ toolkit::result<> unvm::Execute(
         {
             return res;
         }
-    }
 
-
-    if (auto res = WriteConfigFile(config); !res)
-    {
-        return res;
+        if (auto res = WriteConfigFile(config); !res)
+        {
+            return res;
+        }
     }
 
     return shim(*config.Active, context);
