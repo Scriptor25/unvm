@@ -190,7 +190,7 @@ toolkit::result<> unvm::Execute(
     const bool yes,
     const toolkit::arg_context &context)
 {
-    const VersionEntry *version_entry;
+    const VersionEntry *version_entry{};
     if (auto res = find_version_entry(config, client, version, false) >> version_entry; !res)
     {
         return res;
