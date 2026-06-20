@@ -22,7 +22,7 @@ static void print_file_tree(const std::filesystem::path &path, const unsigned de
 
 #if defined(SYSTEM_WINDOWS)
 
-[[noreturn]] static int execvp(const char *file, char **argv)
+static int execvp(const char *file, char **argv)
 {
     std::string line;
     for (size_t i = 0; argv[i]; ++i)
