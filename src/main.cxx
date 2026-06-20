@@ -151,6 +151,8 @@ static toolkit::result<> execute(
 
     case Operation::Execute:
     {
+        std::cerr << "A" << std::endl;
+
         auto count = args.limit != ~size_t() ? args.limit : args.size();
 
         if (count != 1 && count != 2)

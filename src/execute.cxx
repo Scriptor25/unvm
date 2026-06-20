@@ -190,11 +190,15 @@ toolkit::result<> unvm::Execute(
     const bool yes,
     const toolkit::arg_context &context)
 {
+    std::cerr << "B" << std::endl;
+
     const VersionEntry *version_entry{};
     if (auto res = find_version_entry(config, client, version, false) >> version_entry; !res)
     {
         return res;
     }
+
+    std::cerr << "C" << std::endl;
 
     if (!version_entry)
     {
@@ -204,10 +208,14 @@ toolkit::result<> unvm::Execute(
         }
     }
 
+    std::cerr << "D" << std::endl;
+
     if (!version_entry)
     {
         return toolkit::make_error("no version matching '{}'.", version);
     }
+
+    std::cerr << "E" << std::endl;
 
     config.Active = version_entry->Version;
 
@@ -233,6 +241,8 @@ toolkit::result<> unvm::Execute(
             return res;
         }
     }
+
+    std::cerr << "F" << std::endl;
 
     return shim(*config.Active, context);
 }
