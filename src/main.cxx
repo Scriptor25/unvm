@@ -33,6 +33,7 @@ static const std::map<std::string_view, Operation> operation_map
     { "c", Operation::Complete },
     { "execute", Operation::Execute },
     { "exec", Operation::Execute },
+    { "e", Operation::Execute },
     { "x", Operation::Execute },
 };
 
@@ -150,13 +151,15 @@ static toolkit::result<> execute(
 
     case Operation::Execute:
     {
-        if (args.limit != 1 && args.limit != 2)
+        auto count = args.limit != ~size_t() ? args.limit : args.size();
+
+        if (count != 1 && count != 2)
         {
             return toolkit::make_error("invalid argument count.");
         }
 
         std::string_view version;
-        if (args.limit == 1)
+        if (count == 1)
         {
             if (!config.Detected)
             {
@@ -172,9 +175,9 @@ static toolkit::result<> execute(
 
         auto yes = args.is("yes");
 
-        std::vector<const char *> line(args.size() - args.limit);
-        for (auto i = args.limit; i < args.size(); ++i)
-            line[i - args.limit] = args[i].data();
+        std::vector<const char *> line(args.size() - count);
+        for (auto i = count; i < args.size(); ++i)
+            line[i - count] = args[i].data();
 
         toolkit::arg_context context;
         if (auto res = toolkit::arg_parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
