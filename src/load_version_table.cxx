@@ -27,12 +27,18 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
     auto data_directory = GetDataDirectory();
     auto index = data_directory / "index.json";
 
-    auto last_write = std::filesystem::last_write_time(index);
-    auto now = std::filesystem::file_time_type::clock::now();
+    bool is_stale{};
+    if (online && std::filesystem::exists(index))
+    {
+        constexpr auto stale = std::chrono::hours(24);
 
-    constexpr auto stale = std::chrono::hours(24);
+        auto last_write = std::filesystem::last_write_time(index);
+        auto now = std::filesystem::file_time_type::clock::now();
 
-    if (auto is_stale = now - last_write > stale; (online && is_stale) || !std::filesystem::exists(index))
+        is_stale = now - last_write > stale;
+    }
+
+    if ((online && is_stale) || !std::filesystem::exists(index))
     {
         std::stringstream stream;
 
