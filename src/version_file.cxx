@@ -7,7 +7,7 @@ bool unvm::FindVersionFile(std::filesystem::path &path)
 {
     for (auto parent_path = std::filesystem::weakly_canonical(std::filesystem::current_path());;)
     {
-        if (auto entry = parent_path / ".unvm"; exists(entry))
+        if (auto entry = parent_path / ".unvm"; std::filesystem::exists(entry))
         {
             path = std::move(entry);
             return true;
