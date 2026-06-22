@@ -1,4 +1,5 @@
 #include <unvm/json.hxx>
+#include <unvm/lock.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 #include <unvm/http/url.hxx>
@@ -25,20 +26,33 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
      */
 
     auto data_directory = GetDataDirectory();
-    auto index = data_directory / "index.json";
+
+    if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)
+    {
+        return toolkit::make_error("failed to create data directory: {} ({}).", ec.message(), ec.value());
+    }
+
+    auto index_path = data_directory / "index.json";
+    auto lock_path = data_directory / "index.lock";
+
+    FileLock lock;
+    if (auto res = FileLock::Lock(lock_path) >> lock; !res)
+    {
+        return res;
+    }
 
     bool is_stale{};
-    if (online && std::filesystem::exists(index))
+    if (online && std::filesystem::exists(index_path))
     {
-        constexpr auto stale = std::chrono::hours(24);
+        constexpr auto stale = std::chrono::hours(1);
 
-        auto last_write = std::filesystem::last_write_time(index);
+        auto last_write = std::filesystem::last_write_time(index_path);
         auto now = std::filesystem::file_time_type::clock::now();
 
         is_stale = now - last_write > stale;
     }
 
-    if ((online && is_stale) || !std::filesystem::exists(index))
+    if ((online && is_stale) || !std::filesystem::exists(index_path))
     {
         std::stringstream stream;
 
@@ -74,13 +88,13 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
             return toolkit::make_error("failed to parse table json.");
         }
 
-        std::ofstream file(index);
+        std::ofstream file(index_path);
         file << node;
 
         return {};
     }
 
-    std::ifstream stream(index);
+    std::ifstream stream(index_path);
 
     json::Node node;
     stream >> node;
