@@ -37,7 +37,7 @@ namespace unvm
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
 
     [[nodiscard]] toolkit::result<> ReadConfigFile(Config &config);
-    [[nodiscard]] toolkit::result<> WriteConfigFile(const Config &config);
+    [[nodiscard]] toolkit::result<> WriteConfigFile(Config &config);
 
     [[nodiscard]] toolkit::result<std::optional<std::string>> FindActiveVersion(
         const std::optional<std::string> &def,

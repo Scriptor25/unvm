@@ -1,14 +1,19 @@
+#include <unvm/lock.hxx>
 #include <unvm/semver.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
 #if defined(SYSTEM_LINUX) || defined(SYSTEM_ANDROID) || defined(SYSTEM_DARWIN)
+
 #include <unistd.h>
+
 #endif
 
 #if defined(SYSTEM_WINDOWS)
+
 #include <process.h>
 #include <windows.h>
+
 #endif
 
 static void print_file_tree(const std::filesystem::path &path, const unsigned depth = {})
@@ -190,49 +195,59 @@ toolkit::result<> unvm::Execute(
     const bool yes,
     const toolkit::arg_context &context)
 {
-    std::optional<VersionEntry> version_entry;
-    if (auto res = find_version_entry(config, client, version, false) >> version_entry; !res)
+    std::optional<VersionEntry> entry;
+    if (auto res = find_version_entry(config, client, version, false) >> entry; !res)
     {
         return res;
     }
 
-    if (!version_entry)
+    if (!entry)
     {
-        if (auto res = find_version_entry(config, client, version, true) >> version_entry; !res)
+        if (auto res = find_version_entry(config, client, version, true) >> entry; !res)
         {
             return res;
         }
     }
 
-    if (!version_entry)
+    if (!entry)
     {
         return toolkit::make_error("no version matching '{}'.", version);
     }
 
-    if (!config.Installed.contains(version_entry->Version))
+    if (!config.Installed.contains(entry->Version))
     {
-        if (!yes)
-        {
-            std::cout << "version '" << version << "' is not installed." << std::endl;
+        const auto data_directory = GetDataDirectory();
+        const auto lock_path = data_directory / (entry->Version + ".lock");
 
-            if (!Confirm("install this version?"))
+        if (TryAcquire lock(lock_path, false); !lock)
+        {
+            TryAcquire(lock_path, true);
+        }
+        else
+        {
+            if (!yes)
             {
-                return toolkit::make_error("version '{}' is not installed.", version);
+                std::cout << "version '" << version << "' is not installed." << std::endl;
+
+                if (!Confirm("install this version?"))
+                {
+                    return toolkit::make_error("version '{}' is not installed.", version);
+                }
             }
-        }
 
-        if (auto res = Install(config, client, version, *version_entry); !res)
-        {
-            return res;
-        }
+            if (auto res = Install(config, client, version, *entry); !res)
+            {
+                return res;
+            }
 
-        if (auto res = WriteConfigFile(config); !res)
-        {
-            return res;
+            if (auto res = WriteConfigFile(config); !res)
+            {
+                return res;
+            }
         }
     }
 
-    config.Active = version_entry->Version;
+    config.Active = entry->Version;
 
-    return shim(version_entry->Version, context);
+    return shim(entry->Version, context);
 }

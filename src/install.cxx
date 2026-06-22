@@ -1,4 +1,5 @@
 #include <unvm/data.hxx>
+#include <unvm/lock.hxx>
 #include <unvm/pgp.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
@@ -148,7 +149,7 @@ static toolkit::result<std::string> get_trusted_checksum(
                 }
 
                 config.Fingerprints.insert(fingerprint);
-                config.Dirty = true;
+                config.AddedFingerprints.insert(fingerprint);
             }
         }
     }
@@ -326,8 +327,8 @@ toolkit::result<> unvm::Install(
             ec.value());
     }
 
-    config.Installed.emplace(entry.Version);
-    config.Dirty = true;
+    config.Installed.insert(entry.Version);
+    config.AddedVersions.insert(entry.Version);
     return {};
 }
 
@@ -345,6 +346,15 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const 
     if (!entry)
     {
         return toolkit::make_error("no effective version for '{}'.", version);
+    }
+
+    const auto data_directory = GetDataDirectory();
+    const auto lock_path = data_directory / (entry->Version + ".lock");
+
+    TryAcquire lock(lock_path, false);
+    if (!lock)
+    {
+        return toolkit::make_error("version '{}' is already being installed by another process.", version);
     }
 
     return Install(config, client, version, *entry);

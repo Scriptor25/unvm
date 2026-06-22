@@ -24,6 +24,6 @@ toolkit::result<> unvm::Remove(Config &config, http::HttpClient &client, const s
     std::filesystem::remove_all(data_directory / entry->Version);
 
     config.Installed.erase(entry->Version);
-    config.Dirty = true;
+    config.RemovedVersions.insert(entry->Version);
     return {};
 }

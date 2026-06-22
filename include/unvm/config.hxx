@@ -8,14 +8,17 @@ namespace unvm
 {
     struct Config
     {
-        bool Dirty{};
-
-        std::unordered_set<std::string> Installed;
         std::optional<std::string> Default;
+        std::unordered_set<std::string> Installed;
+        std::unordered_set<std::string> Fingerprints;
 
         std::optional<std::string> Active;
         std::optional<std::string> Detected;
 
-        std::unordered_set<std::string> Fingerprints;
+        bool DefaultDirty;
+        std::unordered_set<std::string> AddedVersions;
+        std::unordered_set<std::string> RemovedVersions;
+        std::unordered_set<std::string> AddedFingerprints;
+        std::unordered_set<std::string> RemovedFingerprints;
     };
 }
