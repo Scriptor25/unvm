@@ -37,8 +37,8 @@ void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Confi
 {
     node = json::Node::Map
     {
-        { "installed", value.Installed },
         { "default", value.Default },
+        { "installed", value.Installed },
         { "fingerprints", value.Fingerprints },
     };
 }
