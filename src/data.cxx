@@ -1,7 +1,7 @@
 #include <unvm/data.hxx>
 
-#include <ssl/cacert.h>
-#include <ssl/keyring.h>
+#include <data/cacert.h>
+#include <data/keyring.h>
 
 std::span<const uint8_t> unvm::data::cacert
 {
