@@ -7,9 +7,7 @@
 #include <openssl/ec.h>
 #include <openssl/evp.h>
 
-#include <iostream>
-
-static toolkit::result<> verify_signature(
+[[nodiscard]] static toolkit::result<> verify_signature(
     const unvm::pgp::HashAlgorithmID hash_algorithm,
     const std::span<const uint8_t> hash_left_16_bit,
     const unvm::pgp::PublicKeyAlgorithmID public_key_algorithm,

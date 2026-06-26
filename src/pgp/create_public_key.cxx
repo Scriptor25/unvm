@@ -123,7 +123,7 @@ static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
     }
 }
 
-static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARAM param[])
+[[nodiscard]] static toolkit::result<EVP_PKEY *> create_public_key(const char *name, OSSL_PARAM param[])
 {
     auto *ctx = EVP_PKEY_CTX_new_from_name(nullptr, name, nullptr);
     if (!ctx)

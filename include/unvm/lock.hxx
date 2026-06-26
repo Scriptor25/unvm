@@ -9,7 +9,7 @@ namespace unvm
     class FileLock
     {
     public:
-        static toolkit::result<FileLock> Lock(const std::filesystem::path &path);
+        [[nodiscard]] static toolkit::result<FileLock> Lock(const std::filesystem::path &path);
 
         FileLock() = default;
         ~FileLock();

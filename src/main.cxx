@@ -73,7 +73,7 @@ static const toolkit::arg_manifest manifest
     },
 };
 
-static toolkit::result<> execute(
+[[nodiscard]] static toolkit::result<> execute(
     unvm::Config &config,
     unvm::http::HttpClient &client,
     const int argc,

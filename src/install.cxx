@@ -13,7 +13,7 @@
 #include <iostream>
 #include <sstream>
 
-static toolkit::result<bool> get_file_from_repo(
+[[nodiscard]] static toolkit::result<bool> get_file_from_repo(
     unvm::http::HttpClient &client,
     std::ostream &stream,
     std::string version,
@@ -63,7 +63,7 @@ static toolkit::result<bool> get_file_from_repo(
     return true;
 }
 
-static toolkit::result<std::string> get_trusted_checksum(
+[[nodiscard]] static toolkit::result<std::string> get_trusted_checksum(
     unvm::Config &config,
     unvm::http::HttpClient &client,
     const unvm::VersionEntry &entry,
@@ -176,7 +176,7 @@ static toolkit::result<std::string> get_trusted_checksum(
     return toolkit::make_error("failed to get checksum for filename '{}'.", with_extension);
 }
 
-static toolkit::result<std::string> get_file_checksum(std::istream &stream)
+[[nodiscard]] static toolkit::result<std::string> get_file_checksum(std::istream &stream)
 {
     auto *ctx = EVP_MD_CTX_new();
     if (!ctx)

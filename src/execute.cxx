@@ -81,7 +81,7 @@ static int execvp(const char *file, char **argv)
 
 #endif
 
-static toolkit::result<> shim(const std::string &version, const toolkit::arg_context &context)
+[[nodiscard]] static toolkit::result<> shim(const std::string &version, const toolkit::arg_context &context)
 {
     std::filesystem::path exec(context.file);
 
@@ -144,7 +144,7 @@ static toolkit::result<> shim(const std::string &version, const toolkit::arg_con
     return toolkit::make_error("failed to execute '{}': {}", node_path_str, error);
 }
 
-static toolkit::result<std::optional<unvm::VersionEntry>> find_version_entry(
+[[nodiscard]] static toolkit::result<std::optional<unvm::VersionEntry>> find_version_entry(
     const unvm::Config &config,
     unvm::http::HttpClient &client,
     const std::string_view version,
