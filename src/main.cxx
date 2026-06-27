@@ -12,6 +12,9 @@
 enum class Operation
 {
     Install,
+    Update,
+    Track,
+    Untrack,
     Remove,
     Use,
     List,
@@ -23,6 +26,12 @@ static const std::map<std::string_view, Operation> operation_map
 {
     { "install", Operation::Install },
     { "i", Operation::Install },
+    { "update", Operation::Update },
+    { "p", Operation::Update },
+    { "track", Operation::Track },
+    { "t", Operation::Track },
+    { "untrack", Operation::Untrack },
+    { "n", Operation::Untrack },
     { "remove", Operation::Remove },
     { "r", Operation::Remove },
     { "use", Operation::Use },
@@ -70,6 +79,16 @@ static const toolkit::arg_manifest manifest
             .kind = toolkit::arg_kind::flag,
             .patterns = { "-y", "--yes" },
         },
+        {
+            .id = "track",
+            .kind = toolkit::arg_kind::value,
+            .patterns = { "-t", "--track" },
+        },
+        {
+            .id = "prune",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-p", "--prune" },
+        },
     },
 };
 
@@ -104,6 +123,35 @@ static const toolkit::arg_manifest manifest
         }
 
         return Install(config, client, args[1]);
+
+    case Operation::Update:
+        if (args.size() == 1)
+        {
+            return Update(config, client);
+        }
+
+        if (args.size() == 2)
+        {
+            return Update(config, client, args[1]);
+        }
+
+        return toolkit::make_error("invalid argument count.");
+
+    case Operation::Track:
+        if (args.size() != 3)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return Track(config, client, args[1], args[2]);
+
+    case Operation::Untrack:
+        if (args.size() != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return Untrack(config, client, args[1], args.is("prune"));
 
     case Operation::Remove:
         if (args.size() != 2)
@@ -224,36 +272,16 @@ int main(const int argc, char **argv)
 
         unvm::FilterVersionTable(config, table, true, true);
 
-        if (auto *effective = unvm::FindEffectiveVersion(table, *config.Detected))
+        const unvm::VersionEntry *entry;
+        if (auto res = unvm::FindVersionEntry(table, *config.Detected) >> entry; !res)
         {
-            config.Active = effective->Version;
+            std::cerr << res.error() << std::endl;
+            return 1;
         }
-        else
+
+        if (entry)
         {
-            unvm::semver::RangeSet set;
-            if (auto res = unvm::semver::ParseRangeSet(*config.Detected) >> set; !res)
-            {
-                std::cerr << res.error() << std::endl;
-                return 1;
-            }
-
-            for (auto &entry : table)
-            {
-                bool in_range;
-                if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
-                {
-                    std::cerr << res.error() << std::endl;
-                    return 1;
-                }
-
-                if (!in_range)
-                {
-                    continue;
-                }
-
-                config.Active = entry.Version;
-                break;
-            }
+            config.Active = entry->Version;
         }
     }
 

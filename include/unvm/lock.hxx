@@ -39,7 +39,7 @@ namespace unvm
     class TryAcquire
     {
     public:
-        TryAcquire(const std::filesystem::path &path, bool wait);
+        TryAcquire(const std::filesystem::path &path, bool wait, std::string_view message);
         ~TryAcquire();
 
         TryAcquire(const TryAcquire &) = delete;
@@ -50,8 +50,12 @@ namespace unvm
 
         explicit operator bool() const;
 
+        bool Primary() const;
+        std::string_view Message() const;
+
     private:
-        bool m_Acquired{};
+        bool m_Acquired{}, m_Primary{};
         std::filesystem::path m_Path;
+        std::string m_Message;
     };
 }

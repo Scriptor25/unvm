@@ -38,6 +38,7 @@ namespace unvm
 
     [[nodiscard]] toolkit::result<> ReadConfigFile(Config &config);
     [[nodiscard]] toolkit::result<> WriteConfigFile(Config &config);
+    [[nodiscard]] toolkit::result<> ReloadConfigFile(Config &config);
 
     [[nodiscard]] toolkit::result<std::optional<std::string>> FindActiveVersion(
         const std::optional<std::string> &def,
