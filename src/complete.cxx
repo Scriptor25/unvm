@@ -1,6 +1,7 @@
 #include <unvm/unvm.hxx>
 
 #include <iostream>
+#include <ranges>
 
 toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client, const toolkit::arg_context &args)
 {
@@ -20,7 +21,7 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
     // root
     if (args.empty())
     {
-        std::cout << "i install r remove u use l list c complete x e exec execute";
+        std::cout << "i install t track n untrack p update r remove u use l list c complete x e exec execute";
         return {};
     }
 
@@ -33,6 +34,53 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
             if (auto res = List(config, client, true, true, false); !res)
             {
                 return res;
+            }
+        }
+
+        return {};
+    }
+
+    // track <name> (latest|lts|<version>)
+    if (args[0] == "t" || args[0] == "track")
+    {
+        if (args.size() == 2)
+        {
+            std::cout << "latest lts ";
+            if (auto res = List(config, client, true, true, false); !res)
+            {
+                return res;
+            }
+        }
+
+        return {};
+    }
+
+    // untrack <name> [(-p|--prune)]
+    if (args[0] == "n" || args[0] == "untrack")
+    {
+        if (!args.is("prune"))
+        {
+            std::cout << "-p --prune ";
+        }
+
+        if (args.size() == 1)
+        {
+            for (const auto &name : config.Tracked | std::views::keys)
+            {
+                std::cout << name << ' ';
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "p" || args[0] == "update")
+    {
+        if (args.size() == 1)
+        {
+            for (const auto &name : config.Tracked | std::views::keys)
+            {
+                std::cout << name << ' ';
             }
         }
 

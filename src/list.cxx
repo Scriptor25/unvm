@@ -113,7 +113,7 @@ toolkit::result<> unvm::List(
 
     if (out.Empty())
     {
-        std::cerr << "no elements to list." << std::endl;
+        std::cout << "no elements to list." << std::endl;
         return {};
     }
 

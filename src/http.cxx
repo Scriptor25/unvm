@@ -45,7 +45,7 @@ inline int socket_close(const platform_socket_t s)
 
 #endif
 
-static toolkit::result<> read_until(unvm::http::HttpTransport *transport, std::string &dst, const char *delim)
+[[nodiscard]] static toolkit::result<> read_until(unvm::http::HttpTransport *transport, std::string &dst, const char *delim)
 {
     char chunk[1024];
 
@@ -169,7 +169,7 @@ struct unvm::http::HttpClient::State
     SSL_CTX *ssl;
 };
 
-static toolkit::result<> load_vendor_certificates(const SSL_CTX *context, const std::span<const uint8_t> buffer)
+[[nodiscard]] static toolkit::result<> load_vendor_certificates(const SSL_CTX *context, const std::span<const uint8_t> buffer)
 {
     if (!context)
     {

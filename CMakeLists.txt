@@ -51,8 +51,8 @@ function(add_xxd NAME SRC DST)
 
 endfunction()
 
-add_xxd(cacert "${CMAKE_SOURCE_DIR}/ssl/cacert.pem" "${CMAKE_CURRENT_BINARY_DIR}/ssl/cacert.h")
-add_xxd(keyring "${CMAKE_SOURCE_DIR}/ssl/keyring.pgp" "${CMAKE_CURRENT_BINARY_DIR}/ssl/keyring.h")
+add_xxd(cacert "${CMAKE_SOURCE_DIR}/data/cacert.pem" "${CMAKE_CURRENT_BINARY_DIR}/data/cacert.h")
+add_xxd(keyring "${CMAKE_SOURCE_DIR}/data/keyring.pgp" "${CMAKE_CURRENT_BINARY_DIR}/data/keyring.h")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/definitions/version.h.in" "${CMAKE_CURRENT_BINARY_DIR}/version.h" @ONLY)
 
