@@ -26,7 +26,7 @@ toolkit::result<> unvm::Untrack(Config &config, http::HttpClient &client, const 
     const auto it = config.Tracked.find(std::string(name));
     if (it == config.Tracked.end())
     {
-        return toolkit::make_error("no tracked version with name '{}'.", name);
+        return toolkit::make_error("version track '{}' does not exist.", name);
     }
 
     const auto &version = it->second;
