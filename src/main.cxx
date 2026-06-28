@@ -122,6 +122,11 @@ static const toolkit::arg_manifest manifest
             return toolkit::make_error("invalid argument count.");
         }
 
+        if (auto name = args.get("track"))
+        {
+            return Track(config, client, *name, args[1]);
+        }
+
         return Install(config, client, args[1]);
 
     case Operation::Update:
