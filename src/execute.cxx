@@ -147,8 +147,8 @@ static int execvp(const char *file, char **argv)
 [[nodiscard]] static toolkit::result<> load_filter_table(
     const unvm::Config &config,
     unvm::http::HttpClient &client,
-    const bool online,
-    unvm::VersionTable table)
+    unvm::VersionTable &table,
+    const bool online)
 {
     if (auto res = LoadVersionTable(client, table, online); !res)
     {
@@ -169,7 +169,7 @@ toolkit::result<> unvm::Execute(
     const VersionEntry *entry{};
 
     VersionTable table;
-    if (auto res = load_filter_table(config, client, false, table); !res)
+    if (auto res = load_filter_table(config, client, table, false); !res)
     {
         return res;
     }
@@ -181,7 +181,7 @@ toolkit::result<> unvm::Execute(
 
     if (!entry)
     {
-        if (auto res = load_filter_table(config, client, true, table); !res)
+        if (auto res = load_filter_table(config, client, table, true); !res)
         {
             return res;
         }
