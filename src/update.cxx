@@ -25,7 +25,7 @@ toolkit::result<> unvm::Update(Config &config, http::HttpClient &client)
 
         if (!entry)
         {
-            return toolkit::make_error("failed to match tracked version range '{}' ('{}').", name, version);
+            return toolkit::make_error("no version matching '{}' (tracking '{}').", version, name);
         }
 
         const auto data_directory = GetDataDirectory();
@@ -111,7 +111,7 @@ toolkit::result<> unvm::Update(Config &config, http::HttpClient &client, std::st
 
     if (!entry)
     {
-        return toolkit::make_error("failed to match tracked version range '{}' ('{}').", name, version);
+        return toolkit::make_error("no version matching '{}' (tracking '{}').", version, name);
     }
 
     const auto data_directory = GetDataDirectory();

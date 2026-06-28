@@ -350,7 +350,7 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const 
 
     if (!entry)
     {
-        return toolkit::make_error("no version entry for '{}'.", version);
+        return toolkit::make_error("no version matching '{}'.", version);
     }
 
     const auto data_directory = GetDataDirectory();
