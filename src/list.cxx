@@ -4,6 +4,7 @@
 #include <toolkit/string.hxx>
 
 #include <iostream>
+#include <ranges>
 
 toolkit::result<> unvm::List(
     const Config &config,
@@ -109,6 +110,57 @@ toolkit::result<> unvm::List(
                     << entry.NPM.value_or(std::string())
                     << entry.Date;
         }
+    }
+
+    if (out.Empty())
+    {
+        std::cout << "no elements to list." << std::endl;
+        return {};
+    }
+
+    std::cout << out;
+    return {};
+}
+
+toolkit::result<> unvm::ListTracks(const Config &config, http::HttpClient &client, const bool flat)
+{
+    if (flat)
+    {
+        for (auto &name : config.Tracked | std::views::keys)
+        {
+            std::cout << name << ' ';
+        }
+
+        return {};
+    }
+
+    VersionTable table;
+    if (auto res = LoadVersionTable(client, table, true); !res)
+    {
+        return res;
+    }
+
+    FilterVersionTable(config, table, true);
+
+    Table out(
+        {
+            { "Name", true },
+            { "Version", true },
+            { "Update", false },
+        }
+    );
+
+    for (auto &[name, version] : config.Tracked)
+    {
+        const VersionEntry *entry{};
+        if (auto res = FindVersionEntry(table, version) >> entry; !res)
+        {
+            return res;
+        }
+
+        const auto update = !config.Installed.contains(entry->Version);
+
+        out << name << version << (update ? "*" : "");
     }
 
     if (out.Empty())

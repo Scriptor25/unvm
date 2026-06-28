@@ -28,6 +28,11 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
     // install (latest|lts|<version>)
     if (args[0] == "i" || args[0] == "install")
     {
+        if (args.get_all("track").empty())
+        {
+            std::cout << "-t --track ";
+        }
+
         if (args.size() == 1)
         {
             std::cout << "latest lts ";
@@ -65,9 +70,9 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
 
         if (args.size() == 1)
         {
-            for (const auto &name : config.Tracked | std::views::keys)
+            if (auto res = ListTracks(config, client, true); !res)
             {
-                std::cout << name << ' ';
+                return res;
             }
         }
 
@@ -78,9 +83,9 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
     {
         if (args.size() == 1)
         {
-            for (const auto &name : config.Tracked | std::views::keys)
+            if (auto res = ListTracks(config, client, true); !res)
             {
-                std::cout << name << ' ';
+                return res;
             }
         }
 
@@ -140,6 +145,11 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
         if (!args.is("details"))
         {
             std::cout << "-d --details ";
+        }
+
+        if (!args.is("tracks"))
+        {
+            std::cout << "-r --tracks ";
         }
 
         return {};

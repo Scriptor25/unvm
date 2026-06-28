@@ -80,6 +80,11 @@ namespace unvm
         bool flat,
         bool details);
 
+    [[nodiscard]] toolkit::result<> ListTracks(
+        const Config &config,
+        http::HttpClient &client,
+        bool flat);
+
     [[nodiscard]] toolkit::result<> Complete(
         const Config &config,
         http::HttpClient &client,

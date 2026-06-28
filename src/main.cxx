@@ -89,6 +89,11 @@ static const toolkit::arg_manifest manifest
             .kind = toolkit::arg_kind::flag,
             .patterns = { "-p", "--prune" },
         },
+        {
+            .id = "tracks",
+            .kind = toolkit::arg_kind::flag,
+            .patterns = { "-r", "--tracks" },
+        },
     },
 };
 
@@ -151,12 +156,16 @@ static const toolkit::arg_manifest manifest
         return Track(config, client, args[1], args[2]);
 
     case Operation::Untrack:
+    {
         if (args.size() != 2)
         {
             return toolkit::make_error("invalid argument count.");
         }
 
-        return Untrack(config, client, args[1], args.is("prune"));
+        const auto prune = args.is("prune");
+
+        return Untrack(config, client, args[1], prune);
+    }
 
     case Operation::Remove:
         if (args.size() != 2)
@@ -167,12 +176,16 @@ static const toolkit::arg_manifest manifest
         return Remove(config, client, args[1]);
 
     case Operation::Use:
+    {
         if (args.size() != 2)
         {
             return toolkit::make_error("invalid argument count.");
         }
 
-        return Use(config, client, args[1], args.is("local"));
+        const auto local = args.is("local");
+
+        return Use(config, client, args[1], local);
+    }
 
     case Operation::List:
     {
@@ -184,6 +197,11 @@ static const toolkit::arg_manifest manifest
         const auto available = args.is("available");
         const auto flat = args.is("flat");
         const auto details = args.is("details");
+
+        if (args.is("tracks"))
+        {
+            return ListTracks(config, client, flat);
+        }
 
         return List(config, client, available, flat, details);
     }
