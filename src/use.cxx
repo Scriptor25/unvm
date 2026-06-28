@@ -61,7 +61,7 @@ toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std:
 
     FilterVersionTable(config, table, true, true);
 
-    const VersionEntry *entry;
+    const VersionEntry *entry{};
     if (auto res = FindVersionEntry(table, version) >> entry; !res)
     {
         return res;

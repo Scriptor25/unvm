@@ -121,7 +121,7 @@
             signature,
             static_cast<uint8_t>(unvm::pgp::KeyUsageFlag::Sign)))
         {
-            EVP_PKEY *public_key;
+            EVP_PKEY *public_key{};
             if (auto res = unvm::pgp::CreateOpenSSLPublicKey(*key) >> public_key; !res)
             {
                 return toolkit::make_error("failed to create public key: {}", res.error());
@@ -342,7 +342,7 @@ toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const 
 
     FilterVersionTable(config, table, true);
 
-    const VersionEntry *entry;
+    const VersionEntry *entry{};
     if (auto res = FindVersionEntry(table, version) >> entry; !res)
     {
         return res;

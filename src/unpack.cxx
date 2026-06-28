@@ -49,12 +49,12 @@ toolkit::result<> unvm::UnpackArchive(std::istream &stream, const std::filesyste
         return toolkit::make_error("failed to open archive: {} ({}).", archive_error_string(arc), error);
     }
 
-    archive_entry *entry;
-    const void *buf;
-    size_t len;
-    la_int64_t off;
+    archive_entry *entry{};
+    const void *buf{};
+    size_t len{};
+    la_int64_t off{};
 
-    int err;
+    int err{};
     while (!((err = archive_read_next_header(arc, &entry))))
     {
         auto pathname = directory / archive_entry_pathname(entry);

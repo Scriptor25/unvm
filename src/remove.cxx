@@ -14,7 +14,7 @@ toolkit::result<> unvm::Remove(Config &config, http::HttpClient &client, const s
 
     FilterVersionTable(config, table, true, true);
 
-    const VersionEntry *entry;
+    const VersionEntry *entry{};
     if (auto res = FindVersionEntry(table, version) >> entry; !res)
     {
         return res;

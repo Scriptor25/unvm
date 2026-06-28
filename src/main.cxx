@@ -272,7 +272,7 @@ int main(const int argc, char **argv)
 
         unvm::FilterVersionTable(config, table, true, true);
 
-        const unvm::VersionEntry *entry;
+        const unvm::VersionEntry *entry{};
         if (auto res = unvm::FindVersionEntry(table, *config.Detected) >> entry; !res)
         {
             std::cerr << res.error() << std::endl;

@@ -17,7 +17,7 @@ toolkit::result<> unvm::Update(Config &config, http::HttpClient &client)
 
     for (auto &[name, version] : config.Tracked)
     {
-        const VersionEntry *entry;
+        const VersionEntry *entry{};
         if (auto res = FindVersionEntry(table, version) >> entry; !res)
         {
             return res;
@@ -103,7 +103,7 @@ toolkit::result<> unvm::Update(Config &config, http::HttpClient &client, std::st
 
     auto &version = it->second;
 
-    const VersionEntry *entry;
+    const VersionEntry *entry{};
     if (auto res = FindVersionEntry(table, version) >> entry; !res)
     {
         return res;

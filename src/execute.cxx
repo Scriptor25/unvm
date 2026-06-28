@@ -166,7 +166,7 @@ toolkit::result<> unvm::Execute(
     const bool yes,
     const toolkit::arg_context &context)
 {
-    const VersionEntry *entry;
+    const VersionEntry *entry{};
 
     VersionTable table;
     if (auto res = load_filter_table(config, client, false, table); !res)
