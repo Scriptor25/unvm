@@ -45,7 +45,10 @@ inline int socket_close(const platform_socket_t s)
 
 #endif
 
-static toolkit::result<> read_until(unvm::http::HttpTransport *transport, std::string &dst, const char *delim)
+[[nodiscard]] static toolkit::result<> read_until(
+    unvm::http::HttpTransport *transport,
+    std::string &dst,
+    const char *delim)
 {
     char chunk[1024];
 
@@ -169,7 +172,9 @@ struct unvm::http::HttpClient::State
     SSL_CTX *ssl;
 };
 
-static toolkit::result<> load_vendor_certificates(const SSL_CTX *context, const std::span<const uint8_t> buffer)
+[[nodiscard]] static toolkit::result<> load_vendor_certificates(
+    const SSL_CTX *context,
+    const std::span<const uint8_t> buffer)
 {
     if (!context)
     {
@@ -262,11 +267,14 @@ toolkit::result<> unvm::http::HttpClient::Fetch(HttpRequest request, HttpRespons
 
     auto service = std::to_string(request.Location.Port);
 
-    addrinfo hints{}, *info = nullptr;
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = 0;
+    addrinfo hints
+    {
+        .ai_family = AF_UNSPEC,
+        .ai_socktype = SOCK_STREAM,
+        .ai_protocol = 0,
+    };
 
+    addrinfo *info{};
     if (auto error = getaddrinfo(request.Location.Host.c_str(), service.c_str(), &hints, &info))
     {
         return toolkit::make_error("failed to get address info ({}).", error);

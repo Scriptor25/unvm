@@ -1,6 +1,7 @@
 #include <unvm/unvm.hxx>
 
 #include <iostream>
+#include <ranges>
 
 toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client, const toolkit::arg_context &args)
 {

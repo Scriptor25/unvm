@@ -1,3 +1,4 @@
+#include <fstream>
 #include <unvm/lock.hxx>
 
 #include <thread>
@@ -115,7 +116,7 @@ unvm::FileLock::FileLock(const int handle)
 
 #endif
 
-static bool try_acquire(const std::filesystem::path &path)
+static bool try_acquire(const std::filesystem::path &path, std::string_view message)
 {
     const auto path_string = path.string();
 
@@ -135,6 +136,7 @@ static bool try_acquire(const std::filesystem::path &path)
         return false;
     }
 
+    WriteFile(handle, message.data(), message.size(), nullptr, nullptr);
     CloseHandle(handle);
 
 #else
@@ -146,6 +148,7 @@ static bool try_acquire(const std::filesystem::path &path)
         return false;
     }
 
+    write(fd, message.data(), message.size());
     close(fd);
 
 #endif
@@ -153,19 +156,28 @@ static bool try_acquire(const std::filesystem::path &path)
     return true;
 }
 
-unvm::TryAcquire::TryAcquire(const std::filesystem::path &path, const bool wait)
+unvm::TryAcquire::TryAcquire(const std::filesystem::path &path, const bool wait, const std::string_view message)
     : m_Path(path)
 {
-    if (try_acquire(path))
+    if (try_acquire(path, message))
     {
+        m_Primary = true;
         m_Acquired = true;
+        m_Message = message;
+        return;
+    }
+
+    if (!wait)
+    {
+        std::ifstream stream(path);
+        std::getline(stream, m_Message);
         return;
     }
 
     auto delay = 50;
-    while (wait)
+    for (;;)
     {
-        if (try_acquire(path))
+        if (try_acquire(path, message))
         {
             m_Acquired = true;
             return;
@@ -202,4 +214,14 @@ unvm::TryAcquire &unvm::TryAcquire::operator=(TryAcquire &&other) noexcept
 unvm::TryAcquire::operator bool() const
 {
     return m_Acquired;
+}
+
+bool unvm::TryAcquire::Primary() const
+{
+    return m_Primary;
+}
+
+std::string_view unvm::TryAcquire::Message() const
+{
+    return m_Message;
 }

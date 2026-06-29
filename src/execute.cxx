@@ -81,7 +81,7 @@ static int execvp(const char *file, char **argv)
 
 #endif
 
-static toolkit::result<> shim(const std::string &version, const toolkit::arg_context &context)
+[[nodiscard]] static toolkit::result<> shim(const std::string &version, const toolkit::arg_context &context)
 {
     std::filesystem::path exec(context.file);
 
@@ -144,47 +144,18 @@ static toolkit::result<> shim(const std::string &version, const toolkit::arg_con
     return toolkit::make_error("failed to execute '{}': {}", node_path_str, error);
 }
 
-static toolkit::result<std::optional<unvm::VersionEntry>> find_version_entry(
+[[nodiscard]] static toolkit::result<> load_filter_table(
     const unvm::Config &config,
     unvm::http::HttpClient &client,
-    const std::string_view version,
+    unvm::VersionTable &table,
     const bool online)
 {
-    unvm::VersionTable table;
     if (auto res = LoadVersionTable(client, table, online); !res)
     {
         return res;
     }
 
-    FilterVersionTable(config, table, true, false);
-
-    if (auto *effective = FindEffectiveVersion(table, version))
-    {
-        return { std::move(*const_cast<unvm::VersionEntry *>(effective)) };
-    }
-
-    unvm::semver::RangeSet set;
-    if (auto res = unvm::semver::ParseRangeSet(version) >> set; !res)
-    {
-        return res;
-    }
-
-    for (auto &entry : table)
-    {
-        bool in_range;
-        if (auto res = IsInRange(set, entry.Version) >> in_range; !res)
-        {
-            return res;
-        }
-
-        if (!in_range)
-        {
-            continue;
-        }
-
-        return { std::move(entry) };
-    }
-
+    FilterVersionTable(config, table, true);
     return {};
 }
 
@@ -195,15 +166,27 @@ toolkit::result<> unvm::Execute(
     const bool yes,
     const toolkit::arg_context &context)
 {
-    std::optional<VersionEntry> entry;
-    if (auto res = find_version_entry(config, client, version, false) >> entry; !res)
+    const VersionEntry *entry{};
+
+    VersionTable table;
+    if (auto res = load_filter_table(config, client, table, false); !res)
+    {
+        return res;
+    }
+
+    if (auto res = FindVersionEntry(table, version) >> entry; !res)
     {
         return res;
     }
 
     if (!entry)
     {
-        if (auto res = find_version_entry(config, client, version, true) >> entry; !res)
+        if (auto res = load_filter_table(config, client, table, true); !res)
+        {
+            return res;
+        }
+
+        if (auto res = FindVersionEntry(table, version) >> entry; !res)
         {
             return res;
         }
@@ -214,16 +197,20 @@ toolkit::result<> unvm::Execute(
         return toolkit::make_error("no version matching '{}'.", version);
     }
 
-    if (!config.Installed.contains(entry->Version))
     {
         const auto data_directory = GetDataDirectory();
         const auto lock_path = data_directory / (entry->Version + ".lock");
 
-        if (TryAcquire lock(lock_path, false); !lock)
+        TryAcquire lock(lock_path, true, "install");
+        if (!lock.Primary())
         {
-            TryAcquire(lock_path, true);
+            if (auto res = ReloadConfigFile(config); !res)
+            {
+                return res;
+            }
         }
-        else
+
+        if (!config.Installed.contains(entry->Version))
         {
             if (!yes)
             {
@@ -245,9 +232,9 @@ toolkit::result<> unvm::Execute(
                 return res;
             }
         }
-    }
 
-    config.Active = entry->Version;
+        config.Active = entry->Version;
+    }
 
     return shim(entry->Version, context);
 }

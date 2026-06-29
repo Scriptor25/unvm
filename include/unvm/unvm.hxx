@@ -19,11 +19,14 @@ namespace unvm
         VersionTable &table,
         bool online);
 
-    void FilterVersionTable(const Config &config, VersionTable &table, bool supported, bool installed);
+    void FilterVersionTable(const Config &config, VersionTable &table, bool supported = false, bool installed = false);
 
     const VersionEntry *FindEffectiveVersion(
         const VersionTable &table,
-        std::string_view version);
+        std::string_view version,
+        bool &matched);
+
+    toolkit::result<const VersionEntry *> FindVersionEntry(const VersionTable &table, std::string_view version);
 
     [[nodiscard]] toolkit::result<> UnpackArchive(
         std::istream &stream,

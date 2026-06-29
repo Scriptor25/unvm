@@ -73,7 +73,7 @@ static const toolkit::arg_manifest manifest
     },
 };
 
-static toolkit::result<> execute(
+[[nodiscard]] static toolkit::result<> execute(
     unvm::Config &config,
     unvm::http::HttpClient &client,
     const int argc,
@@ -114,12 +114,16 @@ static toolkit::result<> execute(
         return Remove(config, client, args[1]);
 
     case Operation::Use:
+    {
         if (args.size() != 2)
         {
             return toolkit::make_error("invalid argument count.");
         }
 
-        return Use(config, client, args[1], args.is("local"));
+        const auto local = args.is("local");
+
+        return Use(config, client, args[1], local);
+    }
 
     case Operation::List:
     {
@@ -224,36 +228,16 @@ int main(const int argc, char **argv)
 
         unvm::FilterVersionTable(config, table, true, true);
 
-        if (auto *effective = unvm::FindEffectiveVersion(table, *config.Detected))
+        const unvm::VersionEntry *entry{};
+        if (auto res = unvm::FindVersionEntry(table, *config.Detected) >> entry; !res)
         {
-            config.Active = effective->Version;
+            std::cerr << res.error() << std::endl;
+            return 1;
         }
-        else
+
+        if (entry)
         {
-            unvm::semver::RangeSet set;
-            if (auto res = unvm::semver::ParseRangeSet(*config.Detected) >> set; !res)
-            {
-                std::cerr << res.error() << std::endl;
-                return 1;
-            }
-
-            for (auto &entry : table)
-            {
-                bool in_range;
-                if (auto res = unvm::semver::IsInRange(set, entry.Version) >> in_range; !res)
-                {
-                    std::cerr << res.error() << std::endl;
-                    return 1;
-                }
-
-                if (!in_range)
-                {
-                    continue;
-                }
-
-                config.Active = entry.Version;
-                break;
-            }
+            config.Active = entry->Version;
         }
     }
 

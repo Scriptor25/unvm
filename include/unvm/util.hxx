@@ -36,9 +36,13 @@ namespace unvm
 
     std::istream &GetLine(std::istream &stream, std::string &string, std::string_view delim);
 
-    [[nodiscard]] toolkit::result<> ReadConfigFile(Config &config);
-    [[nodiscard]] toolkit::result<> WriteConfigFile(Config &config);
-
+    /**
+     * Detect the active version for the current context. Detect versions from package.json, .unvm and global configs.
+     *
+     * @param def
+     * @param type
+     * @return
+     */
     [[nodiscard]] toolkit::result<std::optional<std::string>> FindActiveVersion(
         const std::optional<std::string> &def,
         VersionType *type = {});

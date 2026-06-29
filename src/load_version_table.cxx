@@ -25,6 +25,8 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
      * }[]
      */
 
+    table.clear();
+
     auto data_directory = GetDataDirectory();
 
     if (std::error_code ec; std::filesystem::create_directories(data_directory, ec), ec)

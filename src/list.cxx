@@ -4,6 +4,7 @@
 #include <toolkit/string.hxx>
 
 #include <iostream>
+#include <ranges>
 
 toolkit::result<> unvm::List(
     const Config &config,
@@ -113,7 +114,7 @@ toolkit::result<> unvm::List(
 
     if (out.Empty())
     {
-        std::cerr << "no elements to list." << std::endl;
+        std::cout << "no elements to list." << std::endl;
         return {};
     }
 

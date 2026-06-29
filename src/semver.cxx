@@ -378,7 +378,13 @@ std::string unvm::semver::Parser::Next()
                     break;
                 }
 
-                std::cerr << "invalid character '" << m_Buffer << "' in stream." << std::endl;
+                std::cerr
+                        << "invalid character '"
+                        << static_cast<char>(m_Buffer)
+                        << "' ("
+                        << m_Buffer
+                        << ") in stream."
+                        << std::endl;
                 m_Buffer = m_Stream.get();
                 break;
             }
