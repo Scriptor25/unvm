@@ -52,9 +52,7 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
         && config.AddedVersions.empty()
         && config.RemovedVersions.empty()
         && config.AddedFingerprints.empty()
-        && config.RemovedFingerprints.empty()
-        && config.AddedTracked.empty()
-        && config.RemovedTracked.empty())
+        && config.RemovedFingerprints.empty())
     {
         return {};
     }
@@ -119,16 +117,6 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
         merged.Fingerprints.erase(version);
     }
 
-    for (auto &name : config.AddedTracked)
-    {
-        merged.Tracked.insert({ name, config.Tracked[name] });
-    }
-
-    for (auto &name : config.RemovedTracked)
-    {
-        merged.Tracked.erase(name);
-    }
-
     std::ofstream stream(temp_path);
     if (!stream)
     {
@@ -153,8 +141,6 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
     config.RemovedVersions.clear();
     config.AddedFingerprints.clear();
     config.RemovedFingerprints.clear();
-    config.AddedTracked.clear();
-    config.RemovedTracked.clear();
     return {};
 }
 

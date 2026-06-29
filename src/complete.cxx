@@ -21,69 +21,17 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
     // root
     if (args.empty())
     {
-        std::cout << "i install t track n untrack p update r remove u use l list c complete x e exec execute";
+        std::cout << "i install r remove u use l list c complete x e exec execute";
         return {};
     }
 
     // install (latest|lts|<version>)
     if (args[0] == "i" || args[0] == "install")
     {
-        if (args.get_all("track").empty())
-        {
-            std::cout << "-t --track ";
-        }
-
         if (args.size() == 1)
         {
             std::cout << "latest lts ";
             if (auto res = List(config, client, true, true, false); !res)
-            {
-                return res;
-            }
-        }
-
-        return {};
-    }
-
-    // track <name> (latest|lts|<version>)
-    if (args[0] == "t" || args[0] == "track")
-    {
-        if (args.size() == 2)
-        {
-            std::cout << "latest lts ";
-            if (auto res = List(config, client, true, true, false); !res)
-            {
-                return res;
-            }
-        }
-
-        return {};
-    }
-
-    // untrack <name> [(-p|--prune)]
-    if (args[0] == "n" || args[0] == "untrack")
-    {
-        if (!args.is("prune"))
-        {
-            std::cout << "-p --prune ";
-        }
-
-        if (args.size() == 1)
-        {
-            if (auto res = ListTracks(config, client, true); !res)
-            {
-                return res;
-            }
-        }
-
-        return {};
-    }
-
-    if (args[0] == "p" || args[0] == "update")
-    {
-        if (args.size() == 1)
-        {
-            if (auto res = ListTracks(config, client, true); !res)
             {
                 return res;
             }
@@ -145,11 +93,6 @@ toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client,
         if (!args.is("details"))
         {
             std::cout << "-d --details ";
-        }
-
-        if (!args.is("tracks"))
-        {
-            std::cout << "-r --tracks ";
         }
 
         return {};

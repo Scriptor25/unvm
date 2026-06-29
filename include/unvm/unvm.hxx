@@ -42,26 +42,6 @@ namespace unvm
         http::HttpClient &client,
         std::string_view version);
 
-    [[nodiscard]] toolkit::result<> Track(
-        Config &config,
-        http::HttpClient &client,
-        std::string_view name,
-        std::string_view version);
-    [[nodiscard]] toolkit::result<> Untrack(
-        Config &config,
-        http::HttpClient &client,
-        std::string_view name,
-        bool prune);
-
-    [[nodiscard]] toolkit::result<> Update(
-        Config &config,
-        http::HttpClient &client);
-
-    [[nodiscard]] toolkit::result<> Update(
-        Config &config,
-        http::HttpClient &client,
-        std::string_view name);
-
     [[nodiscard]] toolkit::result<> Remove(
         Config &config,
         http::HttpClient &client,
@@ -79,11 +59,6 @@ namespace unvm
         bool available,
         bool flat,
         bool details);
-
-    [[nodiscard]] toolkit::result<> ListTracks(
-        const Config &config,
-        http::HttpClient &client,
-        bool flat);
 
     [[nodiscard]] toolkit::result<> Complete(
         const Config &config,

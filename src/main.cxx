@@ -12,9 +12,6 @@
 enum class Operation
 {
     Install,
-    Update,
-    Track,
-    Untrack,
     Remove,
     Use,
     List,
@@ -26,12 +23,6 @@ static const std::map<std::string_view, Operation> operation_map
 {
     { "install", Operation::Install },
     { "i", Operation::Install },
-    { "update", Operation::Update },
-    { "p", Operation::Update },
-    { "track", Operation::Track },
-    { "t", Operation::Track },
-    { "untrack", Operation::Untrack },
-    { "n", Operation::Untrack },
     { "remove", Operation::Remove },
     { "r", Operation::Remove },
     { "use", Operation::Use },
@@ -79,21 +70,6 @@ static const toolkit::arg_manifest manifest
             .kind = toolkit::arg_kind::flag,
             .patterns = { "-y", "--yes" },
         },
-        {
-            .id = "track",
-            .kind = toolkit::arg_kind::value,
-            .patterns = { "-t", "--track" },
-        },
-        {
-            .id = "prune",
-            .kind = toolkit::arg_kind::flag,
-            .patterns = { "-p", "--prune" },
-        },
-        {
-            .id = "tracks",
-            .kind = toolkit::arg_kind::flag,
-            .patterns = { "-r", "--tracks" },
-        },
     },
 };
 
@@ -127,45 +103,7 @@ static const toolkit::arg_manifest manifest
             return toolkit::make_error("invalid argument count.");
         }
 
-        if (auto name = args.get("track"))
-        {
-            return Track(config, client, *name, args[1]);
-        }
-
         return Install(config, client, args[1]);
-
-    case Operation::Update:
-        if (args.size() == 1)
-        {
-            return Update(config, client);
-        }
-
-        if (args.size() == 2)
-        {
-            return Update(config, client, args[1]);
-        }
-
-        return toolkit::make_error("invalid argument count.");
-
-    case Operation::Track:
-        if (args.size() != 3)
-        {
-            return toolkit::make_error("invalid argument count.");
-        }
-
-        return Track(config, client, args[1], args[2]);
-
-    case Operation::Untrack:
-    {
-        if (args.size() != 2)
-        {
-            return toolkit::make_error("invalid argument count.");
-        }
-
-        const auto prune = args.is("prune");
-
-        return Untrack(config, client, args[1], prune);
-    }
 
     case Operation::Remove:
         if (args.size() != 2)
@@ -197,11 +135,6 @@ static const toolkit::arg_manifest manifest
         const auto available = args.is("available");
         const auto flat = args.is("flat");
         const auto details = args.is("details");
-
-        if (args.is("tracks"))
-        {
-            return ListTracks(config, client, flat);
-        }
 
         return List(config, client, available, flat, details);
     }
