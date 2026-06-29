@@ -50,8 +50,8 @@ namespace unvm
 
         explicit operator bool() const;
 
-        bool Primary() const;
-        std::string_view Message() const;
+        [[nodiscard]] bool Primary() const;
+        [[nodiscard]] std::string_view Message() const;
 
     private:
         bool m_Acquired{}, m_Primary{};
