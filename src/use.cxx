@@ -31,7 +31,7 @@ toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std:
         if (!local)
         {
             config.Default = std::nullopt;
-            config.DefaultDirty = true;
+            config.UpdatedDefault = true;
             return {};
         }
 
@@ -81,7 +81,7 @@ toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std:
     if (!local)
     {
         config.Default = entry->Version;
-        config.DefaultDirty = true;
+        config.UpdatedDefault = true;
         return {};
     }
 
