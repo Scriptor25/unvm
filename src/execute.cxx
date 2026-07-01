@@ -146,7 +146,7 @@ static int execvp(const char *file, char **argv)
 
 [[nodiscard]] static toolkit::result<> load_filter_table(
     const unvm::Config &config,
-    unvm::http::HttpClient &client,
+    http::Client &client,
     unvm::VersionTable &table,
     const bool online)
 {
@@ -161,7 +161,7 @@ static int execvp(const char *file, char **argv)
 
 toolkit::result<> unvm::Execute(
     Config &config,
-    http::HttpClient &client,
+    http::Client &client,
     std::string_view version,
     const bool yes,
     const toolkit::arg_context &context)

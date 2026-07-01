@@ -1,8 +1,8 @@
 #pragma once
 
 #include <unvm/config.hxx>
+#include <unvm/http.hxx>
 #include <unvm/version.hxx>
-#include <unvm/http/http.hxx>
 
 #include <toolkit/args.hxx>
 #include <toolkit/result.hxx>
@@ -15,7 +15,7 @@ namespace unvm
     void PrintManual();
 
     [[nodiscard]] toolkit::result<> LoadVersionTable(
-        http::HttpClient &client,
+        http::Client &client,
         VersionTable &table,
         bool online);
 
@@ -34,40 +34,40 @@ namespace unvm
 
     [[nodiscard]] toolkit::result<> Install(
         Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         std::string_view version,
         const VersionEntry &entry);
     [[nodiscard]] toolkit::result<> Install(
         Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         std::string_view version);
 
     [[nodiscard]] toolkit::result<> Remove(
         Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         std::string_view version);
 
     [[nodiscard]] toolkit::result<> Use(
         Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         std::string_view version,
         bool local);
 
     [[nodiscard]] toolkit::result<> List(
         const Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         bool available,
         bool flat,
         bool details);
 
     [[nodiscard]] toolkit::result<> Complete(
         const Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         const toolkit::arg_context &args);
 
     [[nodiscard]] toolkit::result<> Execute(
         Config &config,
-        http::HttpClient &client,
+        http::Client &client,
         std::string_view version,
         bool yes,
         const toolkit::arg_context &context);

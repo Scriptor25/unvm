@@ -1,13 +1,13 @@
+#include <unvm/http.hxx>
 #include <unvm/json.hxx>
 #include <unvm/lock.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
-#include <unvm/http/url.hxx>
 
 #include <fstream>
 #include <sstream>
 
-toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online)
+toolkit::result<> unvm::LoadVersionTable(http::Client &client, VersionTable &table, bool online)
 {
     /**
      * {

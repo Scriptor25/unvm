@@ -1,8 +1,8 @@
 #include <unvm/config.hxx>
+#include <unvm/http.hxx>
 #include <unvm/semver.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
-#include <unvm/http/http.hxx>
 
 #include <toolkit/args.hxx>
 
@@ -75,7 +75,7 @@ static const toolkit::arg_manifest manifest
 
 [[nodiscard]] static toolkit::result<> execute(
     unvm::Config &config,
-    unvm::http::HttpClient &client,
+    http::Client &client,
     const int argc,
     char **argv)
 {
@@ -201,7 +201,15 @@ int main(const int argc, char **argv)
     const auto stem = exec.stem().string();
 
     unvm::Config config;
-    unvm::http::HttpClient client;
+
+    std::unique_ptr<http::Transport> transport;
+    if (auto res = unvm::CreateTransport() >> transport; !res)
+    {
+        std::cerr << res.error() << std::endl;
+        return 1;
+    }
+
+    http::Client client(*transport);
 
     if (auto res = unvm::ReadConfigFile(config); !res)
     {

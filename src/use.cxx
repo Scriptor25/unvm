@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-toolkit::result<> unvm::Use(Config &config, http::HttpClient &client, const std::string_view version, const bool local)
+toolkit::result<> unvm::Use(Config &config, http::Client &client, const std::string_view version, const bool local)
 {
     std::optional<std::string> maybe_active;
     VersionType type;

@@ -1,9 +1,8 @@
 #include <unvm/unvm.hxx>
 
 #include <iostream>
-#include <ranges>
 
-toolkit::result<> unvm::Complete(const Config &config, http::HttpClient &client, const toolkit::arg_context &args)
+toolkit::result<> unvm::Complete(const Config &config, http::Client &client, const toolkit::arg_context &args)
 {
     if (args.limit != ~size_t())
     {

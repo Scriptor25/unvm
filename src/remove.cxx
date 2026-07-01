@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-toolkit::result<> unvm::Remove(Config &config, http::HttpClient &client, const std::string_view version)
+toolkit::result<> unvm::Remove(Config &config, http::Client &client, const std::string_view version)
 {
     VersionTable table;
     if (auto res = LoadVersionTable(client, table, false); !res)

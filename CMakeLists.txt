@@ -68,6 +68,7 @@ target_include_directories(unvm PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" "include")
 
 target_link_libraries(unvm PRIVATE
         toolkit::core
+        toolkit::http
         toolkit::json
 
         OpenSSL::Crypto

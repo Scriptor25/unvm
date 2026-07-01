@@ -14,15 +14,15 @@
 #include <sstream>
 
 [[nodiscard]] static toolkit::result<bool> get_file_from_repo(
-    unvm::http::HttpClient &client,
+    http::Client &client,
     std::ostream &stream,
     std::string version,
     std::string filename,
     const bool optional)
 {
-    unvm::http::HttpRequest request
+    http::HttpRequest request
     {
-        .Method = unvm::http::HttpMethod::Get,
+        .Method = http::HttpMethod::Get,
         .Location = {
             .Scheme = "https",
             .Host = "nodejs.org",
@@ -31,7 +31,7 @@
         },
     };
 
-    unvm::http::HttpResponse response
+    http::HttpResponse response
     {
         .Body = &stream,
     };
@@ -45,12 +45,12 @@
             res.error());
     }
 
-    if (optional && response.StatusCode == unvm::http::HttpStatusCode::NotFound)
+    if (optional && response.StatusCode == http::HttpStatusCode::NotFound)
     {
         return false;
     }
 
-    if (!unvm::http::IsSuccess(response.StatusCode))
+    if (!http::IsSuccess(response.StatusCode))
     {
         return toolkit::make_error(
             "failed to get file {} (version {}) from repo: {}, {}",
@@ -65,7 +65,7 @@
 
 [[nodiscard]] static toolkit::result<std::string> get_trusted_checksum(
     unvm::Config &config,
-    unvm::http::HttpClient &client,
+    http::Client &client,
     const unvm::VersionEntry &entry,
     const std::string &with_extension)
 {
@@ -225,7 +225,7 @@
 
 toolkit::result<> unvm::Install(
     Config &config,
-    http::HttpClient &client,
+    http::Client &client,
     std::string_view version,
     const VersionEntry &entry)
 {
@@ -332,7 +332,7 @@ toolkit::result<> unvm::Install(
     return {};
 }
 
-toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const std::string_view version)
+toolkit::result<> unvm::Install(Config &config, http::Client &client, const std::string_view version)
 {
     VersionTable table;
     if (auto res = LoadVersionTable(client, table, true); !res)
