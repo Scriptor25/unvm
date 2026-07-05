@@ -63,7 +63,7 @@ toolkit::result<> unvm::ReadConfigFile(Config &config)
         return toolkit::make_error("failed to open config file.");
     }
 
-    json::Node json;
+    json::node json;
     stream >> json;
 
     if (!(json >> config))
@@ -111,7 +111,7 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
             return toolkit::make_error("failed to open config file.");
         }
 
-        json::Node json;
+        json::node json;
         stream >> json;
 
         if (!(json >> merged))
@@ -129,7 +129,7 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
             return toolkit::make_error("failed to open config file.");
         }
 
-        stream << json::Node(merged);
+        stream << json::node(merged);
         stream.close();
     }
 
@@ -178,7 +178,7 @@ toolkit::result<> unvm::ReloadConfigFile(Config &config)
             return toolkit::make_error("failed to open config file.");
         }
 
-        json::Node json;
+        json::node json;
         stream >> json;
 
         if (!(json >> merged))

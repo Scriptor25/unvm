@@ -8,7 +8,7 @@
 
 toolkit::result<> unvm::List(
     const Config &config,
-    http::HttpClient &client,
+    const http::client &client,
     const bool available,
     const bool flat,
     const bool details)

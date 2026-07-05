@@ -1,13 +1,13 @@
+#include <unvm/http.hxx>
 #include <unvm/json.hxx>
 #include <unvm/lock.hxx>
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
-#include <unvm/http/url.hxx>
 
 #include <fstream>
 #include <sstream>
 
-toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable &table, bool online)
+toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTable &table, bool online)
 {
     /**
      * {
@@ -58,31 +58,31 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
     {
         std::stringstream stream;
 
-        http::HttpRequest request
+        http::request_t request
         {
-            .Method = http::HttpMethod::Get,
-            .Location = http::ParseURL("https://nodejs.org/dist/index.json"),
+            .method = http::method::get,
+            .location = http::url::parse("https://nodejs.org/dist/index.json"),
         };
-        http::HttpResponse response
+        http::response_t response
         {
-            .Body = &stream,
+            .body = &stream,
         };
 
-        if (auto res = client.FetchWithRedirects(std::move(request), response); !res)
+        if (auto res = client.fetch_with_redirects(std::move(request), response); !res)
         {
             return toolkit::make_error("failed to get file: {}", res.error());
         }
 
-        if (!IsSuccess(response.StatusCode))
+        if (!http::is_success(response.code))
         {
             return toolkit::make_error(
                 "failed to get file: {}, {}\n{}",
-                response.StatusCode,
-                response.StatusMessage,
+                response.code,
+                response.message,
                 stream.str());
         }
 
-        json::Node node;
+        json::node node;
         stream >> node;
 
         if (!(node >> table))
@@ -98,7 +98,7 @@ toolkit::result<> unvm::LoadVersionTable(http::HttpClient &client, VersionTable 
 
     std::ifstream stream(index_path);
 
-    json::Node node;
+    json::node node;
     stream >> node;
 
     if (!(node >> table))

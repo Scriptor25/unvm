@@ -81,9 +81,9 @@ static int execvp(const char *file, char **argv)
 
 #endif
 
-[[nodiscard]] static toolkit::result<> shim(const std::string &version, const toolkit::arg_context &context)
+[[nodiscard]] static toolkit::result<> shim(const std::string &version, const args::context &context)
 {
-    std::filesystem::path exec(context.file);
+    std::filesystem::path exec(context.file());
 
     const auto data_directory = unvm::GetDataDirectory();
 
@@ -146,7 +146,7 @@ static int execvp(const char *file, char **argv)
 
 [[nodiscard]] static toolkit::result<> load_filter_table(
     const unvm::Config &config,
-    unvm::http::HttpClient &client,
+    const http::client &client,
     unvm::VersionTable &table,
     const bool online)
 {
@@ -161,10 +161,10 @@ static int execvp(const char *file, char **argv)
 
 toolkit::result<> unvm::Execute(
     Config &config,
-    http::HttpClient &client,
+    const http::client &client,
     std::string_view version,
     const bool yes,
-    const toolkit::arg_context &context)
+    const args::context &args)
 {
     const VersionEntry *entry{};
 
@@ -236,5 +236,5 @@ toolkit::result<> unvm::Execute(
         config.Active = entry->Version;
     }
 
-    return shim(entry->Version, context);
+    return shim(entry->Version, args);
 }

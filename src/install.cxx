@@ -14,29 +14,29 @@
 #include <sstream>
 
 [[nodiscard]] static toolkit::result<bool> get_file_from_repo(
-    unvm::http::HttpClient &client,
+    const http::client &client,
     std::ostream &stream,
     std::string version,
     std::string filename,
     const bool optional)
 {
-    unvm::http::HttpRequest request
+    http::request_t request
     {
-        .Method = unvm::http::HttpMethod::Get,
-        .Location = {
-            .Scheme = "https",
-            .Host = "nodejs.org",
-            .Port = 443,
-            .Pathname = std::format("/dist/{}/{}", version, filename),
+        .method = http::method::get,
+        .location = {
+            .scheme = "https",
+            .host = "nodejs.org",
+            .port = 443,
+            .pathname = std::format("/dist/{}/{}", version, filename),
         },
     };
 
-    unvm::http::HttpResponse response
+    http::response_t response
     {
-        .Body = &stream,
+        .body = &stream,
     };
 
-    if (auto res = client.FetchWithRedirects(std::move(request), response); !res)
+    if (auto res = client.fetch_with_redirects(std::move(request), response); !res)
     {
         return toolkit::make_error(
             "failed to get file {} (version {}) from repo: {}",
@@ -45,19 +45,19 @@
             res.error());
     }
 
-    if (optional && response.StatusCode == unvm::http::HttpStatusCode::NotFound)
+    if (optional && response.code == http::status_code::not_found)
     {
         return false;
     }
 
-    if (!unvm::http::IsSuccess(response.StatusCode))
+    if (!http::is_success(response.code))
     {
         return toolkit::make_error(
             "failed to get file {} (version {}) from repo: {}, {}",
             filename,
             version,
-            response.StatusCode,
-            response.StatusMessage);
+            response.code,
+            response.message);
     }
 
     return true;
@@ -65,7 +65,7 @@
 
 [[nodiscard]] static toolkit::result<std::string> get_trusted_checksum(
     unvm::Config &config,
-    unvm::http::HttpClient &client,
+    const http::client &client,
     const unvm::VersionEntry &entry,
     const std::string &with_extension)
 {
@@ -225,7 +225,7 @@
 
 toolkit::result<> unvm::Install(
     Config &config,
-    http::HttpClient &client,
+    const http::client &client,
     std::string_view version,
     const VersionEntry &entry)
 {
@@ -332,7 +332,7 @@ toolkit::result<> unvm::Install(
     return {};
 }
 
-toolkit::result<> unvm::Install(Config &config, http::HttpClient &client, const std::string_view version)
+toolkit::result<> unvm::Install(Config &config, const http::client &client, const std::string_view version)
 {
     VersionTable table;
     if (auto res = LoadVersionTable(client, table, true); !res)
