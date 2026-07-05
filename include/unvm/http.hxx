@@ -6,5 +6,5 @@
 
 namespace unvm
 {
-    toolkit::result<std::unique_ptr<http::Transport>> CreateTransport();
+    toolkit::result<std::unique_ptr<http::transport>> CreateTransport();
 }

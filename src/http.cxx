@@ -95,7 +95,7 @@ inline int socket_close(const int fd)
     return {};
 }
 
-struct PlatformTransport : http::Transport
+struct PlatformTransport : http::transport
 {
     PlatformTransport()
     {
@@ -146,14 +146,14 @@ struct PlatformTransport : http::Transport
         return *this;
     }
 
-    toolkit::result<int> open(const http::URL &location) override
+    toolkit::result<int> open(const http::url &location) override
     {
-        if (location.Scheme != "http" && location.Scheme != "https")
+        if (location.scheme != "http" && location.scheme != "https")
         {
-            return toolkit::make_error("unsupported scheme '{}'", location.Scheme);
+            return toolkit::make_error("unsupported scheme '{}'", location.scheme);
         }
 
-        auto service = std::to_string(location.Port);
+        auto service = std::to_string(location.port);
 
         addrinfo hints
         {
@@ -163,7 +163,7 @@ struct PlatformTransport : http::Transport
         };
 
         addrinfo *info{};
-        if (auto error = getaddrinfo(location.Host.c_str(), service.c_str(), &hints, &info))
+        if (auto error = getaddrinfo(location.host.c_str(), service.c_str(), &hints, &info))
         {
             return toolkit::make_error("failed to get address info ({}).", error);
         }
@@ -198,8 +198,8 @@ struct PlatformTransport : http::Transport
         auto *ssl_ = SSL_new(ctx);
         SSL_set_fd(ssl_, fd);
 
-        SSL_set_tlsext_host_name(ssl_, location.Host.c_str());
-        SSL_set1_host(ssl_, location.Host.c_str());
+        SSL_set_tlsext_host_name(ssl_, location.host.c_str());
+        SSL_set1_host(ssl_, location.host.c_str());
         SSL_set_verify(ssl_, SSL_VERIFY_PEER, nullptr);
 
         if (SSL_connect(ssl_) <= 0)
@@ -216,18 +216,18 @@ struct PlatformTransport : http::Transport
         return fd;
     }
 
-    void close(int fd) override
+    void close(const int fd) override
     {
         SSL_free(ssl[fd]);
         socket_close(fd);
     }
 
-    int recv(int fd, void *buffer, size_t count, int flags) override
+    int recv(const int fd, void *buffer, const size_t count, int flags) override
     {
         return SSL_read(ssl[fd], buffer, static_cast<int>(count));
     }
 
-    int send(int fd, const void *buffer, size_t count, int flags) override
+    int send(const int fd, const void *buffer, const size_t count, int flags) override
     {
         return SSL_write(ssl[fd], buffer, static_cast<int>(count));
     }
@@ -240,7 +240,7 @@ struct PlatformTransport : http::Transport
     std::unordered_map<int, SSL *> ssl;
 };
 
-toolkit::result<std::unique_ptr<http::Transport>> unvm::CreateTransport()
+toolkit::result<std::unique_ptr<http::transport>> unvm::CreateTransport()
 {
     return { std::make_unique<PlatformTransport>() };
 }

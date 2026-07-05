@@ -4,7 +4,7 @@
 #include <unvm/unvm.hxx>
 #include <unvm/util.hxx>
 
-#include <toolkit/args.hxx>
+#include <args/args.hxx>
 
 #include <filesystem>
 #include <iostream>
@@ -37,37 +37,37 @@ static const std::map<std::string_view, Operation> operation_map
     { "x", Operation::Execute },
 };
 
-static const toolkit::arg_manifest manifest
+static const args::manifest manifest
 {
     {
         {
             .id = "help",
-            .kind = toolkit::arg_kind::flag,
+            .kind = args::entry_kind::flag,
             .patterns = { "?", "-?", "-h", "--help" },
         },
         {
             .id = "local",
-            .kind = toolkit::arg_kind::flag,
+            .kind = args::entry_kind::flag,
             .patterns = { "-l", "--local" },
         },
         {
             .id = "available",
-            .kind = toolkit::arg_kind::flag,
+            .kind = args::entry_kind::flag,
             .patterns = { "-a", "--available" },
         },
         {
             .id = "flat",
-            .kind = toolkit::arg_kind::flag,
+            .kind = args::entry_kind::flag,
             .patterns = { "-f", "--flat" },
         },
         {
             .id = "details",
-            .kind = toolkit::arg_kind::flag,
+            .kind = args::entry_kind::flag,
             .patterns = { "-d", "--details" },
         },
         {
             .id = "yes",
-            .kind = toolkit::arg_kind::flag,
+            .kind = args::entry_kind::flag,
             .patterns = { "-y", "--yes" },
         },
     },
@@ -75,12 +75,12 @@ static const toolkit::arg_manifest manifest
 
 [[nodiscard]] static toolkit::result<> execute(
     unvm::Config &config,
-    http::Client &client,
+    http::client &client,
     const int argc,
     char **argv)
 {
-    toolkit::arg_context args;
-    if (auto res = toolkit::arg_parse(manifest, argc, argv) >> args; !res)
+    args::context args;
+    if (auto res = args::context::parse(manifest, argc, argv) >> args; !res)
         return res;
 
     if (args.empty() || args.is("help"))
@@ -142,12 +142,12 @@ static const toolkit::arg_manifest manifest
     case Operation::Complete:
     {
         std::vector<const char *> line(args.size());
-        line[0] = args.file.data();
+        line[0] = args.file().data();
         for (size_t i = 1; i < args.size(); ++i)
             line[i] = args[i].data();
 
-        toolkit::arg_context context;
-        if (auto res = toolkit::arg_parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
+        args::context context;
+        if (auto res = args::context::parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
             return res;
 
         return unvm::Complete(config, client, context);
@@ -155,7 +155,7 @@ static const toolkit::arg_manifest manifest
 
     case Operation::Execute:
     {
-        auto count = args.limit != ~size_t() ? args.limit : args.size();
+        auto count = args.limited() ? args.limit() : args.size();
 
         if (count != 1 && count != 2)
         {
@@ -183,8 +183,8 @@ static const toolkit::arg_manifest manifest
         for (auto i = count; i < args.size(); ++i)
             line[i - count] = args[i].data();
 
-        toolkit::arg_context context;
-        if (auto res = toolkit::arg_parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
+        args::context context;
+        if (auto res = args::context::parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
             return res;
 
         return unvm::Execute(config, client, version, yes, context);
@@ -202,14 +202,14 @@ int main(const int argc, char **argv)
 
     unvm::Config config;
 
-    std::unique_ptr<http::Transport> transport;
+    std::unique_ptr<http::transport> transport;
     if (auto res = unvm::CreateTransport() >> transport; !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;
     }
 
-    http::Client client(*transport);
+    http::client client(*transport);
 
     if (auto res = unvm::ReadConfigFile(config); !res)
     {
@@ -272,8 +272,8 @@ int main(const int argc, char **argv)
         return 1;
     }
 
-    toolkit::arg_context context;
-    if (auto res = toolkit::arg_parse(manifest, argc, argv) >> context; !res)
+    args::context context;
+    if (auto res = args::context::parse(manifest, argc, argv) >> context; !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;

@@ -2,9 +2,9 @@
 
 #include <iostream>
 
-toolkit::result<> unvm::Complete(const Config &config, http::Client &client, const toolkit::arg_context &args)
+toolkit::result<> unvm::Complete(const Config &config, const http::client &client, const args::context &args)
 {
-    if (args.limit != ~size_t())
+    if (args.limited())
     {
         std::cout << "";
         return {};

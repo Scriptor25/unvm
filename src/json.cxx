@@ -1,9 +1,9 @@
 #include <unvm/json.hxx>
 #include <unvm/util.hxx>
 
-bool data::serializer<std::filesystem::path>::from_data(const json::Node &node, std::filesystem::path &value)
+bool data::serializer<std::filesystem::path>::from_data(const json::node_t &node, std::filesystem::path &value)
 {
-    if (json::String s; node >> s)
+    if (json::string_t s; node >> s)
     {
         value = std::move(s);
         return true;
@@ -12,14 +12,14 @@ bool data::serializer<std::filesystem::path>::from_data(const json::Node &node, 
     return false;
 }
 
-void data::serializer<std::filesystem::path>::to_data(json::Node &node, const std::filesystem::path &value)
+void data::serializer<std::filesystem::path>::to_data(json::node_t &node, const std::filesystem::path &value)
 {
     node = value.string();
 }
 
-bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Config &value)
+bool data::serializer<unvm::Config>::from_data(const json::node_t &node, unvm::Config &value)
 {
-    if (!node.Is<json::Node::Map>())
+    if (!node.is<json::object_t>())
     {
         return false;
     }
@@ -33,9 +33,9 @@ bool data::serializer<unvm::Config>::from_data(const json::Node &node, unvm::Con
     return ok;
 }
 
-void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Config &value)
+void data::serializer<unvm::Config>::to_data(json::node_t &node, const unvm::Config &value)
 {
-    node = json::Node::Map
+    node = json::object_t
     {
         { "default", value.Default },
         { "installed", value.Installed },
@@ -43,9 +43,9 @@ void data::serializer<unvm::Config>::to_data(json::Node &node, const unvm::Confi
     };
 }
 
-bool data::serializer<unvm::VersionEntry>::from_data(const json::Node &node, unvm::VersionEntry &value)
+bool data::serializer<unvm::VersionEntry>::from_data(const json::node_t &node, unvm::VersionEntry &value)
 {
-    if (!node.Is<json::Node::Map>())
+    if (!node.is<json::object_t>())
     {
         return false;
     }

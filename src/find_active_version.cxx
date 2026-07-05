@@ -25,7 +25,7 @@
         return toolkit::make_error("failed to open '{}'.", path.string());
     }
 
-    json::Node node;
+    json::node_t node;
     stream >> node;
 
     if (!node)

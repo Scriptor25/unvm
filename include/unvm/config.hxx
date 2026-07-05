@@ -55,5 +55,4 @@ namespace unvm
      * @return
      */
     [[nodiscard]] toolkit::result<> ReloadConfigFile(Config &config);
-
 }
