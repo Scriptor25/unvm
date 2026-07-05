@@ -134,7 +134,6 @@ static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
     auto guard_ctx = toolkit::defer(EVP_PKEY_CTX_free, ctx);
 
     // print_settable_params(ctx, name);
-    (void) print_settable_params;
 
     if (EVP_PKEY_fromdata_init(ctx) <= 0)
     {
