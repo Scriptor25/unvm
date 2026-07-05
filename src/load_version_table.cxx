@@ -82,7 +82,7 @@ toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTabl
                 stream.str());
         }
 
-        json::node_t node;
+        json::node node;
         stream >> node;
 
         if (!(node >> table))
@@ -98,7 +98,7 @@ toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTabl
 
     std::ifstream stream(index_path);
 
-    json::node_t node;
+    json::node node;
     stream >> node;
 
     if (!(node >> table))
