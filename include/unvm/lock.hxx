@@ -39,6 +39,7 @@ namespace unvm
     class TryAcquire
     {
     public:
+        TryAcquire() = default;
         TryAcquire(const std::filesystem::path &path, bool wait, std::string_view message);
         ~TryAcquire();
 

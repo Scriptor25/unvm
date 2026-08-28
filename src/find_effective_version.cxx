@@ -7,12 +7,15 @@
 const unvm::VersionEntry *unvm::FindEffectiveVersion(
     const VersionTable &table,
     const std::string_view version,
-    bool &matched)
+    bool *matched)
 {
     // latest
     if (version == "latest")
     {
-        matched = true;
+        if (matched)
+        {
+            *matched = true;
+        }
 
         if (!table.empty())
         {
@@ -25,7 +28,10 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(
     // latest lts
     if (version == "lts")
     {
-        matched = true;
+        if (matched)
+        {
+            *matched = true;
+        }
 
         for (auto &entry : table)
         {
@@ -125,7 +131,7 @@ toolkit::result<const unvm::VersionEntry *> unvm::FindVersionEntry(
     const std::string_view version)
 {
     bool matched{};
-    if (auto *effective = FindEffectiveVersion(table, version, matched))
+    if (auto *effective = FindEffectiveVersion(table, version, &matched))
     {
         return effective;
     }

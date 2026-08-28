@@ -4,7 +4,6 @@
 #include <toolkit/string.hxx>
 
 #include <iostream>
-#include <ranges>
 
 toolkit::result<> unvm::List(
     const Config &config,
@@ -14,7 +13,7 @@ toolkit::result<> unvm::List(
     const bool details)
 {
     VersionTable table;
-    if (auto res = LoadVersionTable(client, table, available); !res)
+    if (auto res = LoadVersionTable(client, available) >> table; !res)
     {
         return res;
     }
@@ -114,7 +113,7 @@ toolkit::result<> unvm::List(
 
     if (out.Empty())
     {
-        std::cout << "no elements to list." << std::endl;
+        std::cerr << "no elements to list." << std::endl;
         return {};
     }
 

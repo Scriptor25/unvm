@@ -12,24 +12,34 @@ void unvm::MergeConfig(Config &dst, const Config &src)
         dst.Default = src.Default;
     }
 
-    for (auto &version : src.AddedVersions)
+    for (auto &key : src.AddedVersions)
     {
-        dst.Installed.insert(version);
+        dst.Installed.emplace(key, src.Installed.at(key));
     }
 
-    for (auto &version : src.RemovedVersions)
+    for (auto &key : src.RemovedVersions)
     {
-        dst.Installed.erase(version);
+        dst.Installed.erase(key);
     }
 
-    for (auto &version : src.AddedFingerprints)
+    for (auto &key : src.AddedFingerprints)
     {
-        dst.Fingerprints.insert(version);
+        dst.Fingerprints.insert(key);
     }
 
-    for (auto &version : src.RemovedFingerprints)
+    for (auto &key : src.RemovedFingerprints)
     {
-        dst.Fingerprints.erase(version);
+        dst.Fingerprints.erase(key);
+    }
+
+    for (auto &key : src.AddedTracked)
+    {
+        dst.Tracked.insert(key);
+    }
+
+    for (auto &key : src.RemovedTracked)
+    {
+        dst.Tracked.erase(key);
     }
 }
 
@@ -80,7 +90,9 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
         && config.AddedVersions.empty()
         && config.RemovedVersions.empty()
         && config.AddedFingerprints.empty()
-        && config.RemovedFingerprints.empty())
+        && config.RemovedFingerprints.empty()
+        && config.AddedTracked.empty()
+        && config.RemovedTracked.empty())
     {
         return {};
     }
@@ -148,6 +160,9 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
     config.RemovedVersions.clear();
     config.AddedFingerprints.clear();
     config.RemovedFingerprints.clear();
+    config.AddedTracked.clear();
+    config.RemovedTracked.clear();
+
     return {};
 }
 
@@ -189,9 +204,10 @@ toolkit::result<> unvm::ReloadConfigFile(Config &config)
 
     MergeConfig(merged, config);
 
-    config.Default = merged.Default;
-    config.Installed = merged.Installed;
-    config.Fingerprints = merged.Fingerprints;
+    config.Default = std::move(merged.Default);
+    config.Installed = std::move(merged.Installed);
+    config.Fingerprints = std::move(merged.Fingerprints);
+    config.Tracked = std::move(merged.Tracked);
 
     return {};
 }

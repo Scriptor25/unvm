@@ -17,6 +17,9 @@ enum class Operation
     List,
     Complete,
     Execute,
+    Track,
+    Untrack,
+    Update,
 };
 
 static const std::map<std::string_view, Operation> operation_map
@@ -35,6 +38,12 @@ static const std::map<std::string_view, Operation> operation_map
     { "exec", Operation::Execute },
     { "e", Operation::Execute },
     { "x", Operation::Execute },
+    { "track", Operation::Track },
+    { "t", Operation::Track },
+    { "untrack", Operation::Untrack },
+    { "n", Operation::Untrack },
+    { "update", Operation::Update },
+    { "p", Operation::Update },
 };
 
 static const args::manifest manifest
@@ -190,6 +199,41 @@ static const args::manifest manifest
         return unvm::Execute(config, client, version, yes, context);
     }
 
+    case Operation::Track:
+    {
+        if (args.size() != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return unvm::Track(config, client, args[1]);
+    }
+
+    case Operation::Untrack:
+    {
+        if (args.size() != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return unvm::Untrack(config, client, args[1]);
+    }
+
+    case Operation::Update:
+    {
+        switch (args.size())
+        {
+            case 1:
+                return unvm::Update(config, client);
+
+            case 2:
+                return unvm::Update(config, client, args[1]);
+
+            default:
+                return toolkit::make_error("invalid argument count.");
+        }
+    }
+
     default:
         return toolkit::make_error("operation '{}' not implemented.", args[0]);
     }
@@ -228,7 +272,7 @@ int main(const int argc, char **argv)
     if (config.Detected)
     {
         unvm::VersionTable table;
-        if (auto res = unvm::LoadVersionTable(client, table, false); !res)
+        if (auto res = unvm::LoadVersionTable(client, false) >> table; !res)
         {
             std::cerr << res.error() << std::endl;
             return 1;

@@ -7,7 +7,7 @@
 toolkit::result<> unvm::Remove(Config &config, const http::client &client, const std::string_view version)
 {
     VersionTable table;
-    if (auto res = LoadVersionTable(client, table, false); !res)
+    if (auto res = LoadVersionTable(client, false) >> table; !res)
     {
         return res;
     }
@@ -22,7 +22,7 @@ toolkit::result<> unvm::Remove(Config &config, const http::client &client, const
 
     if (!entry)
     {
-        std::cout << "version '" << version << "' is not installed." << std::endl;
+        std::cerr << "version '" << version << "' is not installed." << std::endl;
         return {};
     }
 
@@ -34,7 +34,7 @@ toolkit::result<> unvm::Remove(Config &config, const http::client &client, const
     {
         if (lock.Message() == "remove")
         {
-            std::cout << "version '" << version << "' is already being removed by another process." << std::endl;
+            std::cerr << "version '" << version << "' is already being removed by another process." << std::endl;
             return {};
         }
 
@@ -48,9 +48,27 @@ toolkit::result<> unvm::Remove(Config &config, const http::client &client, const
 
     (void) lock;
 
-    std::filesystem::remove_all(data_directory / entry->Version);
+    return Remove(config, client, version, *entry);
+}
 
-    config.Installed.erase(entry->Version);
-    config.RemovedVersions.insert(entry->Version);
+toolkit::result<> unvm::Remove(
+    Config &config,
+    const http::client &client,
+    const std::string_view version,
+    const VersionEntry &entry)
+{
+    auto it = config.Installed.find(entry.Version);
+    if (it == config.Installed.end())
+    {
+        return {};
+    }
+
+    const auto data_directory = GetDataDirectory();
+    const auto entry_directory = data_directory / entry.Version;
+
+    std::filesystem::remove_all(entry_directory);
+
+    config.Installed.erase(it);
+    config.RemovedVersions.insert(entry.Version);
     return {};
 }

@@ -20,7 +20,7 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
     // root
     if (args.empty())
     {
-        std::cout << "i install r remove u use l list c complete x e exec execute";
+        std::cout << "i install r remove u use l list c complete x e exec execute t track n untrack p update";
         return {};
     }
 
@@ -118,6 +118,65 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
             if (auto res = List(config, client, false, true, false); !res)
             {
                 return res;
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "t" || args[0] == "track")
+    {
+        if (args.size() == 1)
+        {
+            std::cout << "latest lts ";
+
+            VersionTable table;
+            if (auto res = LoadVersionTable(client, true) >> table; !res)
+            {
+                return res;
+            }
+
+            FilterVersionTable(config, table, true);
+
+            std::unordered_set<std::string> versions;
+
+            for (auto &entry : table)
+            {
+                if (entry.LTS)
+                {
+                    versions.insert(*entry.LTS);
+                }
+            }
+
+            for (auto &version : versions)
+            {
+                std::cout << version << ' ';
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "n" || args[0] == "untrack")
+    {
+        if (args.size() == 1)
+        {
+            for (auto &tag : config.Tracked)
+            {
+                std::cout << tag << ' ';
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "p" || args[0] == "update")
+    {
+        if (args.size() == 1)
+        {
+            for (auto &tag : config.Tracked)
+            {
+                std::cout << tag << ' ';
             }
         }
 
