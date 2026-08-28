@@ -92,6 +92,11 @@ toolkit::result<> unvm::Update(
         }
     }
 
+    if (config.Installed.contains(entry.Version))
+    {
+        return {};
+    }
+
     if (auto res = Install(config, client, tag, entry, false); !res)
     {
         return res;
@@ -116,6 +121,11 @@ toolkit::result<> unvm::Update(
         {
             config.Default = entry.Version;
             config.UpdatedDefault = true;
+        }
+
+        if (!config.Installed.contains(pre->Version))
+        {
+            return {};
         }
 
         if (auto res = Remove(config, client, tag, *pre); !res)

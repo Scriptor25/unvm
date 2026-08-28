@@ -1,5 +1,7 @@
 #include <unvm/unvm.hxx>
 
+#include <toolkit/string.hxx>
+
 #include <iostream>
 
 toolkit::result<> unvm::Complete(const Config &config, const http::client &client, const args::context &args)
@@ -145,6 +147,7 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
                 if (entry.LTS)
                 {
                     versions.insert(*entry.LTS);
+                    versions.insert(toolkit::lowercase(*entry.LTS));
                 }
             }
 
