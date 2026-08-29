@@ -84,7 +84,6 @@ namespace unvm
 
     [[nodiscard]] toolkit::result<> Untrack(
         Config &config,
-        const http::client &client,
         std::string_view tag);
 
     [[nodiscard]] toolkit::result<> Update(

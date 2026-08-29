@@ -10,7 +10,7 @@ toolkit::result<> unvm::Track(
     const http::client &client,
     std::string_view tag)
 {
-    auto tag_str = toolkit::lowercase(tag);
+    const auto tag_str = toolkit::lowercase(tag);
 
     if (config.Tracked.contains(tag_str))
     {
@@ -26,7 +26,7 @@ toolkit::result<> unvm::Track(
 
     FilterVersionTable(config, table, true);
 
-    bool valid = false;
+    auto valid = false;
     if (tag_str == "latest")
     {
         valid = true;
@@ -55,12 +55,11 @@ toolkit::result<> unvm::Track(
 
 toolkit::result<> unvm::Untrack(
     Config &config,
-    const http::client &client,
-    std::string_view tag)
+    const std::string_view tag)
 {
-    auto tag_str = toolkit::lowercase(tag);
+    const auto tag_str = toolkit::lowercase(tag);
 
-    auto it = config.Tracked.find(tag_str);
+    const auto it = config.Tracked.find(tag_str);
     if (it == config.Tracked.end())
     {
         std::cerr << "tag '" << tag << "' is not being tracked." << std::endl;

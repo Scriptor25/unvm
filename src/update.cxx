@@ -44,7 +44,7 @@ toolkit::result<> unvm::Update(
     const http::client &client,
     std::string_view tag)
 {
-    auto tag_str = toolkit::lowercase(tag);
+    const auto tag_str = toolkit::lowercase(tag);
 
     if (!config.Tracked.contains(tag_str))
     {
@@ -92,6 +92,8 @@ toolkit::result<> unvm::Update(
         }
     }
 
+    (void) lock;
+
     if (config.Installed.contains(entry.Version))
     {
         return {};
@@ -102,9 +104,7 @@ toolkit::result<> unvm::Update(
         return res;
     }
 
-    auto remove_pre = pre && !config.Installed.at(pre->Version);
-
-    if (remove_pre)
+    if (pre && !config.Installed.at(pre->Version))
     {
         const auto pre_lock_path = data_directory / (pre->Version + ".lock");
 
@@ -116,6 +116,8 @@ toolkit::result<> unvm::Update(
                 return res;
             }
         }
+
+        (void) pre_lock;
 
         if (config.Default == pre->Version)
         {

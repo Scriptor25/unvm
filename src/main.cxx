@@ -216,21 +216,21 @@ static const args::manifest manifest
             return toolkit::make_error("invalid argument count.");
         }
 
-        return unvm::Untrack(config, client, args[1]);
+        return unvm::Untrack(config, args[1]);
     }
 
     case Operation::Update:
     {
         switch (args.size())
         {
-            case 1:
-                return unvm::Update(config, client);
+        case 1:
+            return unvm::Update(config, client);
 
-            case 2:
-                return unvm::Update(config, client, args[1]);
+        case 2:
+            return unvm::Update(config, client, args[1]);
 
-            default:
-                return toolkit::make_error("invalid argument count.");
+        default:
+            return toolkit::make_error("invalid argument count.");
         }
     }
 
