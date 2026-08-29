@@ -14,13 +14,16 @@ namespace unvm
             Column(std::string label, const bool left)
                 : Label(std::move(label)),
                   Width(Label.length()),
-                  Left(left)
+                  Left(left),
+                  Empty(true)
             {
             }
 
             std::string Label;
             size_t Width;
             bool Left;
+
+            bool Empty;
         };
 
         Table() = default;

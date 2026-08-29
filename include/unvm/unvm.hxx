@@ -36,7 +36,7 @@ namespace unvm
         const http::client &client,
         std::string_view version,
         const VersionEntry &entry,
-        bool manual);
+        bool tracked);
     [[nodiscard]] toolkit::result<> Install(
         Config &config,
         const http::client &client,
@@ -44,13 +44,12 @@ namespace unvm
 
     [[nodiscard]] toolkit::result<> Remove(
         Config &config,
-        const http::client &client,
-        std::string_view version);
+        std::string_view version,
+        const VersionEntry &entry);
     [[nodiscard]] toolkit::result<> Remove(
         Config &config,
         const http::client &client,
-        std::string_view version,
-        const VersionEntry &entry);
+        std::string_view version);
 
     [[nodiscard]] toolkit::result<> Use(
         Config &config,
@@ -84,16 +83,14 @@ namespace unvm
 
     [[nodiscard]] toolkit::result<> Untrack(
         Config &config,
-        std::string_view tag);
-
-    [[nodiscard]] toolkit::result<> Update(
-        Config &config,
-        const http::client &client);
-
-    [[nodiscard]] toolkit::result<> Update(
-        Config &config,
         const http::client &client,
         std::string_view tag);
+
+    [[nodiscard]] toolkit::result<> Tags(
+        const Config &config,
+        const http::client &client,
+        bool available,
+        bool flat);
 
     [[nodiscard]] toolkit::result<> Update(
         Config &config,
@@ -101,4 +98,11 @@ namespace unvm
         std::string_view tag,
         const VersionEntry &entry,
         const VersionEntry *pre);
+    [[nodiscard]] toolkit::result<> Update(
+        Config &config,
+        const http::client &client);
+    [[nodiscard]] toolkit::result<> Update(
+        Config &config,
+        const http::client &client,
+        std::string_view tag);
 }

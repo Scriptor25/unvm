@@ -51,6 +51,8 @@ toolkit::result<> unvm::List(
         out.Init(
             {
                 { "Installed", true },
+                { "Active", true },
+                { "Tracked", true },
                 { "Security", true },
                 { "LTS", true },
                 { "Version", true },
@@ -65,8 +67,24 @@ toolkit::result<> unvm::List(
 
         for (auto &entry : table)
         {
+            auto it = config.Installed.find(entry.Version);
+
+            const auto installed = it != config.Installed.end();
+            const auto active = config.Active == entry.Version;
+            const auto tracked = installed && it->second;
+
+            if (available)
+            {
+                out << (installed ? "yes" : "");
+            }
+            else
+            {
+                out << "";
+            }
+
             out
-                    << (config.Active == entry.Version ? "yes" : "")
+                    << (active ? "yes" : "")
+                    << (tracked ? "yes" : "")
                     << (entry.Security ? "yes" : "")
                     << entry.LTS.value_or(std::string())
                     << entry.Version
@@ -83,7 +101,9 @@ toolkit::result<> unvm::List(
     {
         out.Init(
             {
-                { {}, false },
+                { "I", false },
+                { "A", false },
+                { "T", false },
                 { "LTS", true },
                 { "Version", true },
                 { "NPM", true },
@@ -94,16 +114,32 @@ toolkit::result<> unvm::List(
 
         for (auto &entry : table)
         {
+            auto it = config.Installed.find(entry.Version);
+
+            const auto installed = it != config.Installed.end();
+            const auto active = config.Active == entry.Version;
+            const auto tracked = installed && it->second;
+
             auto segments = toolkit::split(entry.Version, '.');
-            if (available && major_versions.contains(segments.front()))
+            if (!installed && available && major_versions.contains(segments.front()))
             {
                 continue;
             }
 
             major_versions.insert(segments.front());
 
+            if (available)
+            {
+                out << (installed ? "*" : "");
+            }
+            else
+            {
+                out << "";
+            }
+
             out
-                    << (config.Active == entry.Version ? "*" : "")
+                    << (active ? "*" : "")
+                    << (tracked ? "*" : "")
                     << entry.LTS.value_or(std::string())
                     << entry.Version
                     << entry.NPM.value_or(std::string())

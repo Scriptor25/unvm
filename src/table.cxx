@@ -17,10 +17,13 @@ unvm::Table &unvm::Table::operator<<(std::string &&entry)
 {
     const auto index = m_Entries.size() % m_Columns.size();
 
-    m_Entries.push_back(entry);
+    m_Entries.push_back(std::move(entry));
 
-    auto &width = m_Columns[index].Width;
-    width = std::max(width, m_Entries.back().size());
+    auto &column = m_Columns[index];
+    const auto &back = m_Entries.back();
+
+    column.Width = std::max(column.Width, back.size());
+    column.Empty &= back.empty();
 
     return *this;
 }
@@ -31,8 +34,11 @@ unvm::Table &unvm::Table::operator<<(const std::string &entry)
 
     m_Entries.push_back(entry);
 
-    auto &width = m_Columns[index].Width;
-    width = std::max(width, m_Entries.back().size());
+    auto &column = m_Columns[index];
+    const auto &back = m_Entries.back();
+
+    column.Width = std::max(column.Width, back.size());
+    column.Empty &= back.empty();
 
     return *this;
 }
@@ -46,7 +52,7 @@ std::ostream &unvm::Table::Print(std::ostream &stream) const
 {
     for (auto &column : m_Columns)
     {
-        if (!column.Width)
+        if (column.Empty)
         {
             continue;
         }
@@ -69,7 +75,7 @@ std::ostream &unvm::Table::Print(std::ostream &stream) const
         for (size_t i = 0; i < m_Columns.size(); ++i)
         {
             auto &column = m_Columns[i];
-            if (!column.Width)
+            if (column.Empty)
             {
                 continue;
             }

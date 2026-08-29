@@ -222,7 +222,7 @@ toolkit::result<> unvm::Execute(
                 }
             }
 
-            if (auto res = Install(config, client, version, *entry, true); !res)
+            if (auto res = Install(config, client, version, *entry, false); !res)
             {
                 return res;
             }

@@ -21,6 +21,7 @@ namespace unvm
         bool UpdatedDefault;
         std::unordered_set<std::string> AddedVersions;
         std::unordered_set<std::string> RemovedVersions;
+        std::unordered_set<std::string> UpdatedVersions;
         std::unordered_set<std::string> AddedFingerprints;
         std::unordered_set<std::string> RemovedFingerprints;
         std::unordered_set<std::string> AddedTracked;

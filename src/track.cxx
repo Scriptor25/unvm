@@ -55,6 +55,7 @@ toolkit::result<> unvm::Track(
 
 toolkit::result<> unvm::Untrack(
     Config &config,
+    const http::client &client,
     const std::string_view tag)
 {
     const auto tag_str = toolkit::lowercase(tag);
@@ -64,6 +65,20 @@ toolkit::result<> unvm::Untrack(
     {
         std::cerr << "tag '" << tag << "' is not being tracked." << std::endl;
         return {};
+    }
+
+    VersionTable table;
+    if (auto res = LoadVersionTable(client, false) >> table; !res)
+    {
+        return toolkit::make_error("failed to load version table: {}", res.error());
+    }
+
+    FilterVersionTable(config, table, true, true);
+
+    if (auto *entry = FindEffectiveVersion(table, tag_str))
+    {
+        config.Installed[entry->Version] = false;
+        config.UpdatedVersions.insert(entry->Version);
     }
 
     config.Tracked.erase(it);

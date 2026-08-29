@@ -228,7 +228,7 @@ toolkit::result<> unvm::Install(
     const http::client &client,
     std::string_view version,
     const VersionEntry &entry,
-    bool manual)
+    bool tracked)
 {
     if (config.Installed.contains(entry.Version))
     {
@@ -328,7 +328,7 @@ toolkit::result<> unvm::Install(
             ec.value());
     }
 
-    config.Installed.emplace(entry.Version, manual);
+    config.Installed.emplace(entry.Version, tracked);
     config.AddedVersions.insert(entry.Version);
     return {};
 }
@@ -376,5 +376,10 @@ toolkit::result<> unvm::Install(Config &config, const http::client &client, cons
 
     (void) lock;
 
-    return Install(config, client, version, *entry, true);
+    if (auto res = Install(config, client, version, *entry, false); !res)
+    {
+        return res;
+    }
+
+    return WriteConfigFile(config);
 }

@@ -19,6 +19,7 @@ enum class Operation
     Execute,
     Track,
     Untrack,
+    Tags,
     Update,
 };
 
@@ -39,11 +40,9 @@ static const std::map<std::string_view, Operation> operation_map
     { "e", Operation::Execute },
     { "x", Operation::Execute },
     { "track", Operation::Track },
-    { "t", Operation::Track },
     { "untrack", Operation::Untrack },
-    { "n", Operation::Untrack },
+    { "tags", Operation::Tags },
     { "update", Operation::Update },
-    { "p", Operation::Update },
 };
 
 static const args::manifest manifest
@@ -216,7 +215,20 @@ static const args::manifest manifest
             return toolkit::make_error("invalid argument count.");
         }
 
-        return unvm::Untrack(config, args[1]);
+        return unvm::Untrack(config, client, args[1]);
+    }
+
+    case Operation::Tags:
+    {
+        if (args.size() != 1)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        const auto available = args.is("available");
+        const auto flat = args.is("flat");
+
+        return unvm::Tags(config, client, available, flat);
     }
 
     case Operation::Update:

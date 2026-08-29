@@ -22,7 +22,7 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
     // root
     if (args.empty())
     {
-        std::cout << "i install r remove u use l list c complete x e exec execute t track n untrack p update";
+        std::cout << "i install r remove u use l list c complete x e exec execute track untrack tags update";
         return {};
     }
 
@@ -126,54 +126,48 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
         return {};
     }
 
-    if (args[0] == "t" || args[0] == "track")
+    if (args[0] == "track")
     {
         if (args.size() == 1)
         {
-            std::cout << "latest ";
-
-            VersionTable table;
-            if (auto res = LoadVersionTable(client, true) >> table; !res)
+            if (auto res = Tags(config, client, true, true); !res)
             {
                 return res;
             }
-
-            FilterVersionTable(config, table, true);
-
-            std::unordered_set<std::string> versions;
-
-            for (auto &entry : table)
-            {
-                if (entry.LTS)
-                {
-                    versions.insert(*entry.LTS);
-                    versions.insert(toolkit::lowercase(*entry.LTS));
-                }
-            }
-
-            for (auto &version : versions)
-            {
-                std::cout << version << ' ';
-            }
         }
 
         return {};
     }
 
-    if (args[0] == "n" || args[0] == "untrack")
+    if (args[0] == "untrack")
     {
         if (args.size() == 1)
         {
-            for (auto &tag : config.Tracked)
+            if (auto res = Tags(config, client, false, true); !res)
             {
-                std::cout << tag << ' ';
+                return res;
             }
         }
 
         return {};
     }
 
-    if (args[0] == "p" || args[0] == "update")
+    if (args[0] == "tags")
+    {
+        if (!args.is("available"))
+        {
+            std::cout << "-a --available ";
+        }
+
+        if (!args.is("flat"))
+        {
+            std::cout << "-f --flat ";
+        }
+
+        return {};
+    }
+
+    if (args[0] == "update")
     {
         if (args.size() == 1)
         {

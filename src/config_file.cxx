@@ -22,6 +22,11 @@ void unvm::MergeConfig(Config &dst, const Config &src)
         dst.Installed.erase(key);
     }
 
+    for (auto &key : src.UpdatedVersions)
+    {
+        dst.Installed[key] = src.Installed.at(key);
+    }
+
     for (auto &key : src.AddedFingerprints)
     {
         dst.Fingerprints.insert(key);
@@ -89,6 +94,7 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
     if (!config.UpdatedDefault
         && config.AddedVersions.empty()
         && config.RemovedVersions.empty()
+        && config.UpdatedVersions.empty()
         && config.AddedFingerprints.empty()
         && config.RemovedFingerprints.empty()
         && config.AddedTracked.empty()
@@ -158,6 +164,7 @@ toolkit::result<> unvm::WriteConfigFile(Config &config)
     config.UpdatedDefault = false;
     config.AddedVersions.clear();
     config.RemovedVersions.clear();
+    config.UpdatedVersions.clear();
     config.AddedFingerprints.clear();
     config.RemovedFingerprints.clear();
     config.AddedTracked.clear();
