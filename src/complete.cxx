@@ -130,7 +130,7 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
     {
         if (args.size() == 1)
         {
-            std::cout << "latest lts ";
+            std::cout << "latest ";
 
             VersionTable table;
             if (auto res = LoadVersionTable(client, true) >> table; !res)
