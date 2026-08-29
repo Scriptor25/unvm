@@ -227,7 +227,8 @@ toolkit::result<> unvm::Install(
     Config &config,
     const http::client &client,
     std::string_view version,
-    const VersionEntry &entry)
+    const VersionEntry &entry,
+    bool tracked)
 {
     if (config.Installed.contains(entry.Version))
     {
@@ -327,7 +328,7 @@ toolkit::result<> unvm::Install(
             ec.value());
     }
 
-    config.Installed.insert(entry.Version);
+    config.Installed.emplace(entry.Version, tracked);
     config.AddedVersions.insert(entry.Version);
     return {};
 }
@@ -335,7 +336,7 @@ toolkit::result<> unvm::Install(
 toolkit::result<> unvm::Install(Config &config, const http::client &client, const std::string_view version)
 {
     VersionTable table;
-    if (auto res = LoadVersionTable(client, table, true); !res)
+    if (auto res = LoadVersionTable(client, true) >> table; !res)
     {
         return toolkit::make_error("failed to load version table: {}", res.error());
     }
@@ -361,7 +362,7 @@ toolkit::result<> unvm::Install(Config &config, const http::client &client, cons
     {
         if (lock.Message() == "install")
         {
-            std::cout << "version '" << version << "' is already being installed by another process." << std::endl;
+            std::cerr << "version '" << version << "' is already being installed by another process." << std::endl;
             return {};
         }
 
@@ -375,5 +376,10 @@ toolkit::result<> unvm::Install(Config &config, const http::client &client, cons
 
     (void) lock;
 
-    return Install(config, client, version, *entry);
+    if (auto res = Install(config, client, version, *entry, false); !res)
+    {
+        return res;
+    }
+
+    return WriteConfigFile(config);
 }

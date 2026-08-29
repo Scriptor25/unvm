@@ -58,7 +58,7 @@ toolkit::result<> unvm::Use(
     }
 
     VersionTable table;
-    if (auto res = LoadVersionTable(client, table, false); !res)
+    if (auto res = LoadVersionTable(client, false) >> table; !res)
     {
         return res;
     }

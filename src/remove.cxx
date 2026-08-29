@@ -4,17 +4,52 @@
 
 #include <iostream>
 
+toolkit::result<> unvm::Remove(
+    Config &config,
+    const std::string_view version,
+    const VersionEntry &entry)
+{
+    const auto it = config.Installed.find(entry.Version);
+    if (it == config.Installed.end())
+    {
+        return {};
+    }
+
+    const auto data_directory = GetDataDirectory();
+    const auto entry_directory = data_directory / entry.Version;
+
+    if (std::error_code error; std::filesystem::remove_all(entry_directory, error), error)
+    {
+        return toolkit::make_error(
+            "failed to remove version '{}' entry directory '{}': {} ({})",
+            version,
+            entry_directory.string(),
+            error.message(),
+            error.value());
+    }
+
+    if (config.Default == entry.Version)
+    {
+        config.Default = std::nullopt;
+        config.UpdatedDefault = true;
+    }
+
+    config.Installed.erase(it);
+    config.RemovedVersions.insert(entry.Version);
+    return {};
+}
+
 toolkit::result<> unvm::Remove(Config &config, const http::client &client, const std::string_view version)
 {
     VersionTable table;
-    if (auto res = LoadVersionTable(client, table, false); !res)
+    if (auto res = LoadVersionTable(client, false) >> table; !res)
     {
         return res;
     }
 
     FilterVersionTable(config, table, true, true);
 
-    const VersionEntry *entry{};
+    const VersionEntry *entry;
     if (auto res = FindVersionEntry(table, version) >> entry; !res)
     {
         return res;
@@ -22,7 +57,7 @@ toolkit::result<> unvm::Remove(Config &config, const http::client &client, const
 
     if (!entry)
     {
-        std::cout << "version '" << version << "' is not installed." << std::endl;
+        std::cerr << "version '" << version << "' is not installed." << std::endl;
         return {};
     }
 
@@ -34,7 +69,7 @@ toolkit::result<> unvm::Remove(Config &config, const http::client &client, const
     {
         if (lock.Message() == "remove")
         {
-            std::cout << "version '" << version << "' is already being removed by another process." << std::endl;
+            std::cerr << "version '" << version << "' is already being removed by another process." << std::endl;
             return {};
         }
 
@@ -48,9 +83,10 @@ toolkit::result<> unvm::Remove(Config &config, const http::client &client, const
 
     (void) lock;
 
-    std::filesystem::remove_all(data_directory / entry->Version);
+    if (auto res = Remove(config, version, *entry); !res)
+    {
+        return res;
+    }
 
-    config.Installed.erase(entry->Version);
-    config.RemovedVersions.insert(entry->Version);
-    return {};
+    return WriteConfigFile(config);
 }

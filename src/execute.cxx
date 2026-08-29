@@ -150,7 +150,7 @@ static int execvp(const char *file, char **argv)
     unvm::VersionTable &table,
     const bool online)
 {
-    if (auto res = LoadVersionTable(client, table, online); !res)
+    if (auto res = unvm::LoadVersionTable(client, online) >> table; !res)
     {
         return res;
     }
@@ -222,7 +222,7 @@ toolkit::result<> unvm::Execute(
                 }
             }
 
-            if (auto res = Install(config, client, version, *entry); !res)
+            if (auto res = Install(config, client, version, *entry, false); !res)
             {
                 return res;
             }

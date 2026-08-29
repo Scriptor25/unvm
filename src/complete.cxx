@@ -1,5 +1,7 @@
 #include <unvm/unvm.hxx>
 
+#include <toolkit/string.hxx>
+
 #include <iostream>
 
 toolkit::result<> unvm::Complete(const Config &config, const http::client &client, const args::context &args)
@@ -20,7 +22,7 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
     // root
     if (args.empty())
     {
-        std::cout << "i install r remove u use l list c complete x e exec execute";
+        std::cout << "i install r remove u use l list c complete x e exec execute track untrack tags update";
         return {};
     }
 
@@ -118,6 +120,60 @@ toolkit::result<> unvm::Complete(const Config &config, const http::client &clien
             if (auto res = List(config, client, false, true, false); !res)
             {
                 return res;
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "track")
+    {
+        if (args.size() == 1)
+        {
+            if (auto res = Tags(config, client, true, true); !res)
+            {
+                return res;
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "untrack")
+    {
+        if (args.size() == 1)
+        {
+            if (auto res = Tags(config, client, false, true); !res)
+            {
+                return res;
+            }
+        }
+
+        return {};
+    }
+
+    if (args[0] == "tags")
+    {
+        if (!args.is("available"))
+        {
+            std::cout << "-a --available ";
+        }
+
+        if (!args.is("flat"))
+        {
+            std::cout << "-f --flat ";
+        }
+
+        return {};
+    }
+
+    if (args[0] == "update")
+    {
+        if (args.size() == 1)
+        {
+            for (auto &tag : config.Tracked)
+            {
+                std::cout << tag << ' ';
             }
         }
 

@@ -17,6 +17,10 @@ enum class Operation
     List,
     Complete,
     Execute,
+    Track,
+    Untrack,
+    Tags,
+    Update,
 };
 
 static const std::map<std::string_view, Operation> operation_map
@@ -35,6 +39,10 @@ static const std::map<std::string_view, Operation> operation_map
     { "exec", Operation::Execute },
     { "e", Operation::Execute },
     { "x", Operation::Execute },
+    { "track", Operation::Track },
+    { "untrack", Operation::Untrack },
+    { "tags", Operation::Tags },
+    { "update", Operation::Update },
 };
 
 static const args::manifest manifest
@@ -190,6 +198,54 @@ static const args::manifest manifest
         return unvm::Execute(config, client, version, yes, context);
     }
 
+    case Operation::Track:
+    {
+        if (args.size() != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return unvm::Track(config, client, args[1]);
+    }
+
+    case Operation::Untrack:
+    {
+        if (args.size() != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return unvm::Untrack(config, client, args[1]);
+    }
+
+    case Operation::Tags:
+    {
+        if (args.size() != 1)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        const auto available = args.is("available");
+        const auto flat = args.is("flat");
+
+        return unvm::Tags(config, client, available, flat);
+    }
+
+    case Operation::Update:
+    {
+        switch (args.size())
+        {
+        case 1:
+            return unvm::Update(config, client);
+
+        case 2:
+            return unvm::Update(config, client, args[1]);
+
+        default:
+            return toolkit::make_error("invalid argument count.");
+        }
+    }
+
     default:
         return toolkit::make_error("operation '{}' not implemented.", args[0]);
     }
@@ -228,7 +284,7 @@ int main(const int argc, char **argv)
     if (config.Detected)
     {
         unvm::VersionTable table;
-        if (auto res = unvm::LoadVersionTable(client, table, false); !res)
+        if (auto res = unvm::LoadVersionTable(client, false) >> table; !res)
         {
             std::cerr << res.error() << std::endl;
             return 1;

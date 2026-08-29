@@ -29,7 +29,7 @@ for:
 
 ## Build
 
-The project uses CMake for cross-platform builds. Supported configurations:
+The project uses CMake for multi-platform builds. Tested configurations:
 
 - **Windows x64**:
     - `Visual Studio 17 2022` | `MSVC`
@@ -48,7 +48,7 @@ Make sure the following libraries are installed:
 - `OpenSSL`
 - `LibArchive`
 - `ZLib`
-- `RNP`
+- `LibLZMA`
 
 ### Build using CMake
 
@@ -56,7 +56,7 @@ Make sure the following libraries are installed:
 git clone --depth 1 --single-branch --recurse-submodules --shallow-submodules https://github.com/Scriptor25/unvm.git
 cd unvm
 cmake -S . -B build -G Ninja
-cmake --build build --parallel
+cmake --build build
 ```
 
 ### Install using CMake
@@ -74,6 +74,8 @@ Run without arguments to see available commands:
 unvm
 ```
 
+Or append `?`, `-?`, `-h` or `--help` to print out the same manual.
+
 ### Version Names
 
 - `latest` - latest version
@@ -83,13 +85,18 @@ unvm
 
 ### Commands
 
-| Command                 | Description                                                                                                                                                                                       |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `list`                  | List installed versions. Use `-a` or `--available` to list online available versions. Use `-f` or `--flat` to print a flat list of versions. `*` marks the active version in the current context. |
-| `install <version>`     | Install the specified Node.js version.                                                                                                                                                            |
-| `remove <version>`      | Remove the specified Node.js version.                                                                                                                                                             |
-| `use <version> \| none` | Set active Node.js version, or `none` to deactivate. Use `-l` or `--local` to only apply to the current directory tree.                                                                           |
-| `complete ...`          | Print a flat list of auto-complete options for the specified command line.                                                                                                                        |
+| Command                                                                          | Description                                                                                                                                                                                              |
+|----------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `install`,              `i` `<version>`                                          | Install the specified Node.js version.                                                                                                                                                                   |
+| `remove`,               `r` `<version>`                                          | Remove the specified Node.js version.                                                                                                                                                                    |
+| `use`,                  `u` `<version>\|none` `[-l\|--local]`                    | Set the active Node.js version, or `none` to deactivate. Use `-l` or `--local` to only use for the current directory tree.                                                                               |
+| `list`,                 `l` `[-a\|--available]` `[-f\|--flat]` `[-d\|--details]` | List installed versions. Use `-a` or `--available` to list version available online. Use `-f` or `--flat` to print as a flat list. Use `-d` or `--details` to print more details and subversions.        |
+| `complete`,             `c` `--` ...                                             | Print a list of available auto-complete options to standard out.                                                                                                                                         |
+| `execute`, `exec`, `e`, `x` `[<version>]` `[-y\|--yes]` `--` ...                 | Execute the given command within the context of the specified Node.js version, or the detected Node.js version if omitted. Use `-y` or `--yes` to skip confirmation on auto-installing missing versions. |
+| `track`                     `<tag>`                                              | Track a version tag to get latest versions of that tag when updating. `tag` can either be `latest` to always track the latest version, or some long-term-support version name (case-insensitive).        |
+| `untrack`                   `<tag>`                                              | Untrack a previously tracked version tag.                                                                                                                                                                |
+| `tags`                      `[-a\|--available]` `[-f\|--flat]`                   | List all tracked tags. Use `-a` or `--available` to list available tags. Use `-f` or `--flat` to print as a flat list.                                                                                   |
+| `update`                    `[<tag>]`                                            | Update one or all tracked versions. If `tag` is specified, only update this version, else update all.                                                                                                    |
 
 ### Active Version
 
@@ -101,8 +108,8 @@ UNVM determines the active version for the current context using following steps
 3. if the current directory has a parent directory, move up one level and continue with step `1`
 4. otherwise we have reached the file system root, so the global default version is used.
 
-> The `.unvm` file will only be created if you call `unvm use ... local` to manually use a specific version for a
-> directory tree.
+> The `.unvm` file will only be created if you call `unvm use <version> --local` to manually use a specific version for
+> a directory tree.
 
 ## Files
 
@@ -117,6 +124,8 @@ In the same directory, a local copy of the file at https://nodejs.org/dist/index
 stream it every time a version check happens. Also, the data directory contains a directory with the files for each
 installed version.
 
+This directory is also the home of all your locally installed versions, lock files etc.
+
 ## How does UNVM work
 
 The core mechanic used by UNVM are shims. It installs with symlinks or hardlinks for `node`, `npm` and `npx`, pointing
@@ -126,13 +135,12 @@ installed.
 
 ## License
 
-UNVM is released under the **MIT License**.
-See the installed [`LICENSE`](./LICENSE.txt) file for the full license text.
+UNVM is released under the **MIT License**. See the installed [`LICENSE`](./LICENSE.txt) file for the full license text.
 
 ## Third-Party Software
 
-This project includes third-party software.
-See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file for full details and attributions.
+This project includes third-party software. See the installed [`THIRD_PARTY_NOTICES`](./THIRD_PARTY_NOTICES.txt) file
+for full details and attributions.
 
 Included libraries:
 

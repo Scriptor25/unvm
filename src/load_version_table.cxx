@@ -7,7 +7,7 @@
 #include <fstream>
 #include <sstream>
 
-toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTable &table, bool online)
+toolkit::result<unvm::VersionTable> unvm::LoadVersionTable(const http::client &client, bool online)
 {
     /**
      * {
@@ -24,8 +24,7 @@ toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTabl
      *   security: boolean
      * }[]
      */
-
-    table.clear();
+    VersionTable table;
 
     auto data_directory = GetDataDirectory();
 
@@ -93,7 +92,7 @@ toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTabl
         std::ofstream file(index_path);
         file << node;
 
-        return {};
+        return table;
     }
 
     std::ifstream stream(index_path);
@@ -106,7 +105,7 @@ toolkit::result<> unvm::LoadVersionTable(const http::client &client, VersionTabl
         return toolkit::make_error("failed to parse table json.");
     }
 
-    return {};
+    return table;
 }
 
 void unvm::FilterVersionTable(const Config &config, VersionTable &table, const bool supported, const bool installed)
