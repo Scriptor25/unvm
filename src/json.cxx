@@ -27,7 +27,26 @@ bool data::serializer<unvm::Config>::from_data(const json::node &node, unvm::Con
     auto ok = true;
 
     ok &= node["default"] >> value.Default;
-    ok &= from_data_opt(node["installed"], value.Installed);
+
+    if (auto &installed = node["installed"]; installed.is<json::array>())
+    {
+        if (std::unordered_set<std::string> set; installed >> set)
+        {
+            for (auto &entry : set)
+            {
+                value.Installed[entry] = false;
+            }
+        }
+        else
+        {
+            ok = false;
+        }
+    }
+    else
+    {
+        ok &= from_data_opt(node["installed"], value.Installed);
+    }
+
     ok &= from_data_opt(node["fingerprints"], value.Fingerprints);
     ok &= from_data_opt(node["tracked"], value.Tracked);
 
