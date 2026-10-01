@@ -222,12 +222,12 @@ struct PlatformTransport : http::transport
         socket_close(fd);
     }
 
-    int recv(const int fd, void *buffer, const size_t count, int flags) override
+    int recv(const int fd, void *buffer, const size_t count) override
     {
         return SSL_read(ssl[fd], buffer, static_cast<int>(count));
     }
 
-    int send(const int fd, const void *buffer, const size_t count, int flags) override
+    int send(const int fd, const void *buffer, const size_t count) override
     {
         return SSL_write(ssl[fd], buffer, static_cast<int>(count));
     }
