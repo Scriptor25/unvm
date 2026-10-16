@@ -75,10 +75,13 @@ toolkit::result<> unvm::Untrack(
 
     FilterVersionTable(config, table, true, true);
 
-    if (auto *entry = FindEffectiveVersion(table, tag_str))
+    if (const auto *entry = FindEffectiveVersion(table, tag_str))
     {
-        config.Installed[entry->Version] = false;
-        config.UpdatedVersions.insert(entry->Version);
+        if (auto& ref = config.Installed[entry->Version])
+        {
+            ref = false;
+            config.UpdatedVersions.insert(entry->Version);
+        }
     }
 
     config.Tracked.erase(it);
