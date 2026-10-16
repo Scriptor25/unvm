@@ -74,20 +74,20 @@ toolkit::result<> unvm::Update(
         return toolkit::make_error("failed to load version table: {}", res.error());
     }
 
-    FilterVersionTable(config, table, true);
-
     auto installed = table;
+
+    FilterVersionTable(config, table, true);
     FilterVersionTable(config, installed, true, true);
 
     for (auto &tag : config.Tracked)
     {
-        auto *entry = FindEffectiveVersion(table, tag);
+        const auto *entry = FindEffectiveVersion(table, tag);
         if (!entry)
         {
             return toolkit::make_error("no version for tracked tag '{}'.", tag);
         }
 
-        auto *pre = FindEffectiveVersion(installed, entry->Version);
+        const auto *pre = FindEffectiveVersion(installed, tag);
 
         if (auto res = Update(config, client, tag, *entry, pre); !res)
         {
@@ -116,18 +116,18 @@ toolkit::result<> unvm::Update(
         return toolkit::make_error("failed to load version table: {}", res.error());
     }
 
-    FilterVersionTable(config, table, true);
-
     auto installed = table;
+
+    FilterVersionTable(config, table, true);
     FilterVersionTable(config, installed, true, true);
 
-    auto *entry = FindEffectiveVersion(table, tag_str);
+    const auto *entry = FindEffectiveVersion(table, tag_str);
     if (!entry)
     {
         return toolkit::make_error("no version for tracked tag '{}'.", tag);
     }
 
-    auto *pre = FindEffectiveVersion(installed, entry->Version);
+    const auto *pre = FindEffectiveVersion(installed, tag_str);
 
     return Update(config, client, tag, *entry, pre);
 }
