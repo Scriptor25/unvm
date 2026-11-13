@@ -59,7 +59,7 @@ toolkit::result<unvm::VersionTable> unvm::LoadVersionTable(const http::client &c
 
         http::request_t request
         {
-            .method = http::method::get,
+            .method   = http::method::get,
             .location = http::url::parse("https://nodejs.org/dist/index.json"),
         };
         http::response_t response

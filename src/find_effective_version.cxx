@@ -49,31 +49,29 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(
     {
         switch (const auto segments = toolkit::split(version, '.'); segments.size())
         {
-        case 1:
-        case 2:
-            for (const auto pattern = 'v' + std::string(version) + '.';
-                 auto &entry : table)
-            {
-                if (entry.Version.starts_with(pattern))
+            case 1:
+            case 2:
+                for (const auto pattern = 'v' + std::string(version) + '.'; auto &entry : table)
                 {
-                    return &entry;
+                    if (entry.Version.starts_with(pattern))
+                    {
+                        return &entry;
+                    }
                 }
-            }
-            break;
+                break;
 
-        case 3:
-            for (const auto pattern = 'v' + std::string(version);
-                 auto &entry : table)
-            {
-                if (entry.Version == pattern)
+            case 3:
+                for (const auto pattern = 'v' + std::string(version); auto &entry : table)
                 {
-                    return &entry;
+                    if (entry.Version == pattern)
+                    {
+                        return &entry;
+                    }
                 }
-            }
-            break;
+                break;
 
-        default:
-            break;
+            default:
+                break;
         }
 
         return nullptr;
@@ -84,30 +82,29 @@ const unvm::VersionEntry *unvm::FindEffectiveVersion(
     {
         switch (const auto segments = toolkit::split(version, '.'); segments.size())
         {
-        case 1:
-        case 2:
-            for (const auto pattern = std::string(version) + '.';
-                 auto &entry : table)
-            {
-                if (entry.Version.starts_with(pattern))
+            case 1:
+            case 2:
+                for (const auto pattern = std::string(version) + '.'; auto &entry : table)
                 {
-                    return &entry;
+                    if (entry.Version.starts_with(pattern))
+                    {
+                        return &entry;
+                    }
                 }
-            }
-            break;
+                break;
 
-        case 3:
-            for (auto &entry : table)
-            {
-                if (entry.Version == version)
+            case 3:
+                for (auto &entry : table)
                 {
-                    return &entry;
+                    if (entry.Version == version)
+                    {
+                        return &entry;
+                    }
                 }
-            }
-            break;
+                break;
 
-        default:
-            break;
+            default:
+                break;
         }
 
         return nullptr;

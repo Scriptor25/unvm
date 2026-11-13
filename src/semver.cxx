@@ -42,7 +42,7 @@ toolkit::result<unvm::semver::RangeSet> unvm::semver::Parser::Parse()
                 Hyphen
                 {
                     .Begin = std::move(begin.Value),
-                    .End = std::move(end),
+                    .End   = std::move(end),
                 });
         }
         else
@@ -106,7 +106,7 @@ toolkit::result<unvm::semver::Primitive> unvm::semver::Parser::ParsePrimitive()
 
     return {
         {
-            .Type = type,
+            .Type  = type,
             .Value = std::move(value),
         }
     };
@@ -339,91 +339,91 @@ std::string unvm::semver::Parser::Next()
     {
         switch (state)
         {
-        case State::None:
-            switch (m_Buffer)
-            {
-            case '=':
-            case '<':
-            case '>':
-            case '|':
-                state = State::Operator;
+            case State::None:
+                switch (m_Buffer)
+                {
+                    case '=':
+                    case '<':
+                    case '>':
+                    case '|':
+                        state = State::Operator;
+                        break;
+
+                    case '~':
+                    case '^':
+                    case '+':
+                    case '-':
+                    case '*':
+                    case '.':
+                        value += static_cast<char>(m_Buffer);
+                        m_Buffer = m_Stream.get();
+                        return value;
+
+                    default:
+                        if (std::isspace(m_Buffer))
+                        {
+                            state = State::Space;
+                            break;
+                        }
+
+                        if (std::isdigit(m_Buffer))
+                        {
+                            state = State::Number;
+                            break;
+                        }
+
+                        if (std::isalpha(m_Buffer))
+                        {
+                            state = State::String;
+                            break;
+                        }
+
+                        std::cerr
+                            << "invalid character '"
+                            << static_cast<char>(m_Buffer)
+                            << "' ("
+                            << m_Buffer
+                            << ") in stream."
+                            << std::endl;
+                        m_Buffer = m_Stream.get();
+                        break;
+                }
                 break;
 
-            case '~':
-            case '^':
-            case '+':
-            case '-':
-            case '*':
-            case '.':
-                value += static_cast<char>(m_Buffer);
-                m_Buffer = m_Stream.get();
-                return value;
-
-            default:
+            case State::Space:
                 if (std::isspace(m_Buffer))
                 {
-                    state = State::Space;
+                    m_Buffer = m_Stream.get();
                     break;
                 }
+                return " ";
 
+            case State::Number:
                 if (std::isdigit(m_Buffer))
                 {
-                    state = State::Number;
+                    value += static_cast<char>(m_Buffer);
+                    m_Buffer = m_Stream.get();
                     break;
                 }
+                return value;
 
-                if (std::isalpha(m_Buffer))
+            case State::String:
+                if (std::isalnum(m_Buffer) || m_Buffer == '_')
                 {
-                    state = State::String;
+                    value += static_cast<char>(m_Buffer);
+                    m_Buffer = m_Stream.get();
                     break;
                 }
+                return value;
 
-                std::cerr
-                        << "invalid character '"
-                        << static_cast<char>(m_Buffer)
-                        << "' ("
-                        << m_Buffer
-                        << ") in stream."
-                        << std::endl;
-                m_Buffer = m_Stream.get();
-                break;
-            }
-            break;
-
-        case State::Space:
-            if (std::isspace(m_Buffer))
-            {
-                m_Buffer = m_Stream.get();
-                break;
-            }
-            return " ";
-
-        case State::Number:
-            if (std::isdigit(m_Buffer))
-            {
-                value += static_cast<char>(m_Buffer);
-                m_Buffer = m_Stream.get();
-                break;
-            }
-            return value;
-
-        case State::String:
-            if (std::isalnum(m_Buffer) || m_Buffer == '_')
-            {
-                value += static_cast<char>(m_Buffer);
-                m_Buffer = m_Stream.get();
-                break;
-            }
-            return value;
-
-        case State::Operator:
-            if (m_Buffer == '=' || m_Buffer == '<' || m_Buffer == '>' || m_Buffer == '|')
-            {
-                value += static_cast<char>(m_Buffer);
-                m_Buffer = m_Stream.get();
-                break;
-            }
-            return value;
+            case State::Operator:
+                if (m_Buffer == '=' || m_Buffer == '<' || m_Buffer == '>' || m_Buffer == '|')
+                {
+                    value += static_cast<char>(m_Buffer);
+                    m_Buffer = m_Stream.get();
+                    break;
+                }
+                return value;
         }
     }
 
@@ -488,7 +488,7 @@ static unvm::semver::Partial normalize_partial(const unvm::semver::Partial &part
             .Patch = partial.Mask >= 2 && (partial.Mod & 0b100) ? 0u : partial.Value.Patch,
         },
         .Mask = 2,
-        .Mod = 0,
+        .Mod  = 0,
     };
 }
 
@@ -521,98 +521,98 @@ toolkit::result<bool> unvm::semver::IsInRange(const RangeSet &set, const Version
             {
                 switch (type_)
                 {
-                case PrimitiveType::Equal:
-                    match &= (partial == value_);
-                    break;
+                    case PrimitiveType::Equal:
+                        match &= (partial == value_);
+                        break;
 
-                case PrimitiveType::LessThan:
-                    match &= (partial < value_);
-                    break;
+                    case PrimitiveType::LessThan:
+                        match &= (partial < value_);
+                        break;
 
-                case PrimitiveType::LessThanOrEqual:
-                    match &= (partial <= value_);
-                    break;
+                    case PrimitiveType::LessThanOrEqual:
+                        match &= (partial <= value_);
+                        break;
 
-                case PrimitiveType::GreaterThan:
-                    match &= (partial > value_);
-                    break;
+                    case PrimitiveType::GreaterThan:
+                        match &= (partial > value_);
+                        break;
 
-                case PrimitiveType::GreaterThanOrEqual:
-                    match &= (partial >= value_);
-                    break;
+                    case PrimitiveType::GreaterThanOrEqual:
+                        match &= (partial >= value_);
+                        break;
 
-                case PrimitiveType::Tilde:
-                {
-                    auto &lower = value_;
-
-                    if (partial < lower)
+                    case PrimitiveType::Tilde:
                     {
-                        match = false;
+                        auto &lower = value_;
+
+                        if (partial < lower)
+                        {
+                            match = false;
+                            break;
+                        }
+
+                        Partial upper{};
+                        upper.Mask = 2;
+
+                        if (lower.Mask == 0)
+                        {
+                            upper.Value.Major = lower.Value.Major + 1;
+                        }
+                        else
+                        {
+                            upper.Value.Major = lower.Value.Major;
+                            upper.Value.Minor = lower.Value.Minor + 1;
+                        }
+
+                        if (partial >= upper)
+                        {
+                            match = false;
+                            break;
+                        }
+
                         break;
                     }
 
-                    Partial upper{};
-                    upper.Mask = 2;
+                    case PrimitiveType::Caret:
+                    {
+                        auto &lower = value_;
 
-                    if (lower.Mask == 0)
-                    {
-                        upper.Value.Major = lower.Value.Major + 1;
-                    }
-                    else
-                    {
-                        upper.Value.Major = lower.Value.Major;
-                        upper.Value.Minor = lower.Value.Minor + 1;
-                    }
+                        if (partial < lower)
+                        {
+                            match = false;
+                            break;
+                        }
 
-                    if (partial >= upper)
-                    {
-                        match = false;
+                        Partial upper{};
+                        upper.Mask = 2;
+
+                        if (lower.Value.Major > 0)
+                        {
+                            upper.Value.Major = lower.Value.Major + 1;
+                        }
+                        else if (lower.Value.Minor > 0)
+                        {
+                            upper.Value.Major = 0;
+                            upper.Value.Minor = lower.Value.Minor + 1;
+                        }
+                        else
+                        {
+                            upper.Value.Major = 0;
+                            upper.Value.Minor = 0;
+                            upper.Value.Patch = lower.Value.Patch + 1;
+                        }
+
+                        if (partial >= upper)
+                        {
+                            match = false;
+                            break;
+                        }
+
                         break;
                     }
 
-                    break;
-                }
-
-                case PrimitiveType::Caret:
-                {
-                    auto &lower = value_;
-
-                    if (partial < lower)
-                    {
-                        match = false;
-                        break;
-                    }
-
-                    Partial upper{};
-                    upper.Mask = 2;
-
-                    if (lower.Value.Major > 0)
-                    {
-                        upper.Value.Major = lower.Value.Major + 1;
-                    }
-                    else if (lower.Value.Minor > 0)
-                    {
-                        upper.Value.Major = 0;
-                        upper.Value.Minor = lower.Value.Minor + 1;
-                    }
-                    else
-                    {
-                        upper.Value.Major = 0;
-                        upper.Value.Minor = 0;
-                        upper.Value.Patch = lower.Value.Patch + 1;
-                    }
-
-                    if (partial >= upper)
-                    {
-                        match = false;
-                        break;
-                    }
-
-                    break;
-                }
-
-                default:
-                    return toolkit::make_error("invalid semver primitive type.");
+                    default:
+                        return toolkit::make_error("invalid semver primitive type.");
                 }
 
                 if (!match)

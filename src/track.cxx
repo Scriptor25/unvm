@@ -77,7 +77,7 @@ toolkit::result<> unvm::Untrack(
 
     if (const auto *entry = FindEffectiveVersion(table, tag_str))
     {
-        if (auto& ref = config.Installed[entry->Version])
+        if (auto &ref = config.Installed[entry->Version])
         {
             ref = false;
             config.UpdatedVersions.insert(entry->Version);
