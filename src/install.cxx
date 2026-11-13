@@ -22,11 +22,11 @@
 {
     http::request_t request
     {
-        .method = http::method::get,
+        .method   = http::method::get,
         .location = {
-            .scheme = "https",
-            .host = "nodejs.org",
-            .port = 443,
+            .scheme   = "https",
+            .host     = "nodejs.org",
+            .port     = 443,
             .pathname = std::format("/dist/{}/{}", version, filename),
         },
     };
@@ -138,8 +138,8 @@
         }
         else
         {
-            if (auto fingerprint = unvm::pgp::ToHexString(signature.IssuerFingerprint);
-                !config.Fingerprints.contains(fingerprint))
+            if (auto fingerprint = unvm::pgp::ToHexString(signature.IssuerFingerprint); !config.Fingerprints.contains(
+                fingerprint))
             {
                 std::cout << "untrusted fingerprint '" << fingerprint << "'." << std::endl;
 
@@ -256,14 +256,14 @@ toolkit::result<> unvm::Install(
             if (std::error_code ec; std::filesystem::remove(name, ec), ec)
             {
                 std::cerr
-                        << "failed to remove file '"
-                        << name
-                        << "': "
-                        << ec.message()
-                        << " ("
-                        << ec.value()
-                        << ")."
-                        << std::endl;
+                    << "failed to remove file '"
+                    << name
+                    << "': "
+                    << ec.message()
+                    << " ("
+                    << ec.value()
+                    << ")."
+                    << std::endl;
             }
         },
         archive_name);

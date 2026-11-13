@@ -202,7 +202,7 @@ toolkit::result<unvm::pgp::KDF> unvm::pgp::MPIIterator::kdf()
 
     return KDF
     {
-        .HashAlgorithm = static_cast<HashAlgorithmID>(ha),
+        .HashAlgorithm      = static_cast<HashAlgorithmID>(ha),
         .SymmetricAlgorithm = static_cast<SymmetricAlgorithmID>(sa),
     };
 }

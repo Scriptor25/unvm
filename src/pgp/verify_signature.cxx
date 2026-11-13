@@ -20,53 +20,53 @@
 
     switch (hash_algorithm)
     {
-    case unvm::pgp::HashAlgorithmID::MD5:
-        digest = EVP_md5();
-        prefix = unvm::pgp::PREFIX_MD5;
-        break;
+        case unvm::pgp::HashAlgorithmID::MD5:
+            digest = EVP_md5();
+            prefix = unvm::pgp::PREFIX_MD5;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA1:
-        digest = EVP_sha1();
-        prefix = unvm::pgp::PREFIX_SHA1;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA1:
+            digest = EVP_sha1();
+            prefix = unvm::pgp::PREFIX_SHA1;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::RIPEMD160:
-        digest = EVP_ripemd160();
-        prefix = unvm::pgp::PREFIX_RIPEMD160;
-        break;
+        case unvm::pgp::HashAlgorithmID::RIPEMD160:
+            digest = EVP_ripemd160();
+            prefix = unvm::pgp::PREFIX_RIPEMD160;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA256:
-        digest = EVP_sha256();
-        prefix = unvm::pgp::PREFIX_SHA256;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA256:
+            digest = EVP_sha256();
+            prefix = unvm::pgp::PREFIX_SHA256;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA384:
-        digest = EVP_sha384();
-        prefix = unvm::pgp::PREFIX_SHA384;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA384:
+            digest = EVP_sha384();
+            prefix = unvm::pgp::PREFIX_SHA384;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA512:
-        digest = EVP_sha512();
-        prefix = unvm::pgp::PREFIX_SHA512;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA512:
+            digest = EVP_sha512();
+            prefix = unvm::pgp::PREFIX_SHA512;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA224:
-        digest = EVP_sha224();
-        prefix = unvm::pgp::PREFIX_SHA224;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA224:
+            digest = EVP_sha224();
+            prefix = unvm::pgp::PREFIX_SHA224;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA3_256:
-        digest = EVP_sha3_256();
-        prefix = unvm::pgp::PREFIX_SHA3_256;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA3_256:
+            digest = EVP_sha3_256();
+            prefix = unvm::pgp::PREFIX_SHA3_256;
+            break;
 
-    case unvm::pgp::HashAlgorithmID::SHA3_512:
-        digest = EVP_sha3_512();
-        prefix = unvm::pgp::PREFIX_SHA3_512;
-        break;
+        case unvm::pgp::HashAlgorithmID::SHA3_512:
+            digest = EVP_sha3_512();
+            prefix = unvm::pgp::PREFIX_SHA3_512;
+            break;
 
-    default:
-        return toolkit::make_error("unsupported hash algorithm {}.", hash_algorithm);
+        default:
+            return toolkit::make_error("unsupported hash algorithm {}.", hash_algorithm);
     }
 
     (void) prefix;
@@ -183,28 +183,28 @@ toolkit::result<std::vector<uint8_t>> unvm::pgp::BuildSignatureBuffer(
     uint8_t length_length;
     switch (signature.Version)
     {
-    case 0x04:
-        // no salt required
-        length_length = 2;
-        break;
+        case 0x04:
+            // no salt required
+            length_length = 2;
+            break;
 
-    case 0x06:
-        update(signature.SaltMaterial);
-        length_length = 4;
-        break;
+        case 0x06:
+            update(signature.SaltMaterial);
+            length_length = 4;
+            break;
 
-    default:
-        return toolkit::make_error("unsupported signature version {:02x}", signature.Version);
+        default:
+            return toolkit::make_error("unsupported signature version {:02x}", signature.Version);
     }
 
     switch (signature.SignatureType)
     {
-    case SignatureTypeID::Binary:
-        update(data);
-        break;
+        case SignatureTypeID::Binary:
+            update(data);
+            break;
 
-    default:
-        return toolkit::make_error("unsupported signature type {}", signature.SignatureType);
+        default:
+            return toolkit::make_error("unsupported signature type {}", signature.SignatureType);
     }
 
     update(
@@ -218,16 +218,16 @@ toolkit::result<std::vector<uint8_t>> unvm::pgp::BuildSignatureBuffer(
 
     switch (signature.Version)
     {
-    case 0x04:
-        update(bytes<uint16_t>(signature.HashedBlock.size()));
-        break;
+        case 0x04:
+            update(bytes<uint16_t>(signature.HashedBlock.size()));
+            break;
 
-    case 0x06:
-        update(bytes<uint32_t>(signature.HashedBlock.size()));
-        break;
+        case 0x06:
+            update(bytes<uint32_t>(signature.HashedBlock.size()));
+            break;
 
-    default:
-        return toolkit::make_error("unsupported signature version {:02x}", signature.Version);
+        default:
+            return toolkit::make_error("unsupported signature version {:02x}", signature.Version);
     }
 
     update(signature.HashedBlock.block);
@@ -257,182 +257,182 @@ toolkit::result<> unvm::pgp::VerifySignatureBuffer(
 
     switch (signature.PublicKeyAlgorithm)
     {
-    case PublicKeyAlgorithmID::RSA_EO:
-    case PublicKeyAlgorithmID::RSA_SO:
-    case PublicKeyAlgorithmID::RSA_ES:
-    {
-        std::span<const uint8_t> raw;
-
-        if (auto res = it.mpi() >> raw; !res)
+        case PublicKeyAlgorithmID::RSA_EO:
+        case PublicKeyAlgorithmID::RSA_SO:
+        case PublicKeyAlgorithmID::RSA_ES:
         {
-            return res;
+            std::span<const uint8_t> raw;
+
+            if (auto res = it.mpi() >> raw; !res)
+            {
+                return res;
+            }
+
+            if (auto res = NormalizeMPI(raw, public_key_size) >> sig; !res)
+            {
+                return res;
+            }
+
+            break;
         }
 
-        if (auto res = NormalizeMPI(raw, public_key_size) >> sig; !res)
+        case PublicKeyAlgorithmID::DSA:
         {
-            return res;
+            std::span<const uint8_t> raw_r, raw_s;
+
+            if (auto res = it.mpi() >> raw_r; !res)
+            {
+                return res;
+            }
+
+            if (auto res = it.mpi() >> raw_s; !res)
+            {
+                return res;
+            }
+
+            auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
+            auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
+
+            auto guard_r = toolkit::defer(BN_free, r);
+            auto guard_s = toolkit::defer(BN_free, s);
+
+            auto *dsa_sig = DSA_SIG_new();
+            if (!dsa_sig)
+            {
+                return toolkit::make_error("failed to create dsa signature: {}", GetSSLErrorStack());
+            }
+
+            auto guard_dsa_sig = toolkit::defer(DSA_SIG_free, dsa_sig);
+
+            if (DSA_SIG_set0(dsa_sig, r, s) <= 0)
+            {
+                return toolkit::make_error("failed to set dsa signature: {}", GetSSLErrorStack());
+            }
+
+            guard_r.deactivate();
+            guard_s.deactivate();
+
+            auto der_size = i2d_DSA_SIG(dsa_sig, nullptr);
+            if (der_size <= 0)
+            {
+                return toolkit::make_error("failed to get dsa signature der size: {}", GetSSLErrorStack());
+            }
+
+            std::vector<uint8_t> der(der_size);
+
+            auto *out = der.data();
+            der_size = i2d_DSA_SIG(dsa_sig, &out);
+            if (der_size <= 0)
+            {
+                return toolkit::make_error("failed to encode dsa signature der: {}", GetSSLErrorStack());
+            }
+
+            sig = std::move(der);
+            break;
         }
 
-        break;
-    }
-
-    case PublicKeyAlgorithmID::DSA:
-    {
-        std::span<const uint8_t> raw_r, raw_s;
-
-        if (auto res = it.mpi() >> raw_r; !res)
+        case PublicKeyAlgorithmID::ECDSA:
         {
-            return res;
+            std::span<const uint8_t> raw_r, raw_s;
+
+            if (auto res = it.mpi() >> raw_r; !res)
+            {
+                return res;
+            }
+
+            if (auto res = it.mpi() >> raw_s; !res)
+            {
+                return res;
+            }
+
+            auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
+            auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
+
+            auto guard_r = toolkit::defer(BN_free, r);
+            auto guard_s = toolkit::defer(BN_free, s);
+
+            auto *ecdsa_sig = ECDSA_SIG_new();
+            if (!ecdsa_sig)
+            {
+                return toolkit::make_error("failed to create ecdsa signature: {}", GetSSLErrorStack());
+            }
+
+            auto guard_dsa_sig = toolkit::defer(ECDSA_SIG_free, ecdsa_sig);
+
+            if (ECDSA_SIG_set0(ecdsa_sig, r, s) <= 0)
+            {
+                return toolkit::make_error("failed to set ecdsa signature: {}", GetSSLErrorStack());
+            }
+
+            guard_r.deactivate();
+            guard_s.deactivate();
+
+            auto der_size = i2d_ECDSA_SIG(ecdsa_sig, nullptr);
+            if (der_size <= 0)
+            {
+                return toolkit::make_error("failed to get ecdsa signature der size: {}", GetSSLErrorStack());
+            }
+
+            std::vector<uint8_t> der(der_size);
+
+            auto *out = der.data();
+            der_size = i2d_ECDSA_SIG(ecdsa_sig, &out);
+            if (der_size <= 0)
+            {
+                return toolkit::make_error("failed to encode ecdsa signature der: {}", GetSSLErrorStack());
+            }
+
+            sig = std::move(der);
+            break;
         }
 
-        if (auto res = it.mpi() >> raw_s; !res)
+        case PublicKeyAlgorithmID::EdDSALegacy:
         {
-            return res;
+            std::span<const uint8_t> raw_r, raw_s;
+
+            if (auto res = it.mpi() >> raw_r; !res)
+            {
+                return res;
+            }
+
+            if (auto res = it.mpi() >> raw_s; !res)
+            {
+                return res;
+            }
+
+            sig.insert(sig.end(), raw_r.begin(), raw_r.end());
+            sig.insert(sig.end(), raw_s.begin(), raw_s.end());
+            break;
         }
 
-        auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
-        auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
-
-        auto guard_r = toolkit::defer(BN_free, r);
-        auto guard_s = toolkit::defer(BN_free, s);
-
-        auto *dsa_sig = DSA_SIG_new();
-        if (!dsa_sig)
+        case PublicKeyAlgorithmID::Ed25519:
         {
-            return toolkit::make_error("failed to create dsa signature: {}", GetSSLErrorStack());
+            std::span<const uint8_t> raw;
+
+            if (auto res = it.bytes(64) >> raw; !res)
+            {
+                return res;
+            }
+
+            sig = { raw.begin(), raw.end() };
+            break;
         }
 
-        auto guard_dsa_sig = toolkit::defer(DSA_SIG_free, dsa_sig);
-
-        if (DSA_SIG_set0(dsa_sig, r, s) <= 0)
+        case PublicKeyAlgorithmID::Ed448:
         {
-            return toolkit::make_error("failed to set dsa signature: {}", GetSSLErrorStack());
+            std::span<const uint8_t> raw;
+
+            if (auto res = it.bytes(114) >> raw; !res)
+            {
+                return res;
+            }
+
+            sig = { raw.begin(), raw.end() };
+            break;
         }
 
-        guard_r.deactivate();
-        guard_s.deactivate();
-
-        auto der_size = i2d_DSA_SIG(dsa_sig, nullptr);
-        if (der_size <= 0)
-        {
-            return toolkit::make_error("failed to get dsa signature der size: {}", GetSSLErrorStack());
-        }
-
-        std::vector<uint8_t> der(der_size);
-
-        auto *out = der.data();
-        der_size = i2d_DSA_SIG(dsa_sig, &out);
-        if (der_size <= 0)
-        {
-            return toolkit::make_error("failed to encode dsa signature der: {}", GetSSLErrorStack());
-        }
-
-        sig = std::move(der);
-        break;
-    }
-
-    case PublicKeyAlgorithmID::ECDSA:
-    {
-        std::span<const uint8_t> raw_r, raw_s;
-
-        if (auto res = it.mpi() >> raw_r; !res)
-        {
-            return res;
-        }
-
-        if (auto res = it.mpi() >> raw_s; !res)
-        {
-            return res;
-        }
-
-        auto *r = BN_bin2bn(raw_r.data(), static_cast<int>(raw_r.size()), nullptr);
-        auto *s = BN_bin2bn(raw_s.data(), static_cast<int>(raw_s.size()), nullptr);
-
-        auto guard_r = toolkit::defer(BN_free, r);
-        auto guard_s = toolkit::defer(BN_free, s);
-
-        auto *ecdsa_sig = ECDSA_SIG_new();
-        if (!ecdsa_sig)
-        {
-            return toolkit::make_error("failed to create ecdsa signature: {}", GetSSLErrorStack());
-        }
-
-        auto guard_dsa_sig = toolkit::defer(ECDSA_SIG_free, ecdsa_sig);
-
-        if (ECDSA_SIG_set0(ecdsa_sig, r, s) <= 0)
-        {
-            return toolkit::make_error("failed to set ecdsa signature: {}", GetSSLErrorStack());
-        }
-
-        guard_r.deactivate();
-        guard_s.deactivate();
-
-        auto der_size = i2d_ECDSA_SIG(ecdsa_sig, nullptr);
-        if (der_size <= 0)
-        {
-            return toolkit::make_error("failed to get ecdsa signature der size: {}", GetSSLErrorStack());
-        }
-
-        std::vector<uint8_t> der(der_size);
-
-        auto *out = der.data();
-        der_size = i2d_ECDSA_SIG(ecdsa_sig, &out);
-        if (der_size <= 0)
-        {
-            return toolkit::make_error("failed to encode ecdsa signature der: {}", GetSSLErrorStack());
-        }
-
-        sig = std::move(der);
-        break;
-    }
-
-    case PublicKeyAlgorithmID::EdDSALegacy:
-    {
-        std::span<const uint8_t> raw_r, raw_s;
-
-        if (auto res = it.mpi() >> raw_r; !res)
-        {
-            return res;
-        }
-
-        if (auto res = it.mpi() >> raw_s; !res)
-        {
-            return res;
-        }
-
-        sig.insert(sig.end(), raw_r.begin(), raw_r.end());
-        sig.insert(sig.end(), raw_s.begin(), raw_s.end());
-        break;
-    }
-
-    case PublicKeyAlgorithmID::Ed25519:
-    {
-        std::span<const uint8_t> raw;
-
-        if (auto res = it.bytes(64) >> raw; !res)
-        {
-            return res;
-        }
-
-        sig = { raw.begin(), raw.end() };
-        break;
-    }
-
-    case PublicKeyAlgorithmID::Ed448:
-    {
-        std::span<const uint8_t> raw;
-
-        if (auto res = it.bytes(114) >> raw; !res)
-        {
-            return res;
-        }
-
-        sig = { raw.begin(), raw.end() };
-        break;
-    }
-
-    default:
-        return toolkit::make_error("unsupported public key algorithm {}.", signature.PublicKeyAlgorithm);
+        default:
+            return toolkit::make_error("unsupported public key algorithm {}.", signature.PublicKeyAlgorithm);
     }
 
     return verify_signature(

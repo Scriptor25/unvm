@@ -64,48 +64,48 @@ toolkit::result<unvm::pgp::PublicKey> unvm::pgp::ParsePublicKey(const PublicKeyP
 
     switch (packet->Version)
     {
-    case 0x04:
-    {
-        auto *pkg = reinterpret_cast<const PublicKeyPacketV4 *>(packet);
-
-        key.CreationTime = scalar(pkg->CreationTime);
-        key.Algorithm = pkg->PublicKeyAlgorithm;
-        key.Material = { pkg->Key, pointer + packet_length };
-
-        constexpr uint8_t magic = 0x99;
-
-        if (auto res = digest(EVP_sha1(), magic, bytes<uint16_t>(packet_length), data) >> key.Fingerprint; !res)
+        case 0x04:
         {
-            return res;
+            auto *pkg = reinterpret_cast<const PublicKeyPacketV4 *>(packet);
+
+            key.CreationTime = scalar(pkg->CreationTime);
+            key.Algorithm = pkg->PublicKeyAlgorithm;
+            key.Material = { pkg->Key, pointer + packet_length };
+
+            constexpr uint8_t magic = 0x99;
+
+            if (auto res = digest(EVP_sha1(), magic, bytes<uint16_t>(packet_length), data) >> key.Fingerprint; !res)
+            {
+                return res;
+            }
+
+            key.KeyID = { &key.Fingerprint[12], 8 };
+
+            break;
         }
-
-        key.KeyID = { &key.Fingerprint[12], 8 };
-
-        break;
-    }
-    case 0x06:
-    {
-        auto *pkg = reinterpret_cast<const PublicKeyPacketV6 *>(packet);
-
-        key.CreationTime = scalar(pkg->CreationTime);
-        key.Algorithm = pkg->PublicKeyAlgorithm;
-
-        const auto key_length = scalar(pkg->KeyLength);
-        key.Material = { pkg->Key, pkg->Key + key_length };
-
-        constexpr uint8_t magic = 0x9B;
-
-        if (auto res = digest(EVP_sha256(), magic, bytes<uint32_t>(packet_length), data) >> key.Fingerprint; !res)
+        case 0x06:
         {
-            return res;
+            auto *pkg = reinterpret_cast<const PublicKeyPacketV6 *>(packet);
+
+            key.CreationTime = scalar(pkg->CreationTime);
+            key.Algorithm = pkg->PublicKeyAlgorithm;
+
+            const auto key_length = scalar(pkg->KeyLength);
+            key.Material = { pkg->Key, pkg->Key + key_length };
+
+            constexpr uint8_t magic = 0x9B;
+
+            if (auto res = digest(EVP_sha256(), magic, bytes<uint32_t>(packet_length), data) >> key.Fingerprint; !res)
+            {
+                return res;
+            }
+
+            key.KeyID = { &key.Fingerprint[0], 8 };
+
+            break;
         }
-
-        key.KeyID = { &key.Fingerprint[0], 8 };
-
-        break;
-    }
-    default:
-        return toolkit::make_error("unsupported packet version {:02x}", packet->Version);
+        default:
+            return toolkit::make_error("unsupported packet version {:02x}", packet->Version);
     }
 
     return key;

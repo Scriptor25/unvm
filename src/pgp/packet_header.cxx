@@ -48,24 +48,24 @@ void unvm::pgp::PacketHeader::Parse(
 
         switch (tag->LengthType)
         {
-        case 0:
-            packet_length = Length[0];
-            partial = false;
-            break;
-        case 1:
-            packet_length = scalar<2>(Length);
-            partial = false;
-            break;
-        case 2:
-            packet_length = scalar<4>(Length);
-            partial = false;
-            break;
-        case 3:
-        default:
-            header_length = 1;
-            packet_length = 0;
-            partial = false;
-            break;
+            case 0:
+                packet_length = Length[0];
+                partial = false;
+                break;
+            case 1:
+                packet_length = scalar<2>(Length);
+                partial = false;
+                break;
+            case 2:
+                packet_length = scalar<4>(Length);
+                partial = false;
+                break;
+            case 3:
+            default:
+                header_length = 1;
+                packet_length = 0;
+                partial = false;
+                break;
         }
     }
 }

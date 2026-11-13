@@ -157,7 +157,7 @@ struct PlatformTransport : http::transport
 
         addrinfo hints
         {
-            .ai_family = AF_UNSPEC,
+            .ai_family   = AF_UNSPEC,
             .ai_socktype = SOCK_STREAM,
             .ai_protocol = 0,
         };

@@ -44,9 +44,9 @@ const unvm::pgp::PublicKey *unvm::pgp::MatchPublicKey(
         }
 
         const auto better =
-                !best_candidate
-                || (is_primary && !best_is_primary)
-                || (is_primary == best_is_primary && key.CreationTime > best_creation_time);
+            !best_candidate
+            || (is_primary && !best_is_primary)
+            || (is_primary == best_is_primary && key.CreationTime > best_creation_time);
 
         if (better)
         {

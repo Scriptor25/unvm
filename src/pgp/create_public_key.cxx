@@ -85,30 +85,30 @@ static void print_settable_params(EVP_PKEY_CTX *ctx, const char *name)
 
         switch (settable->data_type)
         {
-        case OSSL_PARAM_INTEGER:
-            data_type = "INTEGER";
-            break;
-        case OSSL_PARAM_UNSIGNED_INTEGER:
-            data_type = "UNSIGNED_INTEGER";
-            break;
-        case OSSL_PARAM_REAL:
-            data_type = "REAL";
-            break;
-        case OSSL_PARAM_UTF8_STRING:
-            data_type = "UTF8_STRING";
-            break;
-        case OSSL_PARAM_OCTET_STRING:
-            data_type = "OCTET_STRING";
-            break;
-        case OSSL_PARAM_UTF8_PTR:
-            data_type = "UTF8_PTR";
-            break;
-        case OSSL_PARAM_OCTET_PTR:
-            data_type = "OCTET_PTR";
-            break;
-        default:
-            data_type = nullptr;
-            break;
+            case OSSL_PARAM_INTEGER:
+                data_type = "INTEGER";
+                break;
+            case OSSL_PARAM_UNSIGNED_INTEGER:
+                data_type = "UNSIGNED_INTEGER";
+                break;
+            case OSSL_PARAM_REAL:
+                data_type = "REAL";
+                break;
+            case OSSL_PARAM_UTF8_STRING:
+                data_type = "UTF8_STRING";
+                break;
+            case OSSL_PARAM_OCTET_STRING:
+                data_type = "OCTET_STRING";
+                break;
+            case OSSL_PARAM_UTF8_PTR:
+                data_type = "UTF8_PTR";
+                break;
+            case OSSL_PARAM_OCTET_PTR:
+                data_type = "OCTET_PTR";
+                break;
+            default:
+                data_type = nullptr;
+                break;
         }
 
         std::cerr << settable->key << ": " << data_type << " ";
@@ -423,39 +423,39 @@ toolkit::result<EVP_PKEY *> unvm::pgp::CreateOpenSSLPublicKey(const PublicKey &k
 {
     switch (key.Algorithm)
     {
-    case PublicKeyAlgorithmID::RSA_ES:
-    case PublicKeyAlgorithmID::RSA_EO:
-    case PublicKeyAlgorithmID::RSA_SO:
-        return CreateOpenSSLPublicKey_RSA(key.Material);
+        case PublicKeyAlgorithmID::RSA_ES:
+        case PublicKeyAlgorithmID::RSA_EO:
+        case PublicKeyAlgorithmID::RSA_SO:
+            return CreateOpenSSLPublicKey_RSA(key.Material);
 
-    case PublicKeyAlgorithmID::DSA:
-        return CreateOpenSSLPublicKey_DSA(key.Material);
+        case PublicKeyAlgorithmID::DSA:
+            return CreateOpenSSLPublicKey_DSA(key.Material);
 
-    case PublicKeyAlgorithmID::Elgamal_EO:
-        return CreateOpenSSLPublicKey_Elgamal(key.Material);
+        case PublicKeyAlgorithmID::Elgamal_EO:
+            return CreateOpenSSLPublicKey_Elgamal(key.Material);
 
-    case PublicKeyAlgorithmID::ECDSA:
-        return CreateOpenSSLPublicKey_ECDSA(key.Material);
+        case PublicKeyAlgorithmID::ECDSA:
+            return CreateOpenSSLPublicKey_ECDSA(key.Material);
 
-    case PublicKeyAlgorithmID::EdDSALegacy:
-        return CreateOpenSSLPublicKey_EdDSA(key.Material);
+        case PublicKeyAlgorithmID::EdDSALegacy:
+            return CreateOpenSSLPublicKey_EdDSA(key.Material);
 
-    case PublicKeyAlgorithmID::ECDH:
-        return CreateOpenSSLPublicKey_ECDH(key.Material);
+        case PublicKeyAlgorithmID::ECDH:
+            return CreateOpenSSLPublicKey_ECDH(key.Material);
 
-    case PublicKeyAlgorithmID::X25519:
-        return CreateOpenSSLPublicKey_X25519(key.Material);
+        case PublicKeyAlgorithmID::X25519:
+            return CreateOpenSSLPublicKey_X25519(key.Material);
 
-    case PublicKeyAlgorithmID::X448:
-        return CreateOpenSSLPublicKey_X448(key.Material);
+        case PublicKeyAlgorithmID::X448:
+            return CreateOpenSSLPublicKey_X448(key.Material);
 
-    case PublicKeyAlgorithmID::Ed25519:
-        return CreateOpenSSLPublicKey_Ed25519(key.Material);
+        case PublicKeyAlgorithmID::Ed25519:
+            return CreateOpenSSLPublicKey_Ed25519(key.Material);
 
-    case PublicKeyAlgorithmID::Ed448:
-        return CreateOpenSSLPublicKey_Ed448(key.Material);
+        case PublicKeyAlgorithmID::Ed448:
+            return CreateOpenSSLPublicKey_Ed448(key.Material);
 
-    default:
-        return toolkit::make_error("unsupported key algorithm {}.", key.Algorithm);
+        default:
+            return toolkit::make_error("unsupported key algorithm {}.", key.Algorithm);
     }
 }

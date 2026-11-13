@@ -83,18 +83,18 @@ toolkit::result<> unvm::List(
             }
 
             out
-                    << (active ? "yes" : "")
-                    << (tracked ? "yes" : "")
-                    << (entry.Security ? "yes" : "")
-                    << entry.LTS.value_or(std::string())
-                    << entry.Version
-                    << entry.NPM.value_or(std::string())
-                    << entry.V8
-                    << entry.UV.value_or(std::string())
-                    << entry.ZLib.value_or(std::string())
-                    << entry.OpenSSL.value_or(std::string())
-                    << entry.Date
-                    << std::to_string(entry.Modules);
+                << (active ? "yes" : "")
+                << (tracked ? "yes" : "")
+                << (entry.Security ? "yes" : "")
+                << entry.LTS.value_or(std::string())
+                << entry.Version
+                << entry.NPM.value_or(std::string())
+                << entry.V8.value_or(std::string())
+                << entry.UV.value_or(std::string())
+                << entry.ZLib.value_or(std::string())
+                << entry.OpenSSL.value_or(std::string())
+                << entry.Date
+                << std::to_string(entry.Modules);
         }
     }
     else
@@ -138,12 +138,12 @@ toolkit::result<> unvm::List(
             }
 
             out
-                    << (active ? "*" : "")
-                    << (tracked ? "*" : "")
-                    << entry.LTS.value_or(std::string())
-                    << entry.Version
-                    << entry.NPM.value_or(std::string())
-                    << entry.Date;
+                << (active ? "*" : "")
+                << (tracked ? "*" : "")
+                << entry.LTS.value_or(std::string())
+                << entry.Version
+                << entry.NPM.value_or(std::string())
+                << entry.Date;
         }
     }
 

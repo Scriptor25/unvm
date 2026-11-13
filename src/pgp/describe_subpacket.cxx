@@ -45,8 +45,8 @@ toolkit::result<unvm::pgp::SubpacketDescriptor> unvm::pgp::DescribeSubpacket(con
 
     return SubpacketDescriptor
     {
-        .Next = buffer.subspan(length_length + subpacket_length),
+        .Next   = buffer.subspan(length_length + subpacket_length),
         .Length = subpacket_length,
-        .Data = reinterpret_cast<const Subpacket *>(buffer.data() + length_length),
+        .Data   = reinterpret_cast<const Subpacket *>(buffer.data() + length_length),
     };
 }
