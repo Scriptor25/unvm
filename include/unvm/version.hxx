@@ -15,7 +15,7 @@ namespace unvm
         std::string Date;
         std::set<std::string> Files;
         std::optional<std::string> NPM;
-        std::string V8;
+        std::optional<std::string> V8;
         std::optional<std::string> UV;
         std::optional<std::string> ZLib;
         std::optional<std::string> OpenSSL;
@@ -38,27 +38,27 @@ namespace unvm
 #if defined(ARCH_X86)
     constexpr Platform platform
     {
-        .Format = "node-{}-win-x86",
+        .Format    = "node-{}-win-x86",
         .Extension = "zip",
-        .Pattern = "win-x86-zip",
+        .Pattern   = "win-x86-zip",
     };
 #endif
 
 #if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr Platform platform
     {
-        .Format = "node-{}-win-x64",
+        .Format    = "node-{}-win-x64",
         .Extension = "zip",
-        .Pattern = "win-x64-zip",
+        .Pattern   = "win-x64-zip",
     };
 #endif
 
 #if defined(ARCH_ARM64)
     constexpr Platform platform
     {
-        .Format = "node-{}-win-arm64",
+        .Format    = "node-{}-win-arm64",
         .Extension = "zip",
-        .Pattern = "win-arm64-zip",
+        .Pattern   = "win-arm64-zip",
     };
 #endif
 
@@ -69,27 +69,27 @@ namespace unvm
 #if defined(ARCH_X86)
     constexpr Platform platform
     {
-        .Format = "node-{}-linux-x86",
+        .Format    = "node-{}-linux-x86",
         .Extension = "tar.gz",
-        .Pattern = "linux-x86",
+        .Pattern   = "linux-x86",
     };
 #endif
 
 #if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr Platform platform
     {
-        .Format = "node-{}-linux-x64",
+        .Format    = "node-{}-linux-x64",
         .Extension = "tar.gz",
-        .Pattern = "linux-x64",
+        .Pattern   = "linux-x64",
     };
 #endif
 
 #if defined(ARCH_ARM64) || defined(ARCH_AARCH64)
     constexpr Platform platform
     {
-        .Format = "node-{}-linux-arm64",
+        .Format    = "node-{}-linux-arm64",
         .Extension = "tar.gz",
-        .Pattern = "linux-arm64",
+        .Pattern   = "linux-arm64",
     };
 #endif
 
@@ -100,18 +100,18 @@ namespace unvm
 #if defined(ARCH_X86_64) || defined(ARCH_AMD64)
     constexpr Platform platform
     {
-        .Format = "node-{}-darwin-x64",
+        .Format    = "node-{}-darwin-x64",
         .Extension = "tar.gz",
-        .Pattern = "osx-x64-tar",
+        .Pattern   = "osx-x64-tar",
     };
 #endif
 
 #if defined(ARCH_ARM64)
     constexpr Platform platform
     {
-        .Format = "node-{}-darwin-arm64",
+        .Format    = "node-{}-darwin-arm64",
         .Extension = "tar.gz",
-        .Pattern = "osx-arm64-tar",
+        .Pattern   = "osx-arm64-tar",
     };
 #endif
 
