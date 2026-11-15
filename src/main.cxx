@@ -203,19 +203,18 @@ static const args::manifest &get_manifest()
 
         auto yes = args.is("yes");
 
-        std::vector<const char *> line(args.size() - count);
-        for (auto i = count; i < args.size(); ++i)
-            line[i - count] = args[i].data();
+        const auto &filename = args[count];
+        std::vector<std::string> arguments(args.size() - (count + 1));
+        for (auto i = count + 1; i < args.size(); ++i)
+            arguments[i - (count + 1)] = args[i];
 
-        args::context context;
-        if (auto res = args::context::parse(
-                           get_manifest(),
-                           static_cast<int>(line.size()),
-                           line.data()
-                       ) >> context; !res)
-            return res;
-
-        return unvm::Execute(config, client, version, yes, context);
+        return unvm::Execute(
+            config,
+            client,
+            version,
+            yes,
+            filename,
+            arguments);
     }
 
     case Operation::Track:
@@ -348,14 +347,18 @@ int main(const int argc, char **argv)
         return 1;
     }
 
-    args::context context;
-    if (auto res = args::context::parse(get_manifest(), argc, argv) >> context; !res)
-    {
-        std::cerr << res.error() << std::endl;
-        return 1;
-    }
+    std::string filename = argv[0];
+    std::vector<std::string> arguments(argc - 1);
+    for (std::size_t i = 1; i < argc; ++i)
+        arguments[i - 1] = argv[i];
 
-    if (auto res = unvm::Execute(config, client, *config.Detected, false, context); !res)
+    if (auto res = unvm::Execute(
+        config,
+        client,
+        *config.Detected,
+        false,
+        filename,
+        arguments); !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;

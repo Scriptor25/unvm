@@ -74,7 +74,8 @@ namespace unvm
         const http::client &client,
         std::string_view version,
         bool yes,
-        const args::context &args);
+        const std::string &filename,
+        const std::vector<std::string> &arguments);
 
     [[nodiscard]] toolkit::result<> Track(
         Config &config,
