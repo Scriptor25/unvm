@@ -31,95 +31,95 @@ toolkit::result<unvm::pgp::Keyring> unvm::pgp::ParseKeyring(const std::span<cons
 
         switch (packet_type)
         {
-            // begin certificate
-            case PacketTypeID::PublicKeyPacket:
+        // begin certificate
+        case PacketTypeID::PublicKeyPacket:
+        {
+            auto &certificate = keyring.emplace_back();
+
+            current_certificate = &certificate;
+            current_user = {};
+            current_subkey = {};
+
+            auto *packet = reinterpret_cast<const PublicKeyPacket *>(pointer);
+
+            if (auto res = ParsePublicKey(packet, packet_length) >> certificate.Key; !res)
             {
-                auto &certificate = keyring.emplace_back();
-
-                current_certificate = &certificate;
-                current_user = {};
-                current_subkey = {};
-
-                auto *packet = reinterpret_cast<const PublicKeyPacket *>(pointer);
-
-                if (auto res = ParsePublicKey(packet, packet_length) >> certificate.Key; !res)
-                {
-                    return res;
-                }
-
-                break;
+                return res;
             }
-            // record user into certificate
-            case PacketTypeID::UserIDPacket:
+
+            break;
+        }
+        // record user into certificate
+        case PacketTypeID::UserIDPacket:
+        {
+            if (!current_certificate)
             {
-                if (!current_certificate)
-                {
-                    return toolkit::make_error("illegal user id packet without certificate.");
-                }
-
-                auto &user = current_certificate->Users.emplace_back();
-
-                current_user = &user;
-                current_subkey = {};
-
-                user = {
-                    .Id = std::string(pointer, pointer + packet_length),
-                };
-
-                break;
+                return toolkit::make_error("illegal user id packet without certificate.");
             }
-            // record subkey into certificate
-            case PacketTypeID::PublicSubkeyPacket:
+
+            auto &user = current_certificate->Users.emplace_back();
+
+            current_user = &user;
+            current_subkey = {};
+
+            user = {
+                .Id = std::string(pointer, pointer + packet_length),
+            };
+
+            break;
+        }
+        // record subkey into certificate
+        case PacketTypeID::PublicSubkeyPacket:
+        {
+            if (!current_certificate)
             {
-                if (!current_certificate)
-                {
-                    return toolkit::make_error("illegal subkey packet without certificate.");
-                }
-
-                auto &subkey = current_certificate->Subkeys.emplace_back();
-
-                current_user = {};
-                current_subkey = &subkey;
-
-                auto *packet = reinterpret_cast<const PublicKeyPacket *>(pointer);
-
-                if (auto res = ParsePublicKey(packet, packet_length) >> subkey.Key; !res)
-                {
-                    return res;
-                }
-
-                break;
+                return toolkit::make_error("illegal subkey packet without certificate.");
             }
-            // record signature into user or subkey
-            case PacketTypeID::SignaturePacket:
+
+            auto &subkey = current_certificate->Subkeys.emplace_back();
+
+            current_user = {};
+            current_subkey = &subkey;
+
+            auto *packet = reinterpret_cast<const PublicKeyPacket *>(pointer);
+
+            if (auto res = ParsePublicKey(packet, packet_length) >> subkey.Key; !res)
             {
-                auto *packet = reinterpret_cast<const SignaturePacket *>(pointer);
-
-                std::vector<Signature> *target;
-                if (current_user && !current_subkey)
-                {
-                    target = &current_user->Signatures;
-                }
-                else if (!current_user && current_subkey)
-                {
-                    target = &current_subkey->Signatures;
-                }
-                else
-                {
-                    return toolkit::make_error("illegal signature packet without user or subkey.");
-                }
-
-                auto &entry = target->emplace_back();
-
-                if (auto res = ParseSignature(packet, packet_length) >> entry; !res)
-                {
-                    return res;
-                }
-
-                break;
+                return res;
             }
-            default:
-                return toolkit::make_error("unsupported packet type {}", packet_type);
+
+            break;
+        }
+        // record signature into user or subkey
+        case PacketTypeID::SignaturePacket:
+        {
+            auto *packet = reinterpret_cast<const SignaturePacket *>(pointer);
+
+            std::vector<Signature> *target;
+            if (current_user && !current_subkey)
+            {
+                target = &current_user->Signatures;
+            }
+            else if (!current_user && current_subkey)
+            {
+                target = &current_subkey->Signatures;
+            }
+            else
+            {
+                return toolkit::make_error("illegal signature packet without user or subkey.");
+            }
+
+            auto &entry = target->emplace_back();
+
+            if (auto res = ParseSignature(packet, packet_length) >> entry; !res)
+            {
+                return res;
+            }
+
+            break;
+        }
+        default:
+            return toolkit::make_error("unsupported packet type {}", packet_type);
         }
 
         buffer_next += header_length + packet_length;
