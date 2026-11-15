@@ -81,9 +81,12 @@ static int execvp(const char *file, char **argv)
 
 #endif
 
-[[nodiscard]] static toolkit::result<> shim(const std::string &version, const args::context &context)
+[[nodiscard]] static toolkit::result<> shim(
+    const std::string &version,
+    const std::string &filename,
+    const std::vector<std::string> &arguments)
 {
-    std::filesystem::path exec(context.file());
+    std::filesystem::path exec(filename);
 
     const auto data_directory = unvm::GetDataDirectory();
 
@@ -108,34 +111,15 @@ static int execvp(const char *file, char **argv)
     std::vector<char *> args;
     args.push_back(const_cast<char *>(node_path_str.c_str()));
 
-    const auto stem = exec.stem().string();
-
-    if (stem == "node")
-    {
-    }
-    else if (stem == "npm")
-    {
+    if (const auto stem = exec.stem().string(); stem == "npm")
         args.push_back(const_cast<char *>(npm_cli_path_str.c_str()));
-    }
     else if (stem == "npx")
-    {
         args.push_back(const_cast<char *>(npx_cli_path_str.c_str()));
-    }
-    else
-    {
+    else if (stem != "node")
         return toolkit::make_error("unsupported shim target '{}'.", stem);
-    }
 
-    std::vector<std::string> data(context.size());
-    for (size_t i = 0; i < context.size(); ++i)
-    {
-        data[i] = context[i];
-    }
-
-    for (auto &arg : data)
-    {
+    for (auto &arg : arguments)
         args.push_back(const_cast<char *>(arg.c_str()));
-    }
 
     args.push_back(nullptr);
 
@@ -164,7 +148,8 @@ toolkit::result<> unvm::Execute(
     const http::client &client,
     std::string_view version,
     const bool yes,
-    const args::context &args)
+    const std::string &filename,
+    const std::vector<std::string> &arguments)
 {
     const VersionEntry *entry{};
 
@@ -236,5 +221,5 @@ toolkit::result<> unvm::Execute(
         config.Active = entry->Version;
     }
 
-    return shim(entry->Version, args);
+    return shim(entry->Version, filename, arguments);
 }

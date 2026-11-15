@@ -45,41 +45,53 @@ static const std::map<std::string_view, Operation> operation_map
     { "update", Operation::Update },
 };
 
-static const args::manifest manifest
+static const args::manifest &get_manifest()
 {
-    {
+    static const auto manifest = args::manifest::from(
         {
-            .id       = "help",
-            .kind     = args::entry_kind::flag,
-            .patterns = { "?", "-?", "-h", "--help" },
-        },
-        {
-            .id       = "local",
-            .kind     = args::entry_kind::flag,
-            .patterns = { "-l", "--local" },
-        },
-        {
-            .id       = "available",
-            .kind     = args::entry_kind::flag,
-            .patterns = { "-a", "--available" },
-        },
-        {
-            .id       = "flat",
-            .kind     = args::entry_kind::flag,
-            .patterns = { "-f", "--flat" },
-        },
-        {
-            .id       = "details",
-            .kind     = args::entry_kind::flag,
-            .patterns = { "-d", "--details" },
-        },
-        {
-            .id       = "yes",
-            .kind     = args::entry_kind::flag,
-            .patterns = { "-y", "--yes" },
-        },
-    },
-};
+            args::entry
+            {
+                .id       = "help",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "?", "-?", "-h", "--help" },
+            },
+            args::entry
+            {
+                .id       = "local",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "-l", "--local" },
+            },
+            args::entry
+            {
+                .id       = "available",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "-a", "--available" },
+            },
+            args::entry
+            {
+                .id       = "flat",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "-f", "--flat" },
+            },
+            args::entry
+            {
+                .id       = "details",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "-d", "--details" },
+            },
+            args::entry
+            {
+                .id       = "yes",
+                .kind     = args::entry_kind::flag,
+                .patterns = { "-y", "--yes" },
+            },
+        });
+
+    if (manifest)
+        return *manifest;
+
+    throw std::runtime_error(manifest.error());
+}
 
 [[nodiscard]] static toolkit::result<> execute(
     unvm::Config &config,
@@ -88,7 +100,7 @@ static const args::manifest manifest
     char **argv)
 {
     args::context args;
-    if (auto res = args::context::parse(manifest, argc, argv) >> args; !res)
+    if (auto res = args::context::parse(get_manifest(), argc, argv) >> args; !res)
         return res;
 
     if (args.empty() || args.is("help"))
@@ -105,149 +117,156 @@ static const args::manifest manifest
 
     switch (it->second)
     {
-        case Operation::Install:
-            if (args.size() != 2)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
-
-            return Install(config, client, args[1]);
-
-        case Operation::Remove:
-            if (args.size() != 2)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
-
-            return Remove(config, client, args[1]);
-
-        case Operation::Use:
+    case Operation::Install:
+        if (args.size() != 2)
         {
-            if (args.size() != 2)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
-
-            const auto local = args.is("local");
-
-            return Use(config, client, args[1], local);
+            return toolkit::make_error("invalid argument count.");
         }
 
-        case Operation::List:
+        return Install(config, client, args[1]);
+
+    case Operation::Remove:
+        if (args.size() != 2)
         {
-            if (args.size() != 1)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
-
-            const auto available = args.is("available");
-            const auto flat = args.is("flat");
-            const auto details = args.is("details");
-
-            return List(config, client, available, flat, details);
+            return toolkit::make_error("invalid argument count.");
         }
 
-        case Operation::Complete:
+        return Remove(config, client, args[1]);
+
+    case Operation::Use:
+    {
+        if (args.size() != 2)
         {
-            std::vector<const char *> line(args.size());
-            line[0] = args.file().data();
-            for (size_t i = 1; i < args.size(); ++i)
-                line[i] = args[i].data();
-
-            args::context context;
-            if (auto res = args::context::parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
-                return res;
-
-            return unvm::Complete(config, client, context);
+            return toolkit::make_error("invalid argument count.");
         }
 
-        case Operation::Execute:
+        const auto local = args.is("local");
+
+        return Use(config, client, args[1], local);
+    }
+
+    case Operation::List:
+    {
+        if (args.size() != 1)
         {
-            auto count = args.limited() ? args.limit() : args.size();
-
-            if (count != 1 && count != 2)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
-
-            std::string_view version;
-            if (count == 1)
-            {
-                if (!config.Detected)
-                {
-                    return toolkit::make_error("node is not active in the current context.");
-                }
-
-                version = *config.Detected;
-            }
-            else
-            {
-                version = args[1];
-            }
-
-            auto yes = args.is("yes");
-
-            std::vector<const char *> line(args.size() - count);
-            for (auto i = count; i < args.size(); ++i)
-                line[i - count] = args[i].data();
-
-            args::context context;
-            if (auto res = args::context::parse(manifest, static_cast<int>(line.size()), line.data()) >> context; !res)
-                return res;
-
-            return unvm::Execute(config, client, version, yes, context);
+            return toolkit::make_error("invalid argument count.");
         }
 
-        case Operation::Track:
-        {
-            if (args.size() != 2)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
+        const auto available = args.is("available");
+        const auto flat = args.is("flat");
+        const auto details = args.is("details");
 
-            return unvm::Track(config, client, args[1]);
+        return List(config, client, available, flat, details);
+    }
+
+    case Operation::Complete:
+    {
+        std::vector<const char *> line(args.size());
+        line[0] = args.file().data();
+        for (size_t i = 1; i < args.size(); ++i)
+            line[i] = args[i].data();
+
+        args::context context;
+        if (auto res = args::context::parse(
+                           get_manifest(),
+                           static_cast<int>(line.size()),
+                           line.data()
+                       ) >> context; !res)
+            return res;
+
+        return unvm::Complete(config, client, context);
+    }
+
+    case Operation::Execute:
+    {
+        auto count = args.limited() ? args.limit() : args.size();
+
+        if (count != 1 && count != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
         }
 
-        case Operation::Untrack:
+        std::string_view version;
+        if (count == 1)
         {
-            if (args.size() != 2)
+            if (!config.Detected)
             {
-                return toolkit::make_error("invalid argument count.");
+                return toolkit::make_error("node is not active in the current context.");
             }
 
-            return unvm::Untrack(config, client, args[1]);
+            version = *config.Detected;
         }
-
-        case Operation::Tags:
+        else
         {
-            if (args.size() != 1)
-            {
-                return toolkit::make_error("invalid argument count.");
-            }
-
-            const auto available = args.is("available");
-            const auto flat = args.is("flat");
-
-            return unvm::Tags(config, client, available, flat);
+            version = args[1];
         }
 
-        case Operation::Update:
+        auto yes = args.is("yes");
+
+        const auto &filename = args[count];
+        std::vector<std::string> arguments(args.size() - (count + 1));
+        for (auto i = count + 1; i < args.size(); ++i)
+            arguments[i - (count + 1)] = args[i];
+
+        return unvm::Execute(
+            config,
+            client,
+            version,
+            yes,
+            filename,
+            arguments);
+    }
+
+    case Operation::Track:
+    {
+        if (args.size() != 2)
         {
-            switch (args.size())
-            {
-                case 1:
-                    return unvm::Update(config, client);
-
-                case 2:
-                    return unvm::Update(config, client, args[1]);
-
-                default:
-                    return toolkit::make_error("invalid argument count.");
-            }
+            return toolkit::make_error("invalid argument count.");
         }
+
+        return unvm::Track(config, client, args[1]);
+    }
+
+    case Operation::Untrack:
+    {
+        if (args.size() != 2)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        return unvm::Untrack(config, client, args[1]);
+    }
+
+    case Operation::Tags:
+    {
+        if (args.size() != 1)
+        {
+            return toolkit::make_error("invalid argument count.");
+        }
+
+        const auto available = args.is("available");
+        const auto flat = args.is("flat");
+
+        return unvm::Tags(config, client, available, flat);
+    }
+
+    case Operation::Update:
+    {
+        switch (args.size())
+        {
+        case 1:
+            return unvm::Update(config, client);
+
+        case 2:
+            return unvm::Update(config, client, args[1]);
 
         default:
-            return toolkit::make_error("operation '{}' not implemented.", args[0]);
+            return toolkit::make_error("invalid argument count.");
+        }
+    }
+
+    default:
+        return toolkit::make_error("operation '{}' not implemented.", args[0]);
     }
 }
 
@@ -328,14 +347,18 @@ int main(const int argc, char **argv)
         return 1;
     }
 
-    args::context context;
-    if (auto res = args::context::parse(manifest, argc, argv) >> context; !res)
-    {
-        std::cerr << res.error() << std::endl;
-        return 1;
-    }
+    std::string filename = argv[0];
+    std::vector<std::string> arguments(argc - 1);
+    for (std::size_t i = 1; i < argc; ++i)
+        arguments[i - 1] = argv[i];
 
-    if (auto res = unvm::Execute(config, client, *config.Detected, false, context); !res)
+    if (auto res = unvm::Execute(
+        config,
+        client,
+        *config.Detected,
+        false,
+        filename,
+        arguments); !res)
     {
         std::cerr << res.error() << std::endl;
         return 1;
