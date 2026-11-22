@@ -3,19 +3,24 @@ name: CMake Multi-Platform Build
 on:
   workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
   push:
     branches:
       - main
     tags:
       - "**/**"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: unvm-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: ${{ matrix.os }} | ${{ matrix.toolchain }}
     runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: write
 
     strategy:
       fail-fast: false
