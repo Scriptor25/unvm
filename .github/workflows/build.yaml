@@ -157,7 +157,8 @@ jobs:
             --branch "2026.06.01"
             --depth 1
             --recurse-submodules
-            --shallow-submodules https://github.com/microsoft/vcpkg.git
+            --shallow-submodules
+            https://github.com/microsoft/vcpkg.git
 
       - name: Cache vcpkg
         uses: actions/cache@v5
