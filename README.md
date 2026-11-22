@@ -1,6 +1,6 @@
 # UNVM - Universal Node Version Manager
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Scriptor25/unvm/cmake.yaml?style=flat-square)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Scriptor25/unvm/build.yaml?style=flat-square)
 ![GitHub last commit](https://img.shields.io/github/last-commit/Scriptor25/unvm?style=flat-square)
 ![GitHub License](https://img.shields.io/github/license/Scriptor25/unvm?style=flat-square)
 ![GitHub Release Date](https://img.shields.io/github/release-date-pre/Scriptor25/unvm?style=flat-square&label=pre-release%20date)
