@@ -107,6 +107,7 @@ jobs:
             echo "version=$version" >> "$GITHUB_OUTPUT"
           else
             echo "version=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install LLVM (windows)
         if: matrix.os == 'windows' && matrix.toolchain == 'clang'
