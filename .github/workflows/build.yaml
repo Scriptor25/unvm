@@ -1,0 +1,349 @@
+name: Build unvm
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+  push:
+    branches:
+      - main
+    tags:
+      - "**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unvm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }} | ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # =====================
+          # Linux
+          # =====================
+          - os: linux
+            runner: ubuntu-latest
+            triplet: x64-linux
+            toolchain: gcc
+            cc: gcc
+            cxx: g++
+
+          - os: linux
+            runner: ubuntu-latest
+            triplet: x64-linux
+            toolchain: clang
+            cc: clang
+            cxx: clang++
+
+          # =====================
+          # Windows
+          # =====================
+          - os: windows
+            runner: windows-latest
+            triplet: x64-windows
+            toolchain: msvc
+            cc: cl
+            cxx: cl
+
+          - os: windows
+            runner: windows-latest
+            triplet: x64-windows
+            toolchain: clang
+            cc: clang
+            cxx: clang++
+
+          # =====================
+          # Darwin
+          # =====================
+          - os: darwin
+            runner: macos-latest
+            triplet: arm64-osx
+            toolchain: gcc
+            cc: gcc
+            cxx: g++
+
+          - os: darwin
+            runner: macos-latest
+            triplet: arm64-osx
+            toolchain: clang
+            cc: clang
+            cxx: clang++
+
+    env:
+      EXE_SUFFIX: ${{ matrix.os == 'windows' && '.exe' || '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Sanitize version name
+        if: github.ref_type == 'tag'
+        id: version-name
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          ref="${{ github.ref_name }}"
+
+          tag="${ref##*/}"
+
+          if [[ "$tag" == v* ]]; then
+            tag="${tag#v}"
+          fi
+
+          version="$(echo "$tag" | sed 's/[^A-Za-z0-9._-]/-/g')"
+
+          if [[ "$version" =~ ^[0-9]+(\.[0-9]+)+([._-][A-Za-z0-9]+)?$ ]]; then
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0" >> "$GITHUB_OUTPUT"
+
+      - name: Install LLVM (windows)
+        if: matrix.os == 'windows' && matrix.toolchain == 'clang'
+        shell: pwsh
+        run: |
+          choco upgrade llvm --version=22.1.8 -y --allow-downgrade
+          
+          "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+          
+          & "C:\Program Files\LLVM\bin\clang.exe" --version
+          & "C:\Program Files\LLVM\bin\clang++.exe" --version
+
+      - name: Install GCC (darwin)
+        if: matrix.os == 'darwin' && matrix.toolchain == 'gcc'
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          brew install gcc
+          
+          gcc_prefix="$(brew --prefix gcc)"
+          
+          cc="$(find "$gcc_prefix/bin" -name 'gcc-[0-9]*' | head -n 1)"
+          cxx="$(find "$gcc_prefix/bin" -name 'g++-[0-9]*' | head -n 1)"
+          
+          if [[ -z "$cc" || -z "$cxx" ]]; then
+            echo "failed to locate homebrew gcc executables"
+            exit 1
+          fi
+          
+          echo "CC=$cc" >> "$GITHUB_ENV"
+          echo "CXX=$cxx" >> "$GITHUB_ENV"
+          
+          "$cc" --version
+          "$cxx" --version
+
+      - name: Configure compiler environment
+        if: matrix.os != 'darwin' || matrix.toolchain != 'gcc'
+        shell: bash
+        run: |
+          echo "CC=${{ matrix.cc }}" >> "$GITHUB_ENV"
+          echo "CXX=${{ matrix.cxx }}" >> "$GITHUB_ENV"
+
+      - name: Clone vcpkg
+        run: >
+          git clone
+            --single-branch
+            --branch "2026.06.01"
+            --depth 1
+            --recurse-submodules
+            --shallow-submodules https://github.com/microsoft/vcpkg.git
+
+      - name: Cache vcpkg
+        uses: actions/cache@v5
+        with:
+          path: |
+            vcpkg/installed
+          key: |
+            vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-
+            vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}
+            vcpkg-${{ matrix.os }}-
+
+      - name: Bootstrap vcpkg
+        if: matrix.os != 'windows'
+        shell: bash
+        run: |
+          ./vcpkg/bootstrap-vcpkg.sh
+
+      - name: Bootstrap vcpkg (windows)
+        if: matrix.os == 'windows'
+        shell: cmd
+        run: |
+          call vcpkg\bootstrap-vcpkg.bat
+
+      - name: Install dependencies
+        if: matrix.os != 'windows'
+        shell: bash
+        run: >
+          ./vcpkg/vcpkg install
+            openssl
+            libarchive
+            zlib
+            liblzma
+            --triplet "${{ matrix.triplet }}-release"
+
+      - name: Install dependencies (windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: >
+          & .\vcpkg\vcpkg.exe install
+            openssl
+            libarchive
+            zlib
+            liblzma
+            --triplet "${{ matrix.triplet }}-release"
+
+      - name: Configure and build
+        if: matrix.toolchain != 'msvc'
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET="${{ matrix.triplet }}-release" -DUNVM_PROJECT_VERSION="${{ steps.version-name.outputs.version }}"
+          
+          cmake --build build --config Release --parallel
+
+      - name: Locate visual studio (msvc)
+        if: matrix.toolchain == 'msvc'
+        id: msvc
+        shell: pwsh
+        run: |
+          $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          
+          $vsPath = & $vsWhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          
+          if (-not $vsPath) {
+            throw "visual studio toolchain not found"
+          }
+          
+          $vcVars = "$vsPath\VC\Auxiliary\Build\vcvars64.bat"
+          
+          "vars=$vcVars" >> $env:GITHUB_OUTPUT
+
+      - name: Configure and build (msvc)
+        if: matrix.toolchain == 'msvc'
+        shell: cmd
+        run: |
+          call "${{ steps.msvc.outputs.vars }}"
+          
+          if errorlevel 1 exit /b 1
+          
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET="${{ matrix.triplet }}-release" -DUNVM_PROJECT_VERSION="${{ steps.version-name.outputs.version }}"
+
+          if errorlevel 1 exit /b 1
+          
+          cmake --build build --config Release --parallel
+          
+          if errorlevel 1 exit /b 1
+
+      - name: Install
+        shell: bash
+        run: >
+          cmake
+            --install build
+            --config Release
+            --prefix build/install
+
+      - name: Test (help)
+        shell: bash
+        run: |
+          ./build/install/bin/unvm${EXE_SUFFIX}
+
+      - name: Test (list)
+        shell: bash
+        run: |
+          ./build/install/bin/unvm${EXE_SUFFIX} list
+          ./build/install/bin/unvm${EXE_SUFFIX} list --available
+
+      - name: Test (integration, global)
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          ./build/install/bin/unvm${EXE_SUFFIX} install latest
+          ./build/install/bin/unvm${EXE_SUFFIX} use latest
+          
+          ./build/install/bin/node${EXE_SUFFIX} --version
+          ./build/install/bin/npm${EXE_SUFFIX} --version
+          ./build/install/bin/npx${EXE_SUFFIX} --version
+          
+          ./build/install/bin/unvm${EXE_SUFFIX} use none
+          ./build/install/bin/unvm${EXE_SUFFIX} remove latest
+
+      - name: Test (integration, local)
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          ./build/install/bin/unvm${EXE_SUFFIX} install latest
+          ./build/install/bin/unvm${EXE_SUFFIX} use latest --local
+          
+          ./build/install/bin/node${EXE_SUFFIX} --version
+          ./build/install/bin/npm${EXE_SUFFIX} --version
+          ./build/install/bin/npx${EXE_SUFFIX} --version
+          
+          ./build/install/bin/unvm${EXE_SUFFIX} use none --local
+          ./build/install/bin/unvm${EXE_SUFFIX} remove latest
+
+      - name: Test (integration, package)
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          mkdir test
+          cd test
+          
+          echo '{"name":"test","version":"1.0.0","engines":{"node":">=18 <21"}}' > package.json
+          
+          ../build/install/bin/unvm${EXE_SUFFIX} execute --yes -- node --version
+          ../build/install/bin/unvm${EXE_SUFFIX} execute --yes -- npm --version
+          ../build/install/bin/unvm${EXE_SUFFIX} execute --yes -- npx --version
+          
+          rm package.json
+          cd ..
+          rmdir test
+
+      - name: Package
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          set -euo pipefail
+          
+          mkdir dist
+          cd dist
+          
+          cpack --config ../build/CPackConfig.cmake -D CPACK_PACKAGE_FILE_NAME=dist
+
+      - name: Upload packages
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          
+          for file in dist/*; do
+            [ -f "$file" ] || continue
+
+            ext="$(basename "$file")"
+            ext="${ext#*.}"
+
+            target="dist/unvm-${{ steps.version-name.outputs.version }}-${{ matrix.os }}-${{ matrix.toolchain }}.${ext}"
+
+            mv "$file" "$target"
+
+            echo "Upload $target to ${{ github.ref_name }}"
+            gh release upload ${{ github.ref_name }} "$target" --clobber
+          done
