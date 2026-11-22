@@ -83,7 +83,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Sanitize Version Name
+      - name: Sanitize version name
         id: version-name
         if: github.ref_type == 'tag'
         shell: bash
@@ -117,13 +117,13 @@ jobs:
             vcpkg-${{ matrix.os }}-${{ matrix.toolchain }}-
             vcpkg-${{ matrix.os }}-
 
-      - name: Bootstrap VCPkg
+      - name: Bootstrap vcpkg
         if: runner.os != 'Windows'
         shell: bash
         run: |
           ./vcpkg/bootstrap-vcpkg.sh
 
-      - name: Bootstrap VCPkg (Windows)
+      - name: Bootstrap vcpkg (Windows)
         if: runner.os == 'Windows'
         run: |
           ./vcpkg/bootstrap-vcpkg.bat
@@ -139,7 +139,7 @@ jobs:
           set VCPKG_BUILD_TYPE=release
           ./vcpkg/vcpkg install openssl libarchive zlib liblzma --triplet ${{ matrix.triplet }}-release
 
-      - name: Configure CMake and Build
+      - name: Configure and build
         if: matrix.toolchain != 'msvc'
         env:
           CC: ${{ matrix.cc }}
@@ -148,7 +148,7 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }}-release -DUNVM_PROJECT_VERSION='${{ steps.version-name.outputs.version }}'
           cmake --build build --config Release --parallel
 
-      - name: Find Visual Studio (MSVC)
+      - name: Configure visual studio (MSVC)
         id: msvc
         if: matrix.toolchain == 'msvc'
         shell: pwsh
@@ -157,7 +157,7 @@ jobs:
           echo "path=$VS_PATH" >> $env:GITHUB_OUTPUT
           echo "vars=$VS_PATH/VC/Auxiliary/Build/vcvars64.bat" >> $env:GITHUB_OUTPUT
 
-      - name: Configure CMake and Build (MSVC)
+      - name: Configure and build (MSVC)
         if: matrix.toolchain == 'msvc'
         shell: cmd
         env:
@@ -221,7 +221,7 @@ jobs:
           cd dist
           cpack --config ../build/CPackConfig.cmake -D CPACK_PACKAGE_FILE_NAME=dist
 
-      - name: Upload Packages
+      - name: Upload packages
         if: github.ref_type == 'tag'
         shell: bash
         env:
